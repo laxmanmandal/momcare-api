@@ -1,0 +1,120 @@
+[
+    {
+        "roleName": "SUPER_ADMIN",
+        "roleDesc": "Org-level management",
+        "policy": [
+            "CREATE_USER",
+            "CREATE_PARTNERS",
+            "LIST_ENTITY",
+            "CREATE_ENTITY",
+            "LIST_CHANNEL",
+            "LIST_PARTNER",
+            "UPDATE_ENTITY",
+            "CREATE_PARTMER",
+            "LIST_PARTNERS",
+            "UPDATE_PARTNERS",
+            "UPDATE_USER",
+            "UPDATE_USER_STATUS",
+            "LIST_USER",
+            "VIEW_REPORTS",
+            "VIEW_OWN_PROFILE",
+            "VIEW_PROFILE",
+            "CHANGE_PASSWORD",
+            "UPLOAD_EXCEL",
+            "PLAN_ALLOCATION"
+        ]
+    },
+    {
+        "roleName": "ADMIN",
+        "roleDesc": "Org-level admin management",
+        "policy": [
+            "LIST_USER",
+            "LIST_ENTITY",
+            "LIST_CHANNEL",
+            "LIST_PARTNER",
+            "LIST_PARTNERS",
+            "VIEW_REPORTS",
+            "VIEW_OWN_PROFILE",
+            "VIEW_PROFILE",
+            "CHANGE_PASSWORD"
+        ]
+    },
+    {
+        "roleName": "CHANNEL_SUPER_ADMIN",
+        "roleDesc": "Channel super admin - full channel control",
+        "policy": [
+            "CREATE_USER",
+            "CREATE_PARTNERS",
+            "LIST_PARTNERS",
+            "CREATE_ENTITY",
+            "LIST_ENTITY",
+            "LIST_CHANNEL",
+            "LIST_PARTNER",
+            "UPDATE_ENTITY",
+            "UPDATE_PARTNERS",
+            "UPDATE_USER",
+            "LIST_USER",
+            "UPDATE_USER_STATUS",
+            "VIEW_REPORTS",
+            "VIEW_OWN_PROFILE",
+            "VIEW_PROFILE",
+            "CHANGE_PASSWORD",
+            "PLAN_ALLOCATION"
+        ]
+    },
+    {
+        "roleName": "CHANNEL_ADMIN",
+        "roleDesc": "Channel admin - limited channel operations",
+        "policy": [
+            "LIST_PARTNER",
+            "LIST_USER",
+            "VIEW_REPORTS",
+            "VIEW_OWN_PROFILE",
+            "VIEW_PROFILE",
+            "CHANGE_PASSWORD",
+            "PLAN_ALLOCATION"
+        ]
+    },
+    {
+        "roleName": "PARTNER_SUPER_ADMIN",
+        "roleDesc": "Partner top-level admin",
+        "policy": [
+            "CREATE_USER",
+            "CREATE_PARTMER",
+            "LIST_PARTNER",
+            "UPDATE_PARTNERS",
+            "UPDATE_USER",
+            "LIST_USER",
+            "UPDATE_USER_STATUS",
+            "VIEW_REPORTS",
+            "VIEW_OWN_PROFILE",
+            "VIEW_PROFILE",
+            "CHANGE_PASSWORD",
+            "PLAN_ALLOCATION"
+        ]
+    },
+    {
+        "roleName": "PARTNER_ADMIN",
+        "roleDesc": "Partner admin",
+        "policy": [
+            "LIST_PARTNERS",
+            "UPDATE_USER",
+            "LIST_USER",
+            "VIEW_REPORTS",
+            "VIEW_OWN_PROFILE",
+            "VIEW_PROFILE",
+            "CHANGE_PASSWORD"
+        ]
+    },
+    {
+        "roleName": "USER",
+        "roleDesc": "Regular end-user",
+        "policy": [
+            "UPDATE_USER",
+            "VIEW_ENTITY",
+            "VIEW_OWN_PROFILE",
+            "MAKE_PAYMENT",
+            "CONFIRM_PAYMENT"
+        ]
+    }
+]

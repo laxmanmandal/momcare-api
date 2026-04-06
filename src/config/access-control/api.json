@@ -1,0 +1,128 @@
+[
+  {
+    "apiId": "CREATE_USER",
+    "apiEndpoint": "/auth/signup",
+    "policyName": [
+      "CREATE_USER"
+    ]
+  },
+  {
+    "apiId": "UPDATE_USER",
+    "apiEndpoint": "/users/update",
+    "policyName": [
+      "UPDATE_USER"
+    ]
+  },
+  {
+    "apiId": "LIST_USER",
+    "apiEndpoint": "/users/list/:entityId",
+    "policyName": [
+      "LIST_USER"
+    ]
+  },
+  {
+    "apiId": "DELETE_USER",
+    "apiEndpoint": "/users/:id/status",
+    "policyName": [
+      "DELETE_USER"
+    ]
+  },
+  {
+    "apiId": "UPDATE_USER_STATUS",
+    "apiEndpoint": "/users/:uuid/status",
+    "policyName": [
+      "UPDATE_USER_STATUS"
+    ]
+  },
+  {
+    "apiId": "CREATE_ENTITY",
+    "apiEndpoint": "/entities/create",
+    "policyName": [
+      "CREATE_ENTITY"
+    ]
+  },
+  {
+    "apiId": "LIST_ENTITY",
+    "apiEndpoint": "/entities/all",
+    "policyName": [
+      "LIST_ENTITY"
+    ]
+  },
+  {
+    "apiId": "UPDATE_ENTITY",
+    "apiEndpoint": "/entities/:id/update",
+    "policyName": [
+      "UPDATE_ENTITY"
+    ]
+  },
+  {
+    "apiId": "LIST_CHANNEL",
+    "apiEndpoint": "/entities/channel/list",
+    "policyName": [
+      "LIST_CHANNEL"
+    ]
+  },
+  {
+    "apiId": "LIST_PARTNER",
+    "apiEndpoint": "/entities/partner/list",
+    "policyName": [
+      "LIST_PARTNER"
+    ]
+  },
+  {
+    "apiId": "VIEW_OWN_PROFILE",
+    "apiEndpoint": "/users/me",
+    "policyName": [
+      "VIEW_OWN_PROFILE"
+    ]
+  },
+  {
+    "apiId": "VIEW__PROFILE",
+    "apiEndpoint": "/users/:id/profile",
+    "policyName": [
+      "VIEW_PROFILE"
+    ]
+  },
+  {
+    "apiId": "VIEW_REPORTS",
+    "apiEndpoint": "/reports",
+    "policyName": [
+      "VIEW_REPORTS"
+    ]
+  },
+  {
+    "apiId": "CHANGE_PASSWORD",
+    "apiEndpoint": "/change-password",
+    "policyName": [
+      "CHANGE_PASSWORD"
+    ]
+  },
+  {
+    "apiId": "UPLOAD_EXCEL",
+    "apiEndpoint": "/api/upload",
+    "policyName": [
+      "UPLOAD_EXCEL"
+    ]
+  },
+  {
+    "apiId": "PLAN_ALLOCATION",
+    "apiEndpoint": "/allocation/create",
+    "policyName": [
+      "PLAN_ALLOCATION"
+    ]
+  },
+  {
+    "apiId": "MAKE_PAYMENT",
+    "apiEndpoint": "/allocation/payments/create",
+    "policyName": [
+      "MAKE_PAYMENT"
+    ]
+  },
+  {
+    "apiId": "CONFIRM_PAYMENT",
+    "apiEndpoint": "/allocation/payments/confirm-payment",
+    "policyName": [
+      "CONFIRM_PAYMENT"
+    ]
+  }
+]

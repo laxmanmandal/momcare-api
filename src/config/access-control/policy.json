@@ -1,0 +1,74 @@
+[
+  {
+    "policyName": "CREATE_USER",
+    "policyDescription": "Create a user"
+  },
+  {
+    "policyName": "UPDATE_USER",
+    "policyDescription": "Update a user"
+  },
+  {
+    "policyName": "LIST_USER",
+    "policyDescription": "List users"
+  },
+  {
+    "policyName": "DELETE_USER",
+    "policyDescription": "Delete a user"
+  },
+  {
+    "policyName": "UPDATE_USER_STATUS",
+    "policyDescription": "Update  User Status"
+  },
+  {
+    "policyName": "CREATE_ENTITY",
+    "policyDescription": "Create a entity"
+  },
+  {
+    "policyName": "UPDATE_ENTITY",
+    "policyDescription": "Update a entity"
+  },
+  {
+    "policyName": "LIST_ENTITY",
+    "policyDescription": "List entity"
+  },
+  {
+    "policyName": "LIST_CHANNEL",
+    "policyDescription": "List channel"
+  },
+  {
+    "policyName": "LIST_PARTNER",
+    "policyDescription": "List partner"
+  },
+  {
+    "policyName": "VIEW_OWN_PROFILE",
+    "policyDescription": "View own profile"
+  },
+  {
+    "policyName": "VIEW_PROFILE",
+    "policyDescription": "View others profile"
+  },
+  {
+    "policyName": "VIEW_REPORTS",
+    "policyDescription": "View system reports"
+  },
+  {
+    "policyName": "CHANGE_PASSWORD",
+    "policyDescription": "Change user password"
+  },
+  {
+    "policyName": "UPLOAD_EXCEL",
+    "policyDescription": "Bulk upload data"
+  },
+  {
+    "policyName": "PLAN_ALLOCATION",
+    "policyDescription": "plan allocation"
+  },
+  {
+    "policyName": "MAKE_PAYMENT",
+    "policyDescription": "user payments"
+  },
+  {
+    "policyName": "CONFIRM_PAYMENT",
+    "policyDescription": "user payment confirmation"
+  }
+]
