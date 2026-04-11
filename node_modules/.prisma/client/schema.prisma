@@ -1,0 +1,566 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model EntityTable {
+  id                  Int              @id @default(autoincrement())
+  type                EntityTypes
+  name                String
+  email               String           @unique
+  phone               String           @unique
+  location            String
+  description         String?          @db.Text
+  imageUrl            String?
+  createdBy           Int?
+  belongsToId         Int?
+  created_at          DateTime         @default(now())
+  updated_at          DateTime         @updatedAt
+  isActive            Boolean          @default(true)
+  belongsToEntity     EntityTable?     @relation("EntityBelongsTo", fields: [belongsToId], references: [id])
+  belogsToEntities    EntityTable[]    @relation("EntityBelongsTo")
+  createdByUser       User?            @relation("EntityCreatedBy", fields: [createdBy], references: [id])
+  receivedAllocations PlanAllocation[] @relation("receiverEntity")
+  sentAllocations     PlanAllocation[] @relation("senderEntity")
+  users               User[]           @relation("UserBelongsToEntity")
+
+  @@index([name])
+  @@index([belongsToId], map: "EntityTable_belongsToId_fkey")
+  @@index([createdBy], map: "EntityTable_createdBy_fkey")
+}
+
+model User {
+  id              Int              @id @default(autoincrement())
+  belongsToId     Int?
+  uuid            String           @unique
+  role            Role             @default(USER)
+  name            String?
+  imageUrl        String?
+  type            String?
+  phone           String           @unique
+  isPhoneVerified Boolean          @default(false)
+  otpHash         String?
+  otpExpires      DateTime?
+  email           String?          @unique
+  location        String?
+  password        String?
+  createdBy       Int?
+  created_at      DateTime         @default(now())
+  updated_at      DateTime         @default(now()) @updatedAt
+  isActive        Boolean          @default(true)
+  expectedDate    DateTime?        @db.Date
+  dom             DateTime?        @db.Date
+  dob             DateTime?        @db.Date
+  otpRequestedAt  DateTime?        @db.DateTime(0)
+  child_gender    String?          @db.VarChar(45)
+  Comment         Comment[]
+  CommunityJoin   CommunityJoin[]
+  CommunityPost   CommunityPost[]
+  createdEntities EntityTable[]    @relation("EntityCreatedBy")
+  PlanAllocation  PlanAllocation[] @relation("allocatedBy")
+  userPurchase    PlanAllocation[] @relation("userSales")
+  Pregnancy       Pregnancy[]
+  Reaction        Reaction[]
+  SymptomEntry    SymptomEntry[]
+  belongsToEntity EntityTable?     @relation("UserBelongsToEntity", fields: [belongsToId], references: [id])
+  createdByUser   User?            @relation("UserCreatedBy", fields: [createdBy], references: [id])
+  createdUsers    User[]           @relation("UserCreatedBy")
+  coupon          coupon[]
+  login_activity  login_activity[]
+  payments        payments[]
+  userSessions    userSessions?
+
+  @@index([email])
+  @@index([belongsToId])
+  @@index([role])
+  @@index([createdBy], map: "User_createdBy_fkey")
+}
+
+model coupon {
+  id               Int              @id @default(autoincrement())
+  code             String           @unique(map: "code") @db.VarChar(255)
+  image            String?          @db.VarChar(255)
+  percent          Decimal?         @db.Decimal(5, 2)
+  fixed_amount     Decimal?         @db.Decimal(10, 2)
+  assigned_user_id Int?
+  effective_at     DateTime         @db.Date
+  expires_at       DateTime         @db.Date
+  is_used          Int              @default(0) @db.TinyInt
+  used_count       Int              @default(0)
+  active           Boolean          @default(false)
+  created_at       DateTime         @default(now()) @db.DateTime(0)
+  updated_at       DateTime         @default(now()) @db.DateTime(0)
+  PlanAllocation   PlanAllocation[]
+  assigned_user    User?            @relation(fields: [assigned_user_id], references: [id], map: "fk_coupon_assigned_user")
+
+  @@index([assigned_user_id], map: "fk_coupon_assigned_user")
+}
+
+model PlanAllocation {
+  id            Int              @id @default(autoincrement())
+  transactionId String
+  allocatedAt   DateTime         @default(now())
+  quantity      Int
+  type          TransactionType
+  planId        Int
+  senderId      Int
+  receiverId    Int?
+  userId        Int?
+  allocatedById Int
+  coupon_code   String?          @db.VarChar(255)
+  amount        Float
+  discount      Float
+  allocatedBy   User             @relation("allocatedBy", fields: [allocatedById], references: [id])
+  plan          SubscriptionPlan @relation("subscriptionPlan", fields: [planId], references: [id])
+  receiver      EntityTable?     @relation("receiverEntity", fields: [receiverId], references: [id])
+  sender        EntityTable      @relation("senderEntity", fields: [senderId], references: [id])
+  user          User?            @relation("userSales", fields: [userId], references: [id])
+  coupon        coupon?          @relation(fields: [coupon_code], references: [code], map: "fk_planallocation_coupon_code")
+
+  @@index([allocatedById], map: "PlanAllocation_allocatedById_fkey")
+  @@index([planId], map: "PlanAllocation_planId_fkey")
+  @@index([receiverId], map: "PlanAllocation_receiverId_fkey")
+  @@index([senderId], map: "PlanAllocation_senderId_fkey")
+  @@index([userId], map: "PlanAllocation_userId_fkey")
+  @@index([coupon_code], map: "idx_planallocation_coupon_code")
+}
+
+model SubscriptionPlan {
+  id          Int                  @id @default(autoincrement())
+  uuid        String               @unique
+  name        String
+  thumbnail   String?
+  isVisible   Boolean              @default(true)
+  price       Int
+  created_at  DateTime             @default(now())
+  updated_at  DateTime             @default(now()) @updatedAt
+  isActive    Boolean              @default(true)
+  allocations PlanAllocation[]     @relation("subscriptionPlan")
+  courses     SubscriptionCourse[]
+
+  @@index([name])
+}
+
+model MediaResource {
+  id           Int            @id @default(autoincrement())
+  uuid         String         @unique
+  title        String
+  type         String
+  url          String?
+  thumbnail    String?
+  mimeType     String?
+  isActive     Boolean        @default(true)
+  created_at   DateTime       @default(now())
+  updated_at   DateTime       @default(now()) @updatedAt
+  Course       Course[]
+  Lesson       Lesson[]
+  LessonMedia  LessonMedia[]
+  ToolResource ToolResource[]
+
+  @@index([title])
+  @@index([type])
+  @@index([mimeType])
+}
+
+model Lesson {
+  id              Int            @id @default(autoincrement())
+  uuid            String         @unique
+  title           String
+  description     String?        @db.Text
+  mediaResourceId Int?
+  created_at      DateTime       @default(now())
+  updated_at      DateTime       @default(now()) @updatedAt
+  is_active       Boolean        @default(true)
+  mediaRef        MediaResource? @relation(fields: [mediaResourceId], references: [id])
+  LessonMedia     LessonMedia[]
+
+  @@index([mediaResourceId], map: "Lesson_mediaResourceId_fkey")
+}
+
+model LessonMedia {
+  id              Int            @id @default(autoincrement())
+  lessonId        Int
+  title           String
+  mediaResourceId Int?
+  is_active       Boolean        @default(true)
+  description     String?        @db.Text
+  created_at      DateTime       @default(now())
+  updated_at      DateTime       @default(now()) @updatedAt
+  lesson          Lesson         @relation(fields: [lessonId], references: [id])
+  mediaRef        MediaResource? @relation(fields: [mediaResourceId], references: [id])
+
+  @@index([lessonId], map: "LessonMedia_lessonId_fkey")
+  @@index([mediaResourceId], map: "LessonMedia_mediaResourceId_fkey")
+}
+
+model Course {
+  id              Int                  @id @default(autoincrement())
+  uuid            String               @unique
+  title           String
+  description     String?              @db.Text
+  category        String
+  mediaResourceId Int?
+  created_at      DateTime             @default(now())
+  updated_at      DateTime             @default(now()) @updatedAt
+  is_active       Boolean              @default(true)
+  lessonIds       Json?
+  mediaRef        MediaResource?       @relation(fields: [mediaResourceId], references: [id])
+  subscriptions   SubscriptionCourse[]
+
+  @@index([mediaResourceId], map: "Course_mediaResourceId_fkey")
+}
+
+model SubscriptionCourse {
+  id                 Int              @id @default(autoincrement())
+  subscriptionPlanId Int
+  courseId           Int
+  course             Course           @relation(fields: [courseId], references: [id])
+  subscriptionPlan   SubscriptionPlan @relation(fields: [subscriptionPlanId], references: [id])
+
+  @@unique([subscriptionPlanId, courseId])
+  @@index([courseId], map: "SubscriptionCourse_courseId_fkey")
+}
+
+model Pregnancy {
+  id                   Int       @id @default(autoincrement())
+  uuid                 String    @unique
+  userId               Int
+  expectedDeliveryDate DateTime?
+  DOM                  String?
+  created_at           DateTime  @default(now())
+  updated_at           DateTime  @default(now()) @updatedAt
+  user                 User      @relation(fields: [userId], references: [id])
+
+  @@index([userId], map: "Pregnancy_userId_fkey")
+}
+
+model SymptomEntry {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  symptoms   Json
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now()) @updatedAt
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@index([userId], map: "SymptomEntry_userId_fkey")
+}
+
+model ToolResource {
+  id              Int            @id @default(autoincrement())
+  uuid            String         @unique
+  title           String
+  mediaResourceId Int?
+  isActive        Boolean        @default(true)
+  created_at      DateTime       @default(now())
+  updated_at      DateTime       @default(now()) @updatedAt
+  mediaRef        MediaResource? @relation(fields: [mediaResourceId], references: [id])
+
+  @@index([mediaResourceId], map: "ToolResource_mediaResourceId_fkey")
+}
+
+model DadiNaniNuskha {
+  id         Int             @id @default(autoincrement())
+  heading    String
+  subheading String
+  creator    String?
+  category   ProfileCategory
+  content    Json
+  isActive   Boolean         @default(true)
+  icon       String?
+  created_at DateTime        @default(now())
+  updated_at DateTime        @default(now()) @updatedAt
+
+  @@index([heading])
+}
+
+model weekTable {
+  id         Int         @id @default(autoincrement()) @map("id")
+  name       String      @unique(map: "name_UNIQUE") @map("name") @db.VarChar(255)
+  created_at DateTime    @default(now()) @map("created_at") @db.DateTime(0)
+  updated_at DateTime    @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
+  order      Int
+  DietChart  DietChart[]
+
+  @@unique([name, order], map: "uq_week_name_order")
+  @@map("weekTable")
+}
+
+model DietChart {
+  id         Int             @id @default(autoincrement())
+  weekId     Int?
+  heading    String
+  subheading String
+  creator    String?
+  content    Json
+  category   ProfileCategory
+  isActive   Boolean         @default(true)
+  icon       String?
+  created_at DateTime        @default(now())
+  updated_at DateTime        @default(now()) @updatedAt
+  week       weekTable?      @relation(fields: [weekId], references: [id], onDelete: Cascade)
+
+  @@unique([weekId, category], map: "uq_week_category")
+  @@index([category])
+  @@index([heading])
+}
+
+model DailyTip {
+  id         Int             @id @default(autoincrement())
+  creator    String?
+  heading    String
+  subheading String
+  content    Json
+  isActive   Boolean         @default(true)
+  category   ProfileCategory
+  icon       String?
+  created_at DateTime        @default(now())
+  updated_at DateTime        @default(now()) @updatedAt
+
+  @@index([heading])
+  @@index([category])
+}
+
+model Concieve {
+  id          Int      @id @default(autoincrement())
+  week        Int?
+  type        String?
+  image       String?
+  thumbnail   String?
+  title       String
+  subtitle    String?
+  description String   @db.Text
+  height      String?
+  weight      String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @default(now()) @updatedAt
+
+  @@index([week])
+  @@index([type])
+  @@index([title])
+}
+
+model Community {
+  id          Int             @id @default(autoincrement())
+  name        String
+  imageUrl    String?
+  description String?         @db.Text
+  isActive    Boolean         @default(true)
+  created_at  DateTime        @default(now())
+  updated_at  DateTime        @default(now()) @updatedAt
+  members     CommunityJoin[]
+  posts       CommunityPost[]
+}
+
+model CommunityJoin {
+  id          Int       @id @default(autoincrement())
+  communityId Int
+  userId      Int
+  joinedAt    DateTime  @default(now())
+  community   Community @relation(fields: [communityId], references: [id])
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@unique([communityId, userId])
+  @@index([userId])
+  @@index([communityId])
+}
+
+model CommunityPost {
+  id          Int        @id @default(autoincrement())
+  communityId Int
+  type        PostType   @default(ANYTHING)
+  userId      Int
+  mediaType   String?
+  featured    Boolean    @default(false)
+  media       String?
+  title       String
+  content     String     @db.LongText
+  isActive    Boolean    @default(true)
+  created_at  DateTime   @default(now())
+  updated_at  DateTime   @default(now()) @updatedAt
+  shareCount  Int?       @default(0)
+  viewCount   Int        @default(0) @db.UnsignedInt
+  comments    Comment[]
+  community   Community  @relation(fields: [communityId], references: [id])
+  user        User       @relation(fields: [userId], references: [id])
+  Reaction    Reaction[]
+
+  @@index([title])
+  @@index([featured])
+  @@index([communityId], map: "CommunityPost_communityId_fkey")
+  @@index([userId], map: "CommunityPost_userId_fkey")
+}
+
+model Comment {
+  id         Int           @id @default(autoincrement())
+  postId     Int
+  userId     Int
+  parentId   Int?
+  content    String        @db.Text
+  isActive   Boolean       @default(true)
+  created_at DateTime      @default(now())
+  updated_at DateTime      @default(now()) @updatedAt
+  parent     Comment?      @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Restrict)
+  replies    Comment[]     @relation("CommentReplies")
+  post       CommunityPost @relation(fields: [postId], references: [id])
+  user       User          @relation(fields: [userId], references: [id])
+  Reaction   Reaction[]
+
+  @@index([parentId], map: "Comment_parentId_fkey")
+  @@index([postId], map: "Comment_postId_fkey")
+  @@index([userId], map: "Comment_userId_fkey")
+}
+
+model userSessions {
+  id           BigInt    @id @default(autoincrement())
+  userId       Int       @unique(map: "unique_user_session")
+  accessToken  String    @db.VarChar(512)
+  refreshToken String    @unique(map: "unique_refresh_token") @db.VarChar(512)
+  createdAt    DateTime? @default(now()) @db.Timestamp(0)
+  sessionId    String    @db.VarChar(36)
+  User         User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_user_sessions_user")
+}
+
+model payments {
+  id                  BigInt           @id @default(autoincrement()) @db.UnsignedBigInt
+  user_id             Int?
+  order_id            String?          @db.VarChar(100)
+  razorpay_order_id   String?          @unique(map: "razorpay_order_id_UNIQUE") @db.VarChar(100)
+  razorpay_payment_id String?          @db.VarChar(100)
+  razorpay_signature  String?          @db.VarChar(255)
+  amount              Decimal          @db.Decimal(10, 2)
+  currency            String?          @default("INR") @db.VarChar(10)
+  payment_method      String?          @db.VarChar(50)
+  status              payments_status?
+  failure_reason      String?          @db.Text
+  gateway_response    Json?
+  created_at          DateTime?        @default(now()) @db.Timestamp(0)
+  updated_at          DateTime?        @default(now()) @db.Timestamp(0)
+  planId              Int              @db.UnsignedInt
+  coupon_code         String?          @db.VarChar(45)
+  User                User?            @relation(fields: [user_id], references: [id], onUpdate: NoAction, map: "fk_payments_user")
+
+  @@index([order_id], map: "idx_order_id")
+  @@index([razorpay_order_id], map: "idx_razorpay_order_id")
+  @@index([user_id], map: "idx_user_id")
+}
+
+model login_activity {
+  id         Int       @id @default(autoincrement())
+  user_id    Int
+  uuid       String    @db.Char(36)
+  ip         String    @db.VarChar(45)
+  last_login DateTime? @default(now()) @db.Timestamp(0)
+  User       User      @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "fk_login_user")
+
+  @@index([user_id], map: "fk_login_user")
+}
+
+model Professions {
+  id     Int      @id @default(autoincrement()) @db.UnsignedInt
+  name   String   @unique(map: "name_UNIQUE") @db.VarChar(240)
+  Expert Expert[]
+}
+
+model Expert {
+  id            Int           @id @default(autoincrement())
+  name          String
+  name_org      String?       @db.VarChar(45)
+  image         String?       @db.VarChar(249)
+  profession_id Int           @db.UnsignedInt
+  qualification String
+  created_at    DateTime      @default(now())
+  updated_at    DateTime      @default(now())
+  Professions   Professions   @relation(fields: [profession_id], references: [id], map: "fk_experts_profession")
+  expertPosts   expertPosts[]
+
+  @@index([profession_id], map: "idx_experts_profession_id")
+}
+
+model Reaction {
+  id             Int            @id @default(autoincrement())
+  userId         Int
+  postId         Int?
+  commentId      Int?
+  type           Reaction_type  @default(LIKE)
+  created_at     DateTime       @default(now())
+  expert_post_id Int?           @db.UnsignedInt
+  Comment        Comment?       @relation(fields: [commentId], references: [id])
+  CommunityPost  CommunityPost? @relation(fields: [postId], references: [id])
+  User           User           @relation(fields: [userId], references: [id])
+  expertPosts    expertPosts?   @relation(fields: [expert_post_id], references: [id], onDelete: Cascade, map: "fk_reactions_expert_post")
+
+  @@unique([userId, postId, commentId])
+  @@index([commentId], map: "Reaction_commentId_fkey")
+  @@index([postId], map: "Reaction_postId_fkey")
+  @@index([expert_post_id], map: "idx_reactions_expert_post_id")
+}
+
+model expertPosts {
+  id          Int        @id @default(autoincrement()) @db.UnsignedInt
+  expert_id   Int
+  mediaType   String?    @db.VarChar(50)
+  media       String?    @db.VarChar(255)
+  title       String     @db.VarChar(255)
+  content     String     @db.LongText
+  is_active   Boolean    @default(true)
+  share_count Int?       @default(0)
+  view_count  Int        @default(0) @db.UnsignedInt
+  created_at  DateTime   @default(now()) @db.DateTime(0)
+  updated_at  DateTime   @default(now()) @db.DateTime(0)
+  Reaction    Reaction[]
+  Expert      Expert     @relation(fields: [expert_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_expert_posts_expert")
+
+  @@index([expert_id], map: "idx_expert_posts_expert_id")
+}
+
+enum TransactionType {
+  ALLOCATE
+  SELL
+  REVOKE
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  CHANNEL_SUPER_ADMIN
+  CHANNEL_ADMIN
+  PARTNER_SUPER_ADMIN
+  PARTNER_ADMIN
+  USER
+}
+
+enum EntityTypes {
+  Channel
+  Partner
+  Organization
+}
+
+enum PostType {
+  ANYTHING
+  STORY
+}
+
+enum ProfileCategory {
+  TTC
+  PREG
+  MOTHER
+}
+
+enum payments_status {
+  created
+  authorized
+  captured
+  failed
+  refunded
+}
+
+enum Reaction_type {
+  LIKE
+  LOVE
+  SUPPORT
+  THANK_YOU
+}
