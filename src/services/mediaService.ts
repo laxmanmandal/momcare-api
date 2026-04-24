@@ -1,5 +1,5 @@
 import prisma from '../prisma/client';
-import { deleteFileIfExists } from '../utils/fileUploads';
+import { storageService } from './storageService';
 
 
 
@@ -39,11 +39,11 @@ export async function updateMedia(uuid: string, data: any) {
     const tasks: Promise<void>[] = [];
 
     if (thumbnail && existing.thumbnail && existing.thumbnail !== thumbnail) {
-        tasks.push(deleteFileIfExists(existing.thumbnail));
+        tasks.push(storageService.deleteFile(existing.thumbnail));
     }
 
     if (url && existing.url && existing.url !== url) {
-        tasks.push(deleteFileIfExists(existing.url));
+        tasks.push(storageService.deleteFile(existing.url));
     }
 
     if (tasks.length) await Promise.all(tasks);

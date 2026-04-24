@@ -1,6 +1,6 @@
-import jwt from "jsonwebtoken";
+import jwt, { SignOptions } from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
+const JWT_SECRET: string = process.env.JWT_SECRET || "supersecret";
 
 /* ===================== ACCESS TOKEN ===================== */
 export function signToken(
@@ -13,7 +13,7 @@ export function signToken(
     uuid: string;
     role: string;
   },
-  expiresIn = "7d"
+  expiresIn: string | number = "7d"
 ) {
   return jwt.sign(
     {
@@ -27,7 +27,7 @@ export function signToken(
       type: "access",
     },
     JWT_SECRET,
-    { expiresIn }
+    { expiresIn } as SignOptions
   );
 }
 
@@ -37,7 +37,7 @@ export function signRefreshToken(
     id: number;
     sid: string;            // ✅ NOT nullable
   },
-  expiresIn = "30d"
+  expiresIn: string | number = "30d"
 ) {
   return jwt.sign(
     {
@@ -46,7 +46,7 @@ export function signRefreshToken(
       type: "refresh",
     },
     JWT_SECRET,
-    { expiresIn }
+    { expiresIn } as SignOptions
   );
 }
 

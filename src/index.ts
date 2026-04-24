@@ -13,6 +13,7 @@ import uidPlugin from './plugins/uuidPlugin'
 dotenv.config()
 import ajvErrors from 'ajv-errors';
 import fastifyRawBody from 'fastify-raw-body';
+import { storageService } from './services/storageService'
 import authRoutes from './routes/auth'
 import userRoutes from './routes/users'
 import entityRoutes from './routes/entityRoute'
@@ -113,7 +114,7 @@ app.register(fastifySwaggerUi, {
 })
 app.setErrorHandler(errorHandler);
 /* -------------------------- File Upload Handling ------------------------- */
-const UPLOAD_ROOT = path.resolve(__dirname, process.env.UPLOAD_DIR || '');
+const UPLOAD_ROOT = path.resolve(process.cwd(), process.env.UPLOAD_DIR || './momcare-media');
 
 if (!UPLOAD_ROOT) {
     throw new Error('UPLOAD_DIR not set in environment');
@@ -122,7 +123,12 @@ if (!UPLOAD_ROOT) {
 const isLocal = !/^https?:\/\//i.test(UPLOAD_ROOT);
 
 if (isLocal) {
-    fs.mkdirSync(UPLOAD_ROOT, { recursive: true });
+    try {
+        fs.mkdirSync(UPLOAD_ROOT, { recursive: true });
+        console.log('✅ Created/verified upload directory:', UPLOAD_ROOT);
+    } catch (err: any) {
+        console.warn('⚠️ Could not create upload directory:', err.message);
+    }
 
     app.register(fastifyStatic, {
         root: UPLOAD_ROOT,
@@ -166,29 +172,7 @@ app.decorate('parseMultipartMemory', async (req) => {
 // Save a single file buffer into a folder (dynamic)
 app.decorate('saveFileBuffer', async function (file: any, folder: string) {
     if (!file || !file.buffer) throw new Error('Invalid file object');
-
-    const allowed = [
-        'image/png', 'image/jpeg', 'image/jpg', 'video/mp4',
-        'video/mov', 'application/pdf'
-    ];
-    if (!allowed.includes(file.mimetype)) {
-        throw new Error(`Unsupported file type: ${file.mimetype}`);
-    }
-
-    // 🧼 Sanitize folder input
-    const folderName = folder.replace(/^https?:\/\/[^\/]+\/?/, '').replace(/[^a-zA-Z0-9-_\/]/g, '');
-    const folderPath = path.join(UPLOAD_ROOT, folderName);
-    await fs.promises.mkdir(folderPath, { recursive: true });
-
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const ext = path.extname(file.filename);
-    const baseName = path.basename(file.filename, ext);
-    const uniqueName = `${baseName}_${timestamp}${ext}`;
-
-    const fullPath = path.join(folderPath, uniqueName);
-    await fs.promises.writeFile(fullPath, file.buffer);
-
-    return `/${folderName}/${uniqueName}`;
+    return storageService.uploadFile(file.buffer, file.filename, file.mimetype, folder);
 });
 
 
@@ -234,6 +218,7 @@ app.register(razorpayWebhook, { prefix: '/webhooks' });
 app.register(LoginLogsRoutes, { prefix: '/ip-logs' });
 /*............................. error handler .............................. */
 
+console.log('✅ All routes registered successfully');
 
 /* ----------------------------- Health Check ------------------------------ */
 app.get('/', async () => ({
@@ -244,16 +229,30 @@ app.get('/', async () => ({
 }))
 const start = async () => {
     try {
-        const port = Number(process.env.PORT) || 3000
-        await app.listen({ port, host: '0.0.0.0' })
-        console.log(`🚀 Server running at http://localhost:${port}`)
-        console.log(`📖 Swagger docs at http://localhost:${port}/docs`)
-    } catch (err) {
+        const port = Number(process.env.PORT || 3000);
+        const host = process.env.HOST || '0.0.0.0';
+        
+        console.log('🔧 Initializing server...');
+        console.log(`   NODE_ENV: ${process.env.NODE_ENV}`);
+        console.log(`   PORT: ${port}`);
+        console.log(`   HOST: ${host}`);
+        console.log(`   UPLOAD_DIR: ${UPLOAD_ROOT}`);
+        
+        await app.listen({ port, host })
+        console.log(`✅ Server running at http://${host}:${port}`)
+        console.log(`📖 Swagger docs at http://${host}:${port}/docs`)
+        console.log('🎉 Application started successfully!')
+    } catch (err: any) {
+        console.error('❌ Server startup error:', err);
+        console.error('Error details:', err.message);
         app.log.error(err)
         process.exit(1)
     }
 }
 
-start()
+start().catch(err => {
+    console.error('❌ Unhandled error in start function:', err);
+    process.exit(1);
+})
 
 export default app
