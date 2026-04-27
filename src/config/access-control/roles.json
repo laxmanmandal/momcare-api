@@ -2,27 +2,7 @@
     {
         "roleName": "SUPER_ADMIN",
         "roleDesc": "Org-level management",
-        "policy": [
-            "CREATE_USER",
-            "CREATE_PARTNERS",
-            "LIST_ENTITY",
-            "CREATE_ENTITY",
-            "LIST_CHANNEL",
-            "LIST_PARTNER",
-            "UPDATE_ENTITY",
-            "CREATE_PARTMER",
-            "LIST_PARTNERS",
-            "UPDATE_PARTNERS",
-            "UPDATE_USER",
-            "UPDATE_USER_STATUS",
-            "LIST_USER",
-            "VIEW_REPORTS",
-            "VIEW_OWN_PROFILE",
-            "VIEW_PROFILE",
-            "CHANGE_PASSWORD",
-            "UPLOAD_EXCEL",
-            "PLAN_ALLOCATION"
-        ]
+        "policy": ["*"]
     },
     {
         "roleName": "ADMIN",
