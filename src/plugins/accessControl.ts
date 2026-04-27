@@ -40,7 +40,7 @@ declare module "fastify" {
 }
 
 export default fp(async function (fastify: FastifyInstance) {
-  const configDir = path.join(__dirname, "..", "config", "access-control");
+const configDir = path.join(process.cwd(), "src", "config", "access-control");
   const rolesFile = path.join(configDir, "roles.json");
   const apisFile = path.join(configDir, "api.json");
 
