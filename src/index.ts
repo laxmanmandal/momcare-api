@@ -169,10 +169,25 @@ app.decorate('parseMultipartMemory', async (req) => {
 })
 
 
-// Save a single file buffer into a folder (dynamic)
+// Save a single uploaded file into a folder (dynamic).
 app.decorate('saveFileBuffer', async function (file: any, folder: string) {
-    if (!file || !file.buffer) throw new Error('Invalid file object');
-    return storageService.uploadFile(file.buffer, file.filename, file.mimetype, folder);
+    if (!file) throw new Error('Invalid file object');
+
+    const buffer =
+        file.buffer instanceof Buffer
+            ? file.buffer
+            : typeof file.toBuffer === 'function'
+                ? await file.toBuffer()
+                : null;
+
+    const filename = file.filename ?? file.name;
+    const mimetype = file.mimetype ?? file.type;
+
+    if (!buffer || !filename || !mimetype) {
+        throw new Error('Invalid file object');
+    }
+
+    return storageService.uploadFile(buffer, filename, mimetype, folder);
 });
 
 

@@ -12,7 +12,7 @@ export async function creatEntityTable(data: any) {
     description: data.description,
     imageUrl: data.imageUrl ?? null,
     isActive: data.isActive ?? true,
-    belongsToId: data.belongsToId || 1,
+    belongsToId: data.belongsToId ?? null,
     createdBy: data.createdBy || undefined,
   });
 
@@ -26,7 +26,7 @@ export async function creatEntityTable(data: any) {
       description: data.description,
       imageUrl: data.imageUrl ?? null,
       isActive: data.isActive ?? true,
-      belongsToId: data.belongsToId || 1,
+      belongsToId: data.belongsToId ?? null,
       createdBy: data.createdBy || undefined,
     },
 
@@ -101,7 +101,7 @@ export async function updateEntityTable(id: number, data: any) {
       email: data.email ?? existing.email,
       phone: data.phone ?? existing.phone,
       location: data.location ?? existing.location,
-      description: data.descrition ?? existing.description,
+      description: data.description ?? existing.description,
       imageUrl: data.imageUrl ?? existing.imageUrl,
       isActive:
         data.isActive === undefined ? existing.isActive : Boolean(data.isActive)
@@ -109,5 +109,4 @@ export async function updateEntityTable(id: number, data: any) {
 
   });
 }
-
 

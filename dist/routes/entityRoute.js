@@ -147,7 +147,9 @@ async function entityRoutes(app) {
     }, async (req, reply) => {
         const body = req.body;
         const createdBy = (typeof req.body.id === 'number' ? req.body.id : null) ?? req.user?.id;
-        const belongsToId = Number(req.user.belongsToId);
+        const belongsToId = req.user?.belongsToId !== undefined && req.user?.belongsToId !== null
+            ? Number(req.user.belongsToId)
+            : null;
         const isActive = body.isActive === undefined ? false : Boolean(body.isActive === 'true' || body.isActive === true);
         const createData = {
             type: body.type,
@@ -165,12 +167,16 @@ async function entityRoutes(app) {
         const maybeFile = req.files?.imageUrl ?? req.body.imageUrl; // shape may vary
         let channel = await entityService.creatEntityTable(createData);
         if (maybeFile) {
-            // if maybeFile is array or single object
             const f = Array.isArray(maybeFile) ? maybeFile[0] : maybeFile;
-            const buffer = await f.toBuffer(); // depending on parser; check your parser API
-            const imageUrl = await app.saveFileBuffer(buffer, 'Entities');
-            await entityService.updateEntityTable(Number(channel.id), { imageUrl });
-            channel = { ...channel, imageUrl };
+            if (typeof f === 'string') {
+                await entityService.updateEntityTable(Number(channel.id), { imageUrl: f });
+                channel = { ...channel, imageUrl: f };
+            }
+            else {
+                const imageUrl = await app.saveFileBuffer(f, 'Entities');
+                await entityService.updateEntityTable(Number(channel.id), { imageUrl });
+                channel = { ...channel, imageUrl };
+            }
         }
         return reply.code(201).send({
             success: true,
@@ -202,7 +208,9 @@ async function entityRoutes(app) {
     }, async (req, reply) => {
         const body = req.body;
         const createdBy = (typeof req.body.id === 'number' ? req.body.id : null) ?? req.user?.id;
-        const belongsToId = req.user.belongsToId !== undefined && req.user.belongsToId !== '' ? Number(req.user.belongsToId) : null;
+        const belongsToId = body.belongsToId !== undefined && body.belongsToId !== null && body.belongsToId !== ''
+            ? Number(body.belongsToId)
+            : null;
         const isActive = body.isActive === undefined ? false : Boolean(body.isActive === 'true' || body.isActive === true);
         const createData = {
             type: body.type,
@@ -220,12 +228,16 @@ async function entityRoutes(app) {
         const maybeFile = req.files?.imageUrl ?? req.body.imageUrl; // shape may vary
         let channel = await entityService.creatEntityTable(createData);
         if (maybeFile) {
-            // if maybeFile is array or single object
             const f = Array.isArray(maybeFile) ? maybeFile[0] : maybeFile;
-            const buffer = await f.toBuffer(); // depending on parser; check your parser API
-            const imageUrl = await app.saveFileBuffer(buffer, 'Entities');
-            await entityService.updateEntityTable(Number(channel.id), { imageUrl });
-            channel = { ...channel, imageUrl };
+            if (typeof f === 'string') {
+                await entityService.updateEntityTable(Number(channel.id), { imageUrl: f });
+                channel = { ...channel, imageUrl: f };
+            }
+            else {
+                const imageUrl = await app.saveFileBuffer(f, 'Entities');
+                await entityService.updateEntityTable(Number(channel.id), { imageUrl });
+                channel = { ...channel, imageUrl };
+            }
         }
         return reply.code(201).send({
             success: true,

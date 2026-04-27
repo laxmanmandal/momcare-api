@@ -57,10 +57,13 @@ declare module 'fastify' {
 
         saveFileBuffer(
             file: {
-                fieldname: string
-                filename: string
-                mimetype: string
-                buffer: Buffer
+                fieldname?: string
+                filename?: string
+                name?: string
+                mimetype?: string
+                type?: string
+                buffer?: Buffer
+                toBuffer?: () => Promise<Buffer>
             },
             folder: string
         ): Promise<string>
@@ -99,6 +102,5 @@ declare module 'fastify' {
         email?: string;
     }
 }
-
 
 

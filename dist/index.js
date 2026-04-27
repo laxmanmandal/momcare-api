@@ -160,11 +160,21 @@ app.decorate('parseMultipartMemory', async (req) => {
     }
     return { files, fields };
 });
-// Save a single file buffer into a folder (dynamic)
+// Save a single uploaded file into a folder (dynamic).
 app.decorate('saveFileBuffer', async function (file, folder) {
-    if (!file || !file.buffer)
+    if (!file)
         throw new Error('Invalid file object');
-    return storageService_1.storageService.uploadFile(file.buffer, file.filename, file.mimetype, folder);
+    const buffer = file.buffer instanceof Buffer
+        ? file.buffer
+        : typeof file.toBuffer === 'function'
+            ? await file.toBuffer()
+            : null;
+    const filename = file.filename ?? file.name;
+    const mimetype = file.mimetype ?? file.type;
+    if (!buffer || !filename || !mimetype) {
+        throw new Error('Invalid file object');
+    }
+    return storageService_1.storageService.uploadFile(buffer, filename, mimetype, folder);
 });
 // Save multiple files at once (reuses saveFileBuffer)
 app.decorate('saveMultipleFiles', async function (files, folder) {
