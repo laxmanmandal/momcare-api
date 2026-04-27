@@ -21,8 +21,10 @@ async function deleteFileIfExists(path) {
     catch { /* ignore */ }
 }
 async function getUsers(entityId, user, query) {
-    const { page = 1, limit = 10, search, sortField, sortOrder } = query;
-    const skip = (page - 1) * limit;
+    const { page = 1, limit = 10, search, role, type, isActive, sortField, sortOrder } = query;
+    const pageNumber = Math.max(1, Number(page) || 1);
+    const pageSize = Math.min(100, Math.max(1, Number(limit) || 10));
+    const skip = (pageNumber - 1) * pageSize;
     const isAdmin = user.role === client_2.Role.SUPER_ADMIN || user.role === client_2.Role.ADMIN;
     const sameEntity = user.belongsToId === entityId;
     let whereClause = {};
@@ -31,16 +33,36 @@ async function getUsers(entityId, user, query) {
     }
     if (search) {
         whereClause.OR = [
+            { uuid: { contains: search } },
             { name: { contains: search } },
             { email: { contains: search } },
-            { phone: { contains: search } }
+            { phone: { contains: search } },
+            { location: { contains: search } }
         ];
     }
+    if (role) {
+        whereClause.role = role.toUpperCase();
+    }
+    if (type) {
+        whereClause.type = { contains: type };
+    }
+    if (isActive !== undefined && isActive !== null && isActive !== '') {
+        whereClause.isActive =
+            typeof isActive === 'boolean'
+                ? isActive
+                : String(isActive).toLowerCase() === 'true';
+    }
     const allowedSortFields = [
+        'uuid',
+        'role',
+        'type',
         'name',
         'email',
         'phone',
-        'created_at'
+        'location',
+        'expectedDate',
+        'created_at',
+        'updated_at'
     ];
     const orderBy = sortField && allowedSortFields.includes(sortField)
         ? { [sortField]: sortOrder ?? client_2.Prisma.SortOrder.asc }
@@ -50,7 +72,7 @@ async function getUsers(entityId, user, query) {
         client_1.default.user.findMany({
             where: whereClause,
             skip,
-            take: limit,
+            take: pageSize,
             orderBy,
             include: {
                 belongsToEntity: {
@@ -68,8 +90,15 @@ async function getUsers(entityId, user, query) {
     return {
         data,
         total,
-        page,
-        limit
+        page: pageNumber,
+        limit: pageSize,
+        totalPages: Math.ceil(total / pageSize),
+        filters: {
+            search: search ?? '',
+            role: role ?? '',
+            type: type ?? '',
+            isActive: isActive ?? ''
+        }
     };
 }
 async function getRoleWise(entityId, role, user) {

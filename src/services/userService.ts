@@ -18,6 +18,9 @@ export async function getUsers(
     page?: number;
     limit?: number;
     search?: string;
+    role?: string;
+    type?: string;
+    isActive?: boolean | string;
     sortField?: string;
     sortOrder?: Prisma.SortOrder;
   }
@@ -26,11 +29,16 @@ export async function getUsers(
     page = 1,
     limit = 10,
     search,
+    role,
+    type,
+    isActive,
     sortField,
     sortOrder
   } = query;
 
-  const skip = (page - 1) * limit;
+  const pageNumber = Math.max(1, Number(page) || 1);
+  const pageSize = Math.min(100, Math.max(1, Number(limit) || 10));
+  const skip = (pageNumber - 1) * pageSize;
 
   const isAdmin = user.role === Role.SUPER_ADMIN || user.role === Role.ADMIN;
 
@@ -43,16 +51,40 @@ export async function getUsers(
   }
   if (search) {
     whereClause.OR = [
+      { uuid: { contains: search } },
       { name: { contains: search } },
       { email: { contains: search } },
-      { phone: { contains: search } }
+      { phone: { contains: search } },
+      { location: { contains: search } }
     ];
   }
+
+  if (role) {
+    whereClause.role = role.toUpperCase() as Role;
+  }
+
+  if (type) {
+    whereClause.type = { contains: type };
+  }
+
+  if (isActive !== undefined && isActive !== null && isActive !== '') {
+    whereClause.isActive =
+      typeof isActive === 'boolean'
+        ? isActive
+        : String(isActive).toLowerCase() === 'true';
+  }
+
   const allowedSortFields = [
+    'uuid',
+    'role',
+    'type',
     'name',
     'email',
     'phone',
-    'created_at'
+    'location',
+    'expectedDate',
+    'created_at',
+    'updated_at'
   ] as const;
 
   const orderBy: Prisma.UserOrderByWithRelationInput =
@@ -65,7 +97,7 @@ export async function getUsers(
     prisma.user.findMany({
       where: whereClause,
       skip,
-      take: limit,
+      take: pageSize,
       orderBy,
       include: {
         belongsToEntity: {
@@ -85,8 +117,15 @@ export async function getUsers(
   return {
     data,
     total,
-    page,
-    limit
+    page: pageNumber,
+    limit: pageSize,
+    totalPages: Math.ceil(total / pageSize),
+    filters: {
+      search: search ?? '',
+      role: role ?? '',
+      type: type ?? '',
+      isActive: isActive ?? ''
+    }
   };
 }
 
@@ -242,4 +281,3 @@ export async function updateUser(userUuid: string, data: any) {
     }
   });
 }
-

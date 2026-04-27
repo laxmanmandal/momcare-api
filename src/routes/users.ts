@@ -95,6 +95,9 @@ export default async function userRoutes(app: FastifyInstance) {
             page: { type: 'number', default: 1 },
             limit: { type: 'number', default: 10 },
             search: { type: 'string' },
+            role: { type: 'string' },
+            type: { type: 'string' },
+            isActive: { type: ['boolean', 'string'] },
             sortField: { type: 'string' },
             sortOrder: { type: 'string', enum: ['asc', 'desc'] }
           }
