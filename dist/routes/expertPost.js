@@ -41,14 +41,17 @@ async function expertPost(app) {
     app.post('/', {
         schema: {
             tags: ['Expert Posts'],
+            consumes: ['multipart/form-data'],
             body: {
+                type: 'object',
                 required: ['title', 'content', 'expert_id'],
                 additionalProperties: false,
                 properties: {
                     title: { type: 'string' },
                     content: { type: 'string' },
-                    expert_id: { type: 'integer', minLength: 1 },
-                    mediaType: { type: 'string' }
+                    expert_id: { type: 'integer', minimum: 1 },
+                    mediaType: { type: 'string' },
+                    media: { type: 'string', contentEncoding: 'binary' }
                 }
             }
         }
@@ -76,13 +79,16 @@ async function expertPost(app) {
     app.patch('/:id', {
         schema: {
             tags: ['Expert Posts'],
+            consumes: ['application/json', 'multipart/form-data'],
             body: {
+                type: 'object',
                 additionalProperties: false,
                 properties: {
                     title: { type: 'string' },
                     content: { type: 'string' },
-                    expert_id: { type: 'integer', minLength: 1 },
-                    mediaType: { type: 'string' }
+                    expert_id: { type: 'integer', minimum: 1 },
+                    mediaType: { type: 'string' },
+                    media: { type: 'string', contentEncoding: 'binary' }
                 }
             }
         }
@@ -184,18 +190,21 @@ async function expertPost(app) {
     app.post('/profession', {
         schema: {
             tags: ['Expert Posts'],
+            consumes: ['application/json', 'multipart/form-data'],
             body: {
                 type: 'object',
                 required: ['name'],
                 additionalProperties: false,
                 properties: {
-                    title: { type: 'string' },
+                    name: { type: 'string' },
                 }
             },
             preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
         }
     }, async (req, reply) => {
-        const { fields } = await app.parseMultipartMemory(req);
+        const { fields } = req.isMultipart()
+            ? await app.parseMultipartMemory(req)
+            : { fields: req.body ?? {} };
         const prData = {
             name: fields.name,
         };

@@ -46,7 +46,6 @@ async function healthRoutes(app) {
     app.post('/symptoms', {
         schema: {
             tags: ['Health'],
-            preHandler: [auth_1.authMiddleware],
             description: 'Create a symptom entry',
             body: {
                 type: 'object',

@@ -15,7 +15,22 @@ type RefreshBody = { refreshToken: string };
 export default async function authRoutes(app: FastifyInstance) {
   const roleEnum = Object.keys(Role).filter(k => isNaN(Number(k)));
 
-  app.post<{ Body: { phone: string } }>('/request-otp', async (req, reply) => {
+  app.post<{ Body: { phone: string } }>('/request-otp', {
+    config: {
+      swaggerPublic: true
+    },
+    schema: {
+      tags: ['Auth'],
+      body: {
+        type: 'object',
+        required: ['phone'],
+        additionalProperties: false,
+        properties: {
+          phone: { type: 'string', minLength: 6 }
+        }
+      }
+    }
+  }, async (req, reply) => {
     const key = otpRateLimiter(req, reply);
     if (!key) return; // blocked or invalid
 
@@ -33,6 +48,23 @@ export default async function authRoutes(app: FastifyInstance) {
 
   app.post<{ Body: { phone: string; otp: string } }>(
     "/verify-otp",
+    {
+      config: {
+        swaggerPublic: true
+      },
+      schema: {
+        tags: ['Auth'],
+        body: {
+          type: 'object',
+          required: ['phone', 'otp'],
+          additionalProperties: false,
+          properties: {
+            phone: { type: 'string', minLength: 6 },
+            otp: { type: 'string', minLength: 4 }
+          }
+        }
+      }
+    },
     async (req, reply) => {
       const key = otpRateLimiter(req, reply);
       if (!key) return;
@@ -82,7 +114,7 @@ export default async function authRoutes(app: FastifyInstance) {
     {
       preHandler: [authMiddleware, app.accessControl.check('CREATE_USER')],
       schema: {
-        tags: ['auth'],
+        tags: ['Auth'],
         body: {
           type: 'object',
           additionalProperties: false,
@@ -142,7 +174,23 @@ export default async function authRoutes(app: FastifyInstance) {
 
   // login route (keeps schema simple)
 
-  app.post<{ Body: LoginBody }>('/login', async (req, reply) => {
+  app.post<{ Body: LoginBody }>('/login', {
+    config: {
+      swaggerPublic: true
+    },
+    schema: {
+      tags: ['Auth'],
+      body: {
+        type: 'object',
+        required: ['email', 'password'],
+        additionalProperties: false,
+        properties: {
+          email: { type: 'string', format: 'email' },
+          password: { type: 'string', minLength: 8 }
+        }
+      }
+    }
+  }, async (req, reply) => {
     const key = loginRateLimiter(req, reply);
     if (!key) return;
 
@@ -176,11 +224,21 @@ export default async function authRoutes(app: FastifyInstance) {
   app.post<{ Body: RefreshBody }>(
     '/refresh',
     {
+      config: {
+        swaggerPublic: true
+      },
       schema: {
         tags: ['Auth'],
-        
+        body: {
+          type: 'object',
+          required: ['refreshToken'],
+          additionalProperties: false,
+          properties: {
+            refreshToken: { type: 'string', minLength: 1 }
+          }
+        }
       },
-    
+
     },
     async (req, reply) => {
 

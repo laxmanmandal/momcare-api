@@ -9,7 +9,11 @@ const client_1 = __importDefault(require("../../prisma/client"));
 async function razorpayWebhook(app) {
     app.post("/razorpay", {
         config: {
-            rawBody: true
+            rawBody: true,
+            swaggerPublic: true
+        },
+        schema: {
+            tags: ['Payments']
         }
     }, async (req, reply) => {
         try {

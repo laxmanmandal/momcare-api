@@ -36,10 +36,38 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = dietNuskhaRoute;
 const dietNuskhaToolervice = __importStar(require("../services/dietNuskhaToolService"));
 const auth_1 = require("../middleware/auth");
+const dietChartBody = {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+        heading: { type: 'string' },
+        weekId: { type: 'integer', minimum: 1 },
+        category: { type: 'string' },
+        subheading: { type: 'string' },
+        content: { type: 'string' },
+        toolType: { type: 'string' },
+        icon: { type: 'string', contentEncoding: 'binary' }
+    }
+};
+const nuskheBody = {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+        category: { type: 'string' },
+        heading: { type: 'string' },
+        subheading: { type: 'string' },
+        content: { type: 'string' },
+        icon: { type: 'string', contentEncoding: 'binary' }
+    }
+};
 async function dietNuskhaRoute(app) {
     app.addHook('preHandler', auth_1.authMiddleware);
     app.post('/diet-chart', {
-        schema: { tags: ['diet-chart'] },
+        schema: {
+            tags: ['diet-chart'],
+            consumes: ['multipart/form-data'],
+            body: dietChartBody
+        },
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
     }, async (req, reply) => {
         const { files, fields } = await app.parseMultipartMemory(req);
@@ -64,7 +92,13 @@ async function dietNuskhaRoute(app) {
             data: response,
         });
     });
-    app.patch('/diet-chart/:id', { schema: { tags: ['diet-chart'] }, preHandler: [auth_1.authMiddleware, auth_1.onlyOrg] }, async (req, reply) => {
+    app.patch('/diet-chart/:id', {
+        schema: {
+            tags: ['diet-chart'],
+            consumes: ['application/json', 'multipart/form-data'],
+            body: dietChartBody
+        }, preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
+    }, async (req, reply) => {
         const { id } = req.params;
         // Parse form data (multipart or json)
         const { files, fields } = await app.parseMultipartMemory(req);
@@ -132,7 +166,13 @@ async function dietNuskhaRoute(app) {
         return reply.send({ success: true, message: 'Diet Chart status updated successfully', data: dietNuskhaTool });
     });
     // dadiNani k nuskhe 
-    app.post('/dadi-nani-nuskhe', { schema: { tags: ['Dadi-nani-Nuskhe'] }, preHandler: [auth_1.authMiddleware, auth_1.onlyOrg] }, async (req, reply) => {
+    app.post('/dadi-nani-nuskhe', {
+        schema: {
+            tags: ['Dadi-nani-Nuskhe'],
+            consumes: ['multipart/form-data'],
+            body: nuskheBody
+        }, preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
+    }, async (req, reply) => {
         const { files, fields } = await app.parseMultipartMemory(req);
         const dadinaniData = {
             creator: req.user.name,
@@ -153,7 +193,13 @@ async function dietNuskhaRoute(app) {
             data: response,
         });
     });
-    app.patch('/dadi-nani-nuskhe/:id', { schema: { tags: ['Dadi-nani-Nuskhe'] }, preHandler: [auth_1.authMiddleware, auth_1.onlyOrg] }, async (req, reply) => {
+    app.patch('/dadi-nani-nuskhe/:id', {
+        schema: {
+            tags: ['Dadi-nani-Nuskhe'],
+            consumes: ['application/json', 'multipart/form-data'],
+            body: nuskheBody
+        }, preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
+    }, async (req, reply) => {
         const { id } = req.params;
         // Parse form data (multipart or json)
         const { files, fields } = await app.parseMultipartMemory(req);

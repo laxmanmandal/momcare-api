@@ -2,6 +2,25 @@ import { FastifyInstance } from 'fastify';
 import * as subscriptionService from '../services/subscriptionService';
 import { authMiddleware, onlyOrg } from '../middleware/auth';
 
+const planCreateBody = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    name: { type: 'string' },
+    price: { type: 'number', minimum: 0 },
+    courseIds: {
+      oneOf: [
+        { type: 'string' },
+        {
+          type: 'array',
+          items: { type: 'integer', minimum: 1 }
+        }
+      ]
+    },
+    thumbnail: { type: 'string', contentEncoding: 'binary' }
+  }
+} as const
+
 export default async function subscriptionRoutes(app: FastifyInstance) {
   // Auth applied to all subscription routes
   app.addHook('preHandler', authMiddleware);
@@ -60,7 +79,7 @@ export default async function subscriptionRoutes(app: FastifyInstance) {
         });
       }
     });
-  app.get('/plans/many/:ids', { schema: { tags: ['Lessons-courses'] } }, async (req, reply) => {
+  app.get('/plans/many/:ids', { schema: { tags: ['Subscription Plans'] } }, async (req, reply) => {
     try {
       const { ids } = req.params as { ids: string }; // '2,8,9'
       const idArray = ids.split(',').map(Number);   // [2, 8, 9]
@@ -88,6 +107,8 @@ export default async function subscriptionRoutes(app: FastifyInstance) {
   app.post('/plans', {
     schema: {
       tags: ['Subscription Plans'],
+      consumes: ['multipart/form-data'],
+      body: planCreateBody
     },
     preHandler: [onlyOrg]
   }, async (req, reply) => {

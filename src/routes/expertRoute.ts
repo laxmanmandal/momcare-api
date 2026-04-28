@@ -1,8 +1,27 @@
 import { FastifyInstance } from 'fastify'
 import * as expertService from '../services/expertService'
 import { authMiddleware, onlyOrg } from '../middleware/auth';
+
+const expertBody = {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+        name: { type: 'string' },
+        profession_id: { type: 'integer', minimum: 1 },
+        name_org: { type: 'string' },
+        qualification: { type: 'string' },
+        image: { type: 'string', contentEncoding: 'binary' }
+    }
+} as const
+
 export default async function ExpertRoutes(app: FastifyInstance) {
-    app.post('/', { schema: { tags: ['Experts'] }, preHandler: [authMiddleware, onlyOrg] }, async (req, reply) => {
+    app.post('/', {
+        schema: {
+            tags: ['Experts'],
+            consumes: ['multipart/form-data'],
+            body: expertBody
+        }, preHandler: [authMiddleware, onlyOrg]
+    }, async (req, reply) => {
 
         const { files, fields } = await app.parseMultipartMemory(req);
 
@@ -30,7 +49,12 @@ export default async function ExpertRoutes(app: FastifyInstance) {
     });
 
     app.patch(
-        '/:id', { schema: { tags: ['Experts'] }, preHandler: [authMiddleware, onlyOrg] },
+        '/:id', {
+        schema: {
+            tags: ['Experts'],
+            consumes: ['application/json', 'multipart/form-data'],
+            body: expertBody
+        }, preHandler: [authMiddleware, onlyOrg] },
         async (req, reply) => {
 
             const { id } = req.params as { id: string };

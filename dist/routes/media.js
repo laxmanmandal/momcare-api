@@ -36,10 +36,25 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = mediaRoutes;
 const mediaservice = __importStar(require("../services/mediaService"));
 const auth_1 = require("../middleware/auth");
+const mediaWriteBody = {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+        title: { type: 'string' },
+        type: { type: 'string' },
+        mimetype: { type: 'string' },
+        url: { type: 'string' },
+        thumbnail: { type: 'string' }
+    }
+};
 async function mediaRoutes(app) {
     app.addHook('preHandler', auth_1.authMiddleware);
     app.post('/', {
-        schema: { tags: ['Media Files'] },
+        schema: {
+            tags: ['Media Files'],
+            consumes: ['multipart/form-data'],
+            body: mediaWriteBody
+        },
         preHandler: [auth_1.onlyOrg]
     }, async (req, reply) => {
         try {
@@ -74,7 +89,11 @@ async function mediaRoutes(app) {
         }
     });
     app.patch('/:uuid', {
-        schema: { tags: ['Media Files'] },
+        schema: {
+            tags: ['Media Files'],
+            consumes: ['application/json', 'multipart/form-data'],
+            body: mediaWriteBody
+        },
         preHandler: [auth_1.onlyOrg]
     }, async (req, reply) => {
         try {
@@ -289,7 +308,20 @@ async function mediaRoutes(app) {
             });
         }
     });
-    app.get('/search', async (request, reply) => {
+    app.get('/search', {
+        schema: {
+            tags: ['Media Files'],
+            querystring: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                    query: { type: 'string' },
+                    type: { type: 'string' },
+                    mimeType: { type: 'string' }
+                }
+            }
+        }
+    }, async (request, reply) => {
         try {
             const results = await mediaservice.search(request.query);
             return reply.send({ success: true, data: results });

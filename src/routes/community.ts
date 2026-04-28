@@ -1,11 +1,37 @@
 import { FastifyInstance } from 'fastify'
 import * as communityService from '../services/communityService'
 import { authMiddleware, onlyOrg } from '../middleware/auth';
+
+const communityCreateBody = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['name'],
+  properties: {
+    name: { type: 'string' },
+    description: { type: 'string' },
+    imageUrl: { type: 'string', contentEncoding: 'binary' }
+  }
+} as const
+
+const communityUpdateBody = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    name: { type: 'string' },
+    description: { type: 'string' },
+    imageUrl: { type: 'string', contentEncoding: 'binary' }
+  }
+} as const
+
 export default async function community(app: FastifyInstance) {
   app.addHook('preHandler', authMiddleware);
 
   app.post('/', {
-    schema: { tags: ['Community'] },
+    schema: {
+      tags: ['Community'],
+      consumes: ['multipart/form-data'],
+      body: communityCreateBody
+    },
     preHandler: [onlyOrg]
   }, async (req, reply) => {
 
@@ -37,7 +63,11 @@ export default async function community(app: FastifyInstance) {
 
   app.patch(
     '/:id', {
-    schema: { tags: ['Community'] },
+    schema: {
+      tags: ['Community'],
+      consumes: ['application/json', 'multipart/form-data'],
+      body: communityUpdateBody
+    },
     preHandler: [onlyOrg]
   },
     async (req, reply) => {
@@ -115,7 +145,20 @@ export default async function community(app: FastifyInstance) {
 
     });
 
-  app.post('/join', { schema: { tags: ['Community'] } }, async (req, reply) => {
+  app.post('/join', {
+    schema: {
+      tags: ['Community'],
+      body: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['userId', 'communityId'],
+        properties: {
+          userId: { type: 'integer', minimum: 1 },
+          communityId: { type: 'integer', minimum: 1 }
+        }
+      }
+    }
+  }, async (req, reply) => {
 
     console.log(req.body);
 

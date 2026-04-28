@@ -1,6 +1,23 @@
 import { FastifyInstance } from 'fastify'
 import * as resourceService from '../services/resourceService'
 import { authMiddleware, onlyOrg } from '../middleware/auth';
+
+const conceiveBody = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    week: { type: 'integer', minimum: 1 },
+    title: { type: 'string' },
+    subtitle: { type: 'string' },
+    type: { type: 'string' },
+    description: { type: 'string' },
+    height: { type: 'string' },
+    weight: { type: 'string' },
+    thumbnail: { type: 'string', contentEncoding: 'binary' },
+    image: { type: 'string', contentEncoding: 'binary' }
+  }
+} as const
+
 export default async function resourceRoutes(app: FastifyInstance) {
 
   app.post(
@@ -9,7 +26,8 @@ export default async function resourceRoutes(app: FastifyInstance) {
       preHandler: [authMiddleware, onlyOrg],
       schema: {
         tags: ['Resources'],
-
+        consumes: ['multipart/form-data'],
+        body: conceiveBody
       }
     },
     async (req, reply) => {
@@ -51,7 +69,9 @@ export default async function resourceRoutes(app: FastifyInstance) {
     '/conceive/:id',
     {
       schema: {
-        tags: ['Resources']
+        tags: ['Resources'],
+        consumes: ['application/json', 'multipart/form-data'],
+        body: conceiveBody
       },
       preHandler: [authMiddleware, onlyOrg]
     },
@@ -103,8 +123,9 @@ export default async function resourceRoutes(app: FastifyInstance) {
 
   );
   app.get('/conceive/type/:type', {
+    preHandler: [authMiddleware],
     schema: {
-      tags: ['Resources'], preHandler: [authMiddleware],
+      tags: ['Resources'],
 
       response: {
         200: {
@@ -164,8 +185,9 @@ export default async function resourceRoutes(app: FastifyInstance) {
     }
   });
   app.get('/conceive/:id', {
+    preHandler: [authMiddleware],
     schema: {
-      tags: ['Resources'], preHandler: [authMiddleware],
+      tags: ['Resources'],
 
       response: {
         200: {

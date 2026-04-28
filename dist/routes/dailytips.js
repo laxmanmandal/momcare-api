@@ -36,9 +36,25 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = dailytipsRoute;
 const dailytipService = __importStar(require("../services/dailytipService"));
 const auth_1 = require("../middleware/auth");
+const dailyTipsBody = {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+        title: { type: 'string' },
+        heading: { type: 'string' },
+        subheading: { type: 'string' },
+        content: { type: 'string' },
+        category: { type: 'string' },
+        icon: { type: 'string', contentEncoding: 'binary' }
+    }
+};
 async function dailytipsRoute(app) {
     app.post('/', {
-        schema: { tags: ['Dailytips'] },
+        schema: {
+            tags: ['Dailytips'],
+            consumes: ['multipart/form-data'],
+            body: dailyTipsBody
+        },
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
     }, async (req, reply) => {
         const { files, fields } = await app.parseMultipartMemory(req);
@@ -62,7 +78,13 @@ async function dailytipsRoute(app) {
             data: dailytips,
         });
     });
-    app.patch('/:id', { schema: { tags: ['Dailytips'] }, preHandler: [auth_1.authMiddleware, auth_1.onlyOrg] }, async (req, reply) => {
+    app.patch('/:id', {
+        schema: {
+            tags: ['Dailytips'],
+            consumes: ['application/json', 'multipart/form-data'],
+            body: dailyTipsBody
+        }, preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
+    }, async (req, reply) => {
         const { id } = req.params;
         // Parse form data (multipart or json)
         const { files, fields } = await app.parseMultipartMemory(req);

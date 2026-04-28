@@ -7,12 +7,29 @@ interface MediaSearchQuery {
     type?: string;
     mimeType?: string;
 }
+
+const mediaWriteBody = {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+        title: { type: 'string' },
+        type: { type: 'string' },
+        mimetype: { type: 'string' },
+        url: { type: 'string' },
+        thumbnail: { type: 'string' }
+    }
+} as const
+
 export default async function mediaRoutes(app: FastifyInstance) {
     app.addHook('preHandler', authMiddleware);
 
     app.post('/',
         {
-            schema: { tags: ['Media Files'] },
+            schema: {
+                tags: ['Media Files'],
+                consumes: ['multipart/form-data'],
+                body: mediaWriteBody
+            },
             preHandler: [onlyOrg]
         }, async (req, reply) => {
             try {
@@ -51,7 +68,11 @@ export default async function mediaRoutes(app: FastifyInstance) {
     app.patch(
         '/:uuid',
         {
-            schema: { tags: ['Media Files'] },
+            schema: {
+                tags: ['Media Files'],
+                consumes: ['application/json', 'multipart/form-data'],
+                body: mediaWriteBody
+            },
             preHandler: [onlyOrg]
         },
         async (req, reply) => {
@@ -274,7 +295,20 @@ export default async function mediaRoutes(app: FastifyInstance) {
             });
         }
     });
-    app.get<{ Querystring: MediaSearchQuery }>('/search', async (request, reply) => {
+    app.get<{ Querystring: MediaSearchQuery }>('/search', {
+        schema: {
+            tags: ['Media Files'],
+            querystring: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                    query: { type: 'string' },
+                    type: { type: 'string' },
+                    mimeType: { type: 'string' }
+                }
+            }
+        }
+    }, async (request, reply) => {
         try {
             const results = await mediaservice.search(request.query);
             return reply.send({ success: true, data: results });

@@ -36,10 +36,33 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = community;
 const communityService = __importStar(require("../services/communityService"));
 const auth_1 = require("../middleware/auth");
+const communityCreateBody = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['name'],
+    properties: {
+        name: { type: 'string' },
+        description: { type: 'string' },
+        imageUrl: { type: 'string', contentEncoding: 'binary' }
+    }
+};
+const communityUpdateBody = {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+        name: { type: 'string' },
+        description: { type: 'string' },
+        imageUrl: { type: 'string', contentEncoding: 'binary' }
+    }
+};
 async function community(app) {
     app.addHook('preHandler', auth_1.authMiddleware);
     app.post('/', {
-        schema: { tags: ['Community'] },
+        schema: {
+            tags: ['Community'],
+            consumes: ['multipart/form-data'],
+            body: communityCreateBody
+        },
         preHandler: [auth_1.onlyOrg]
     }, async (req, reply) => {
         const { files, fields } = await app.parseMultipartMemory(req);
@@ -62,7 +85,11 @@ async function community(app) {
         });
     });
     app.patch('/:id', {
-        schema: { tags: ['Community'] },
+        schema: {
+            tags: ['Community'],
+            consumes: ['application/json', 'multipart/form-data'],
+            body: communityUpdateBody
+        },
         preHandler: [auth_1.onlyOrg]
     }, async (req, reply) => {
         const { id } = req.params;
@@ -116,7 +143,20 @@ async function community(app) {
         const community = await communityService.CommunityStatus(id);
         return reply.send({ success: true, message: 'Community status updated successfully', data: community });
     });
-    app.post('/join', { schema: { tags: ['Community'] } }, async (req, reply) => {
+    app.post('/join', {
+        schema: {
+            tags: ['Community'],
+            body: {
+                type: 'object',
+                additionalProperties: false,
+                required: ['userId', 'communityId'],
+                properties: {
+                    userId: { type: 'integer', minimum: 1 },
+                    communityId: { type: 'integer', minimum: 1 }
+                }
+            }
+        }
+    }, async (req, reply) => {
         console.log(req.body);
         const { userId, communityId } = req.body ?? {};
         if (!userId || !communityId) {

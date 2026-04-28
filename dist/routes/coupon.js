@@ -37,6 +37,21 @@ exports.default = CouponRoute;
 const couponService = __importStar(require("../services/couponService"));
 const auth_1 = require("../middleware/auth");
 const client_1 = require("@prisma/client");
+const couponWriteBody = {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+        code: { type: 'string' },
+        title: { type: 'string' },
+        description: { type: 'string' },
+        percent: { type: 'number' },
+        fixed_amount: { type: 'number' },
+        assigned_user_id: { type: 'integer', minimum: 1 },
+        effective_at: { type: 'string', format: 'date-time' },
+        expires_at: { type: 'string', format: 'date-time' },
+        image: { type: 'string', contentEncoding: 'binary' }
+    }
+};
 async function CouponRoute(app) {
     function normalizeNumber(input) {
         if (input === null || input === undefined)
@@ -54,9 +69,11 @@ async function CouponRoute(app) {
         return null;
     }
     app.post('/create', {
+        preHandler: [auth_1.authMiddleware, auth_1.onlyOrg],
         schema: {
-            preHandler: [auth_1.authMiddleware, auth_1.onlyOrg],
             tags: ['Coupon'],
+            consumes: ['multipart/form-data'],
+            body: couponWriteBody
         },
     }, async (req, reply) => {
         const { files, fields } = await app.parseMultipartMemory(req);
@@ -226,6 +243,7 @@ async function CouponRoute(app) {
     });
     app.get('/:coupon_code', {
         schema: {
+            tags: ['Coupon'],
             params: {
                 type: 'object',
                 properties: {
@@ -244,13 +262,17 @@ async function CouponRoute(app) {
         });
     });
     app.patch('/:id', {
+        preHandler: [auth_1.authMiddleware, auth_1.onlyOrg],
         schema: {
-            preHandler: [auth_1.authMiddleware, auth_1.onlyOrg],
             tags: ['Coupon'],
+            consumes: ['application/json', 'multipart/form-data'],
+            body: couponWriteBody
         },
     }, async (req, reply) => {
         const { files, fields } = await app.parseMultipartMemory(req);
         const { id } = req.params;
+        if (!req.isMultipart() && req.body)
+            Object.assign(fields, req.body);
         // Simple fix: Convert empty strings to null for decimal fields
         const fixedData = {
             ...fields,

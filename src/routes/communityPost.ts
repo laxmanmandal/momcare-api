@@ -8,15 +8,18 @@ export default async function communityPost(app: FastifyInstance) {
             preHandler: [authMiddleware],
             schema: {
                 tags: ['Community post'],
+                consumes: ['multipart/form-data'],
                 body: {
+                    type: 'object',
                     required: ['title', 'content', 'communityId', 'userId', 'mediaType'],
                     additionalProperties: false,
                     properties: {
                         title: { type: 'string' },
                         content: { type: 'string' },
-                        communityId: { type: 'integer', minLength: 1 },
-                        userId: { type: 'integer', minLength: 1 },
-                        mediaType: { type: 'string' }
+                        communityId: { type: 'integer', minimum: 1 },
+                        userId: { type: 'integer', minimum: 1 },
+                        mediaType: { type: 'string' },
+                        media: { type: 'string', contentEncoding: 'binary' }
                     }
                 },
             }
@@ -54,16 +57,20 @@ export default async function communityPost(app: FastifyInstance) {
         '/:id',
         {
             schema: {
-                tags: ['Community post'], body: {
+                tags: ['Community post'],
+                consumes: ['application/json', 'multipart/form-data'],
+                body: {
+                    type: 'object',
                     additionalProperties: false,
                     properties: {
                         title: { type: 'string' },
                         content: { type: 'string' },
-                        communityId: { type: 'integer', minLength: 1 },
-                        userId: { type: 'integer', minLength: 1 },
-                        mediaType: { type: 'string' }
+                        communityId: { type: 'integer', minimum: 1 },
+                        userId: { type: 'integer', minimum: 1 },
+                        mediaType: { type: 'string' },
+                        media: { type: 'string', contentEncoding: 'binary' }
                     }
-                },
+                }
             }
         },
         async (req, reply) => {

@@ -7,14 +7,17 @@ export default async function expertPost(app: FastifyInstance) {
         {
             schema: {
                 tags: ['Expert Posts'],
+                consumes: ['multipart/form-data'],
                 body: {
+                    type: 'object',
                     required: ['title', 'content', 'expert_id'],
                     additionalProperties: false,
                     properties: {
                         title: { type: 'string' },
                         content: { type: 'string' },
-                        expert_id: { type: 'integer', minLength: 1 },
-                        mediaType: { type: 'string' }
+                        expert_id: { type: 'integer', minimum: 1 },
+                        mediaType: { type: 'string' },
+                        media: { type: 'string', contentEncoding: 'binary' }
                     }
                 }
             }
@@ -51,13 +54,16 @@ export default async function expertPost(app: FastifyInstance) {
         {
             schema: {
                 tags: ['Expert Posts'],
+                consumes: ['application/json', 'multipart/form-data'],
                 body: {
+                    type: 'object',
                     additionalProperties: false,
                     properties: {
                         title: { type: 'string' },
                         content: { type: 'string' },
-                        expert_id: { type: 'integer', minLength: 1 },
-                        mediaType: { type: 'string' }
+                        expert_id: { type: 'integer', minimum: 1 },
+                        mediaType: { type: 'string' },
+                        media: { type: 'string', contentEncoding: 'binary' }
                     }
                 }
             }
@@ -208,12 +214,13 @@ export default async function expertPost(app: FastifyInstance) {
         {
             schema: {
                 tags: ['Expert Posts'],
+                consumes: ['application/json', 'multipart/form-data'],
                 body: {
                     type: 'object',
                     required: ['name'],
                     additionalProperties: false,
                     properties: {
-                        title: { type: 'string' },
+                        name: { type: 'string' },
 
                     }
                 },
@@ -221,7 +228,9 @@ export default async function expertPost(app: FastifyInstance) {
             }
         },
         async (req, reply) => {
-            const { fields } = await app.parseMultipartMemory(req);
+            const { fields } = req.isMultipart()
+                ? await app.parseMultipartMemory(req)
+                : { fields: (req.body as Record<string, any>) ?? {} };
             const prData = {
                 name: fields.name,
             };

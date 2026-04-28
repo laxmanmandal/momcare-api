@@ -1,11 +1,29 @@
 import { FastifyInstance } from 'fastify'
 import * as dailytipService from '../services/dailytipService'
 import { authMiddleware, onlyOrg } from '../middleware/auth';
+
+const dailyTipsBody = {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+        title: { type: 'string' },
+        heading: { type: 'string' },
+        subheading: { type: 'string' },
+        content: { type: 'string' },
+        category: { type: 'string' },
+        icon: { type: 'string', contentEncoding: 'binary' }
+    }
+} as const
+
 export default async function dailytipsRoute(app: FastifyInstance) {
     app.post('/',
 
         {
-            schema: { tags: ['Dailytips'] },
+            schema: {
+                tags: ['Dailytips'],
+                consumes: ['multipart/form-data'],
+                body: dailyTipsBody
+            },
             preHandler: [authMiddleware, onlyOrg]
         }, async (req: any, reply) => {
 
@@ -36,7 +54,12 @@ export default async function dailytipsRoute(app: FastifyInstance) {
         });
 
     app.patch(
-        '/:id', { schema: { tags: ['Dailytips'] }, preHandler: [authMiddleware, onlyOrg] },
+        '/:id', {
+        schema: {
+            tags: ['Dailytips'],
+            consumes: ['application/json', 'multipart/form-data'],
+            body: dailyTipsBody
+        }, preHandler: [authMiddleware, onlyOrg] },
         async (req, reply) => {
 
             const { id } = req.params as { id: string };

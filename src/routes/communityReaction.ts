@@ -12,13 +12,13 @@ export default async function communityReaction(app: FastifyInstance) {
         {
             schema: {
                 tags: ['Community post and Comments Likes'],
+                description: 'Toggle a reaction for either a post or a comment. Provide postId or commentId.',
                 body: {
                     type: 'object',
-                    required: ['postId', 'commentId'],
                     additionalProperties: false,
                     properties: {
-                        postId: { type: 'integer', minLength: 1 },
-                        commentId: { type: 'integer', minLength: 1 },
+                        postId: { type: 'integer', minimum: 1 },
+                        commentId: { type: 'integer', minimum: 1 },
                     }
                 },
             }

@@ -91,6 +91,7 @@ app.register(cors_1.default, {
     allowedHeaders: ['Content-Type', 'Authorization']
 });
 app.register(swagger_1.default, {
+    hideUntagged: true,
     swagger: {
         info: {
             title: 'LMS API',
@@ -98,11 +99,19 @@ app.register(swagger_1.default, {
             version: '1.0.0'
         },
         schemes: ['http', 'https'],
-        consumes: ['application/json', 'multipart/form-data'],
         produces: ['application/json'],
         securityDefinitions: {
             BearerAuth: { type: 'apiKey', name: 'Authorization', in: 'header' }
         }
+    },
+    transform: ({ schema, url, route }) => {
+        const transformedSchema = { ...schema };
+        const routeConfig = (route.config ?? {});
+        if (!routeConfig.swaggerPublic && !transformedSchema.security) {
+            transformedSchema.security = [{ BearerAuth: [] }];
+        }
+        const transformedUrl = url !== '/' && url.endsWith('/') ? url.slice(0, -1) : url;
+        return { schema: transformedSchema, url: transformedUrl };
     }
 });
 app.register(swagger_ui_1.default, {
@@ -226,8 +235,8 @@ app.get('/', async () => ({
 }));
 const start = async () => {
     try {
-        const port = Number(process.env.PORT || 3000);
-        const host = '0.0.0.0';
+        const port = Number(process.env.PORT || 8000);
+        const host = 'localhost';
         console.log('🔧 Initializing server...');
         console.log(`   NODE_ENV: ${process.env.NODE_ENV}`);
         console.log(`   PORT: ${port}`);

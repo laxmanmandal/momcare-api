@@ -14,7 +14,6 @@ export default async function healthRoutes(app: FastifyInstance) {
     {
       schema: {
         tags: ['Health'],
-        preHandler: [authMiddleware],
         description: 'Create a symptom entry',
         body: {
           type: 'object',
@@ -98,4 +97,3 @@ export default async function healthRoutes(app: FastifyInstance) {
       }
     });
 }
-

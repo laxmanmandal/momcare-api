@@ -36,8 +36,25 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = ExpertRoutes;
 const expertService = __importStar(require("../services/expertService"));
 const auth_1 = require("../middleware/auth");
+const expertBody = {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+        name: { type: 'string' },
+        profession_id: { type: 'integer', minimum: 1 },
+        name_org: { type: 'string' },
+        qualification: { type: 'string' },
+        image: { type: 'string', contentEncoding: 'binary' }
+    }
+};
 async function ExpertRoutes(app) {
-    app.post('/', { schema: { tags: ['Experts'] }, preHandler: [auth_1.authMiddleware, auth_1.onlyOrg] }, async (req, reply) => {
+    app.post('/', {
+        schema: {
+            tags: ['Experts'],
+            consumes: ['multipart/form-data'],
+            body: expertBody
+        }, preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
+    }, async (req, reply) => {
         const { files, fields } = await app.parseMultipartMemory(req);
         const expertsData = {
             name: fields.name,
@@ -57,7 +74,13 @@ async function ExpertRoutes(app) {
             data: expert,
         });
     });
-    app.patch('/:id', { schema: { tags: ['Experts'] }, preHandler: [auth_1.authMiddleware, auth_1.onlyOrg] }, async (req, reply) => {
+    app.patch('/:id', {
+        schema: {
+            tags: ['Experts'],
+            consumes: ['application/json', 'multipart/form-data'],
+            body: expertBody
+        }, preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
+    }, async (req, reply) => {
         const { id } = req.params;
         // Parse form data (multipart or json)
         const { files, fields } = await app.parseMultipartMemory(req);

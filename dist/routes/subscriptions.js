@@ -36,6 +36,24 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = subscriptionRoutes;
 const subscriptionService = __importStar(require("../services/subscriptionService"));
 const auth_1 = require("../middleware/auth");
+const planCreateBody = {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+        name: { type: 'string' },
+        price: { type: 'number', minimum: 0 },
+        courseIds: {
+            oneOf: [
+                { type: 'string' },
+                {
+                    type: 'array',
+                    items: { type: 'integer', minimum: 1 }
+                }
+            ]
+        },
+        thumbnail: { type: 'string', contentEncoding: 'binary' }
+    }
+};
 async function subscriptionRoutes(app) {
     // Auth applied to all subscription routes
     app.addHook('preHandler', auth_1.authMiddleware);
@@ -88,7 +106,7 @@ async function subscriptionRoutes(app) {
             });
         }
     });
-    app.get('/plans/many/:ids', { schema: { tags: ['Lessons-courses'] } }, async (req, reply) => {
+    app.get('/plans/many/:ids', { schema: { tags: ['Subscription Plans'] } }, async (req, reply) => {
         try {
             const { ids } = req.params; // '2,8,9'
             const idArray = ids.split(',').map(Number); // [2, 8, 9]
@@ -115,6 +133,8 @@ async function subscriptionRoutes(app) {
     app.post('/plans', {
         schema: {
             tags: ['Subscription Plans'],
+            consumes: ['multipart/form-data'],
+            body: planCreateBody
         },
         preHandler: [auth_1.onlyOrg]
     }, async (req, reply) => {

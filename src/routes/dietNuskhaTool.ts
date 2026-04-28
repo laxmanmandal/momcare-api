@@ -1,13 +1,44 @@
 import { FastifyInstance } from 'fastify'
 import * as dietNuskhaToolervice from '../services/dietNuskhaToolService'
 import { authMiddleware, onlyOrg } from '../middleware/auth';
+
+const dietChartBody = {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+        heading: { type: 'string' },
+        weekId: { type: 'integer', minimum: 1 },
+        category: { type: 'string' },
+        subheading: { type: 'string' },
+        content: { type: 'string' },
+        toolType: { type: 'string' },
+        icon: { type: 'string', contentEncoding: 'binary' }
+    }
+} as const
+
+const nuskheBody = {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+        category: { type: 'string' },
+        heading: { type: 'string' },
+        subheading: { type: 'string' },
+        content: { type: 'string' },
+        icon: { type: 'string', contentEncoding: 'binary' }
+    }
+} as const
+
 export default async function dietNuskhaRoute(app: FastifyInstance) {
     app.addHook('preHandler', authMiddleware)
 
 
     app.post('/diet-chart',
         {
-            schema: { tags: ['diet-chart'] },
+            schema: {
+                tags: ['diet-chart'],
+                consumes: ['multipart/form-data'],
+                body: dietChartBody
+            },
             preHandler: [authMiddleware, onlyOrg]
         },
 
@@ -44,7 +75,13 @@ export default async function dietNuskhaRoute(app: FastifyInstance) {
 
     app.patch(
         '/diet-chart/:id',
-        { schema: { tags: ['diet-chart'] }, preHandler: [authMiddleware, onlyOrg] },
+        {
+            schema: {
+                tags: ['diet-chart'],
+                consumes: ['application/json', 'multipart/form-data'],
+                body: dietChartBody
+            }, preHandler: [authMiddleware, onlyOrg]
+        },
         async (req, reply) => {
 
             const { id } = req.params as { id: string };
@@ -142,7 +179,13 @@ export default async function dietNuskhaRoute(app: FastifyInstance) {
     // dadiNani k nuskhe 
 
     app.post('/dadi-nani-nuskhe',
-        { schema: { tags: ['Dadi-nani-Nuskhe'] }, preHandler: [authMiddleware, onlyOrg] },
+        {
+            schema: {
+                tags: ['Dadi-nani-Nuskhe'],
+                consumes: ['multipart/form-data'],
+                body: nuskheBody
+            }, preHandler: [authMiddleware, onlyOrg]
+        },
 
         async (req: any, reply) => {
 
@@ -174,7 +217,13 @@ export default async function dietNuskhaRoute(app: FastifyInstance) {
 
     app.patch(
         '/dadi-nani-nuskhe/:id',
-        { schema: { tags: ['Dadi-nani-Nuskhe'] }, preHandler: [authMiddleware, onlyOrg] },
+        {
+            schema: {
+                tags: ['Dadi-nani-Nuskhe'],
+                consumes: ['application/json', 'multipart/form-data'],
+                body: nuskheBody
+            }, preHandler: [authMiddleware, onlyOrg]
+        },
         async (req, reply) => {
 
             const { id } = req.params as { id: string };

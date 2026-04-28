@@ -36,11 +36,28 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = resourceRoutes;
 const resourceService = __importStar(require("../services/resourceService"));
 const auth_1 = require("../middleware/auth");
+const conceiveBody = {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+        week: { type: 'integer', minimum: 1 },
+        title: { type: 'string' },
+        subtitle: { type: 'string' },
+        type: { type: 'string' },
+        description: { type: 'string' },
+        height: { type: 'string' },
+        weight: { type: 'string' },
+        thumbnail: { type: 'string', contentEncoding: 'binary' },
+        image: { type: 'string', contentEncoding: 'binary' }
+    }
+};
 async function resourceRoutes(app) {
     app.post('/conceive', {
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg],
         schema: {
             tags: ['Resources'],
+            consumes: ['multipart/form-data'],
+            body: conceiveBody
         }
     }, async (req, reply) => {
         const { files, fields } = await app.parseMultipartMemory(req);
@@ -72,7 +89,9 @@ async function resourceRoutes(app) {
     });
     app.patch('/conceive/:id', {
         schema: {
-            tags: ['Resources']
+            tags: ['Resources'],
+            consumes: ['application/json', 'multipart/form-data'],
+            body: conceiveBody
         },
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
     }, async (req, reply) => {
@@ -109,8 +128,9 @@ async function resourceRoutes(app) {
         });
     });
     app.get('/conceive/type/:type', {
+        preHandler: [auth_1.authMiddleware],
         schema: {
-            tags: ['Resources'], preHandler: [auth_1.authMiddleware],
+            tags: ['Resources'],
             response: {
                 200: {
                     type: 'object',
@@ -168,8 +188,9 @@ async function resourceRoutes(app) {
         }
     });
     app.get('/conceive/:id', {
+        preHandler: [auth_1.authMiddleware],
         schema: {
-            tags: ['Resources'], preHandler: [auth_1.authMiddleware],
+            tags: ['Resources'],
             response: {
                 200: {
                     type: 'object',

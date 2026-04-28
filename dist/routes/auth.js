@@ -48,7 +48,22 @@ const loginratelimiter_1 = require("../middleware/loginratelimiter");
 const otpratelimiter_1 = require("../middleware/otpratelimiter");
 async function authRoutes(app) {
     const roleEnum = Object.keys(client_1.Role).filter(k => isNaN(Number(k)));
-    app.post('/request-otp', async (req, reply) => {
+    app.post('/request-otp', {
+        config: {
+            swaggerPublic: true
+        },
+        schema: {
+            tags: ['Auth'],
+            body: {
+                type: 'object',
+                required: ['phone'],
+                additionalProperties: false,
+                properties: {
+                    phone: { type: 'string', minLength: 6 }
+                }
+            }
+        }
+    }, async (req, reply) => {
         const key = (0, otpratelimiter_1.otpRateLimiter)(req, reply);
         if (!key)
             return; // blocked or invalid
@@ -57,7 +72,23 @@ async function authRoutes(app) {
         (0, otpratelimiter_1.recordSendSuccess)(key);
         return reply.send({ ok: true, message: 'OTP sent' });
     });
-    app.post("/verify-otp", async (req, reply) => {
+    app.post("/verify-otp", {
+        config: {
+            swaggerPublic: true
+        },
+        schema: {
+            tags: ['Auth'],
+            body: {
+                type: 'object',
+                required: ['phone', 'otp'],
+                additionalProperties: false,
+                properties: {
+                    phone: { type: 'string', minLength: 6 },
+                    otp: { type: 'string', minLength: 4 }
+                }
+            }
+        }
+    }, async (req, reply) => {
         const key = (0, otpratelimiter_1.otpRateLimiter)(req, reply);
         if (!key)
             return;
@@ -96,7 +127,7 @@ async function authRoutes(app) {
     app.post('/signup', {
         preHandler: [auth_1.authMiddleware, app.accessControl.check('CREATE_USER')],
         schema: {
-            tags: ['auth'],
+            tags: ['Auth'],
             body: {
                 type: 'object',
                 additionalProperties: false,
@@ -145,7 +176,23 @@ async function authRoutes(app) {
         });
     });
     // login route (keeps schema simple)
-    app.post('/login', async (req, reply) => {
+    app.post('/login', {
+        config: {
+            swaggerPublic: true
+        },
+        schema: {
+            tags: ['Auth'],
+            body: {
+                type: 'object',
+                required: ['email', 'password'],
+                additionalProperties: false,
+                properties: {
+                    email: { type: 'string', format: 'email' },
+                    password: { type: 'string', minLength: 8 }
+                }
+            }
+        }
+    }, async (req, reply) => {
         const key = (0, loginratelimiter_1.loginRateLimiter)(req, reply);
         if (!key)
             return;
@@ -168,8 +215,19 @@ async function authRoutes(app) {
     });
     // refresh route
     app.post('/refresh', {
+        config: {
+            swaggerPublic: true
+        },
         schema: {
             tags: ['Auth'],
+            body: {
+                type: 'object',
+                required: ['refreshToken'],
+                additionalProperties: false,
+                properties: {
+                    refreshToken: { type: 'string', minLength: 1 }
+                }
+            }
         },
     }, async (req, reply) => {
         const tokens = await authService.refreshTokenService(req.body.refreshToken);

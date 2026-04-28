@@ -19,6 +19,9 @@ declare module 'fastify' {
             token?: string
         };
     }
+    interface FastifyContextConfig {
+        swaggerPublic?: boolean;
+    }
     interface DatabaseClient {
         Concieve: {
             createMany: (params: { data: any[]; skipDuplicates?: boolean }) => Promise<{ count: number }>;
@@ -102,5 +105,4 @@ declare module 'fastify' {
         email?: string;
     }
 }
-
 

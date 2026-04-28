@@ -2,6 +2,23 @@ import { FastifyInstance } from 'fastify'
 import * as couponService from '../services/couponService'
 import { authMiddleware, onlyOrg } from '../middleware/auth';
 import { Role } from '@prisma/client';
+
+const couponWriteBody = {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+        code: { type: 'string' },
+        title: { type: 'string' },
+        description: { type: 'string' },
+        percent: { type: 'number' },
+        fixed_amount: { type: 'number' },
+        assigned_user_id: { type: 'integer', minimum: 1 },
+        effective_at: { type: 'string', format: 'date-time' },
+        expires_at: { type: 'string', format: 'date-time' },
+        image: { type: 'string', contentEncoding: 'binary' }
+    }
+} as const
+
 export default async function CouponRoute(app: FastifyInstance) {
 
     function normalizeNumber(input: any) {
@@ -26,9 +43,11 @@ export default async function CouponRoute(app: FastifyInstance) {
     app.post(
         '/create',
         {
+            preHandler: [authMiddleware, onlyOrg],
             schema: {
-                preHandler: [authMiddleware, onlyOrg],
                 tags: ['Coupon'],
+                consumes: ['multipart/form-data'],
+                body: couponWriteBody
             },
         },
         async (req, reply) => {
@@ -232,6 +251,7 @@ export default async function CouponRoute(app: FastifyInstance) {
         });
     app.get('/:coupon_code', {
         schema: {
+            tags: ['Coupon'],
             params: {
                 type: 'object',
                 properties: {
@@ -255,16 +275,18 @@ export default async function CouponRoute(app: FastifyInstance) {
     app.patch(
         '/:id',
         {
+            preHandler: [authMiddleware, onlyOrg],
             schema: {
-                preHandler: [authMiddleware, onlyOrg],
                 tags: ['Coupon'],
-
+                consumes: ['application/json', 'multipart/form-data'],
+                body: couponWriteBody
             },
         },
         async (req, reply) => {
 
             const { files, fields } = await app.parseMultipartMemory(req);
             const { id } = req.params as { id: string };
+            if (!req.isMultipart() && req.body) Object.assign(fields, req.body);
 
             // Simple fix: Convert empty strings to null for decimal fields
             const fixedData = {

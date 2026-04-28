@@ -21,9 +21,9 @@ export default async function communityComment(app: FastifyInstance) {
                 required: ['postId', 'userId', 'content'],
                 additionalProperties: false,
                 properties: {
-                    postId: { type: 'integer', minLength: 1 },
-                    userId: { type: 'integer', minLength: 1 },
-                    partentId: { type: 'integer', minLength: 1 },
+                    postId: { type: 'integer', minimum: 1 },
+                    userId: { type: 'integer', minimum: 1 },
+                    parentId: { type: 'integer', minimum: 1 },
                     content: { type: 'string' }
                 }
             },
@@ -56,9 +56,9 @@ export default async function communityComment(app: FastifyInstance) {
                 type: 'object',
                 additionalProperties: false,
                 properties: {
-                    postId: { type: 'integer', minLength: 1 },
-                    userId: { type: 'integer', minLength: 1 },
-                    partentId: { type: 'integer', minLength: 1 },
+                    postId: { type: 'integer', minimum: 1 },
+                    userId: { type: 'integer', minimum: 1 },
+                    parentId: { type: 'integer', minimum: 1 },
                     content: { type: 'string' }
                 }
             },

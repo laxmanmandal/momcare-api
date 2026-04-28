@@ -8,7 +8,11 @@ export default async function razorpayWebhook(app: FastifyInstance) {
         "/razorpay",
         {
             config: {
-                rawBody: true
+                rawBody: true,
+                swaggerPublic: true
+            },
+            schema: {
+                tags: ['Payments']
             }
         },
         async (req: any, reply) => {
