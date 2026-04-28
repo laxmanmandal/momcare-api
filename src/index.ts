@@ -257,8 +257,8 @@ app.get('/', async () => ({
 }))
 const start = async () => {
     try {
-        const port = Number(process.env.PORT || 8000);
-        const host = 'localhost';
+        const port = Number(process.env.PORT || 8080);
+        const host = '0.0.0.0';
         
         console.log('🔧 Initializing server...');
         console.log(`   NODE_ENV: ${process.env.NODE_ENV}`);
