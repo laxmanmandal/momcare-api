@@ -1,4 +1,5 @@
 import createHttpError from "http-errors";
+import { z } from "zod";
 
 type StringOptions = {
   required?: boolean;
@@ -28,11 +29,11 @@ export function assertAllowedKeys(
   allowed: readonly string[],
   subject = "fields",
 ): void {
-  const unexpected = Object.keys(input).filter((key) => !allowed.includes(key));
+  const result = z.record(z.unknown()).safeParse(input);
+  if (!result.success) fail(`Invalid ${subject}`);
 
-  if (unexpected.length > 0) {
-    fail(`Unexpected ${subject}: ${unexpected.join(", ")}`);
-  }
+  const unexpected = Object.keys(result.data).filter((key) => !allowed.includes(key));
+  if (unexpected.length) fail(`Unexpected ${subject}: ${unexpected.join(", ")}`);
 }
 
 export function assertAllowedFileFields(
@@ -40,13 +41,13 @@ export function assertAllowedFileFields(
   allowed: readonly string[],
   maxFilesPerField = 1,
 ): void {
-  const unexpected = Object.keys(files).filter((key) => !allowed.includes(key));
+  const result = z.record(z.array(z.unknown())).safeParse(files);
+  if (!result.success) fail("Invalid file fields");
 
-  if (unexpected.length > 0) {
-    fail(`Unexpected file fields: ${unexpected.join(", ")}`);
-  }
+  const unexpected = Object.keys(result.data).filter((key) => !allowed.includes(key));
+  if (unexpected.length) fail(`Unexpected file fields: ${unexpected.join(", ")}`);
 
-  for (const [field, values] of Object.entries(files)) {
+  for (const [field, values] of Object.entries(result.data)) {
     if (values.length > maxFilesPerField) {
       fail(`${field} accepts at most ${maxFilesPerField} file(s)`);
     }
@@ -60,53 +61,31 @@ export function readString(
 ): string | undefined {
   const rawValue = input[field];
 
-  // 1️⃣ Check required
   if (rawValue === undefined || rawValue === null) {
     if (options.required) fail(`${field} is required`);
     return undefined;
   }
 
-  // 2️⃣ Type check
-  if (typeof rawValue !== "string") {
-    fail(`${field} must be a string`);
-  }
+  const parsed = z.string({ invalid_type_error: `${field} must be a string` }).safeParse(rawValue);
+  if (!parsed.success) fail(parsed.error.issues[0]?.message ?? `${field} must be a string`);
 
-  // 3️⃣ Normalize (trim + remove extra spaces)
-  let value =
-    options.trim === false ? rawValue : rawValue.trim().replace(/\s+/g, " ");
+  const value = options.trim === false ? parsed.data : parsed.data.trim().replace(/\s+/g, " ");
 
-  // 4️⃣ Empty check
-  if (value.length === 0) {
+  if (!value.length) {
     if (options.required) fail(`${field} is required`);
     return undefined;
   }
 
-  // 5️⃣ Security: prevent script injection
-  if (/<[^>]*>/.test(value)) {
-    fail(`${field} contains invalid characters`);
-  }
+  if (/<[^>]*>/.test(value)) fail(`${field} contains invalid characters`);
+  if (/\s{2,}/.test(value)) fail(`${field} must not contain multiple spaces`);
+  if (!options.pattern && !/^[A-Za-z]/.test(value)) fail(`${field} must start with a letter`);
 
-  // 6️⃣ Prevent multiple spaces (extra safety)
-  if (/\s{2,}/.test(value)) {
-    fail(`${field} must not contain multiple spaces`);
-  }
-
-  // 7️⃣ Default rule: must start with letter (if no custom pattern)
-  if (!options.pattern && !/^[A-Za-z]/.test(value)) {
-    fail(`${field} must start with a letter`);
-  }
-
-  // 8️⃣ Length validation
   if (options.minLength !== undefined && value.length < options.minLength) {
     fail(`${field} must be at least ${options.minLength} characters`);
   }
-
   if (options.maxLength !== undefined && value.length > options.maxLength) {
     fail(`${field} must be at most ${options.maxLength} characters`);
   }
-
-
-  // 🔟 Custom pattern validation
   if (options.pattern && !options.pattern.test(value)) {
     fail(options.patternMessage ?? `${field} is invalid`);
   }
@@ -126,30 +105,16 @@ export function readNumber(
     return undefined;
   }
 
-  const parsed =
-    typeof rawValue === "number"
-      ? rawValue
-      : typeof rawValue === "string"
-        ? Number(rawValue.trim())
-        : Number.NaN;
+  const parsed = z.coerce.number({ invalid_type_error: `${field} must be a valid number` }).safeParse(rawValue);
+  if (!parsed.success || !Number.isFinite(parsed.data)) fail(`${field} must be a valid number`);
 
-  if (!Number.isFinite(parsed)) {
-    fail(`${field} must be a valid number`);
-  }
+  const value = parsed.data;
 
-  if (options.integer && !Number.isInteger(parsed)) {
-    fail(`${field} must be an integer`);
-  }
+  if (options.integer && !Number.isInteger(value)) fail(`${field} must be an integer`);
+  if (options.min !== undefined && value < options.min) fail(`${field} must be greater than or equal to ${options.min}`);
+  if (options.max !== undefined && value > options.max) fail(`${field} must be less than or equal to ${options.max}`);
 
-  if (options.min !== undefined && parsed < options.min) {
-    fail(`${field} must be greater than or equal to ${options.min}`);
-  }
-
-  if (options.max !== undefined && parsed > options.max) {
-    fail(`${field} must be less than or equal to ${options.max}`);
-  }
-
-  return parsed;
+  return value;
 }
 
 export function readNullableNumber(
@@ -159,19 +124,12 @@ export function readNullableNumber(
 ): number | null | undefined {
   const rawValue = input[field];
 
-  if (rawValue === undefined) {
-    return undefined;
-  }
-
-  if (rawValue === null) {
-    return null;
-  }
+  if (rawValue === undefined) return undefined;
+  if (rawValue === null) return null;
 
   if (typeof rawValue === "string") {
     const trimmed = rawValue.trim();
-    if (trimmed === "" || trimmed.toLowerCase() === "null") {
-      return null;
-    }
+    if (trimmed === "" || trimmed.toLowerCase() === "null") return null;
   }
 
   return readNumber(input, field, options);
@@ -185,12 +143,10 @@ export function readDateValue(
   const value = readString(input, field, { required });
   if (!value) return undefined;
 
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    fail(`${field} must be a valid date`);
-  }
+  const parsed = z.coerce.date().safeParse(value);
+  if (!parsed.success || Number.isNaN(parsed.data.getTime())) fail(`${field} must be a valid date`);
 
-  return date;
+  return parsed.data;
 }
 
 export function readEnumString<const T extends readonly string[]>(
@@ -224,18 +180,9 @@ export function readAssetReference(
 }
 
 export function readIdParam(value: unknown, field = "id"): number {
-  const parsed =
-    typeof value === "number"
-      ? value
-      : typeof value === "string"
-        ? Number(value.trim())
-        : Number.NaN;
-
-  if (!Number.isInteger(parsed) || parsed < 1) {
-    fail(`${field} must be a positive integer`);
-  }
-
-  return parsed;
+  const parsed = z.coerce.number().int().positive().safeParse(value);
+  if (!parsed.success) fail(`${field} must be a positive integer`);
+  return parsed.data;
 }
 
 export function assertAtLeastOneDefined(
