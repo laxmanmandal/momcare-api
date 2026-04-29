@@ -4,6 +4,50 @@ import prisma from '../prisma/client';
 import * as userService from '../services/userService';
 import { verifyToken } from '../utils/jwt';
 import { handlePrismaDuplicate } from '../utils/prisma-error';
+import { z } from 'zod';
+import { parseWithZod } from '../utils/zodValidation';
+
+
+const usersListParamsSchema = z.object({
+  entityId: z.coerce.number().int().positive()
+}).strict();
+
+const usersListQuerySchema = z.object({
+  page: z.coerce.number().int().positive().optional(),
+  limit: z.coerce.number().int().positive().max(100).optional(),
+  search: z.string().trim().optional(),
+  role: z.string().trim().optional(),
+  type: z.string().trim().optional(),
+  isActive: z.union([z.boolean(), z.enum(['true', 'false'])]).optional(),
+  sortField: z.string().trim().optional(),
+  sortOrder: z.enum(['asc', 'desc']).optional()
+}).strict();
+
+
+const usersListByRoleParamsSchema = z.object({
+  entityId: z.coerce.number().int().positive(),
+  role: z.string().trim().min(1)
+}).strict();
+
+const usersByEntityParamsSchema = z.object({
+  entityId: z.coerce.number().int().positive()
+}).strict();
+
+const userStatusParamsSchema = z.object({
+  uuid: z.string().trim().min(1)
+}).strict();
+
+const userUpdateBodySchema = z.object({
+  name: z.string().trim().min(2).max(120).optional(),
+  email: z.union([z.string().trim().email(), z.literal(''), z.null()]).optional(),
+  phone: z.string().trim().min(10).max(20).optional(),
+  child_gender: z.string().trim().optional(),
+  location: z.string().trim().optional(),
+  type: z.string().trim().optional(),
+  expectedDate: z.string().trim().optional(),
+  dob: z.string().trim().optional(),
+  dom: z.string().trim().optional()
+}).strict();
 
 const errorResponse = {
   type: 'object',
@@ -137,11 +181,11 @@ export default async function userRoutes(app: FastifyInstance) {
     },
 
     async (req: any) => {
-      const { entityId } = req.params;
-      const query = req.query;
+      const { entityId } = parseWithZod(usersListParamsSchema, req.params);
+      const query = parseWithZod(usersListQuerySchema, req.query);
 
       const result = await userService.getUsers(
-        Number(entityId),
+        entityId,
         req.user,
         query
       );
@@ -300,8 +344,8 @@ export default async function userRoutes(app: FastifyInstance) {
     },
 
     async (req: any) => {
-      const { entityId, role } = req.params as { entityId?: number, role?: string };
-      return userService.getRoleWise(Number(entityId), role, req.user);
+      const { entityId, role } = parseWithZod(usersListByRoleParamsSchema, req.params);
+      return userService.getRoleWise(entityId, role, req.user);
     }
   );
   app.get(
@@ -319,8 +363,8 @@ export default async function userRoutes(app: FastifyInstance) {
       }
     },
     async (req: FastifyRequest) => {
-      const { entityId } = req.params as { entityId?: number };
-      return userService.getBelongsUser(Number(entityId));
+      const { entityId } = parseWithZod(usersByEntityParamsSchema, req.params);
+      return userService.getBelongsUser(entityId);
     }
   );
 
@@ -353,7 +397,7 @@ export default async function userRoutes(app: FastifyInstance) {
       }
     },
     async (req: FastifyRequest, reply: FastifyReply) => {
-      const { uuid } = req.params as { uuid: string };
+      const { uuid } = parseWithZod(userStatusParamsSchema, req.params);
       const updated = await userService.activeInactive(uuid);
       return reply.send({
         success: true,
@@ -427,7 +471,7 @@ export default async function userRoutes(app: FastifyInstance) {
 
       // CASE 2: JSON request
       else {
-        fields = req.body || {};
+        fields = parseWithZod(userUpdateBodySchema, req.body || {});
       }
 
       // Build only allowed update fields
