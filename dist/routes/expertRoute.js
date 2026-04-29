@@ -47,12 +47,38 @@ const expertBody = {
         image: { type: 'string', contentEncoding: 'binary' }
     }
 };
+const expertIdParamsSchema = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['id'],
+    properties: {
+        id: { type: 'integer', minimum: 1 }
+    }
+};
+const successObjectResponse = {
+    type: 'object',
+    properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+        data: { type: 'object' }
+    }
+};
+const successArrayResponse = {
+    type: 'object',
+    properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+        data: { type: 'array', items: { type: 'object' } }
+    }
+};
 async function ExpertRoutes(app) {
     app.post('/', {
         schema: {
             tags: ['Experts'],
             consumes: ['multipart/form-data'],
-            body: expertBody
+            summary: 'Create an expert',
+            body: expertBody,
+            response: { 200: successObjectResponse }
         }, preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
     }, async (req, reply) => {
         const { files, fields } = await app.parseMultipartMemory(req);
@@ -78,7 +104,10 @@ async function ExpertRoutes(app) {
         schema: {
             tags: ['Experts'],
             consumes: ['application/json', 'multipart/form-data'],
-            body: expertBody
+            summary: 'Update an expert',
+            params: expertIdParamsSchema,
+            body: expertBody,
+            response: { 200: successObjectResponse }
         }, preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
     }, async (req, reply) => {
         const { id } = req.params;
@@ -105,7 +134,13 @@ async function ExpertRoutes(app) {
             data: updatedExpert,
         });
     });
-    app.get('/', { schema: { tags: ['Experts'] }, preHandler: [auth_1.authMiddleware] }, async (req, reply) => {
+    app.get('/', {
+        schema: {
+            tags: ['Experts'],
+            summary: 'List experts',
+            response: { 200: successArrayResponse }
+        }, preHandler: [auth_1.authMiddleware]
+    }, async (req, reply) => {
         const Expert = await expertService.getexperts();
         reply.code(200).send({
             success: true,
@@ -113,16 +148,16 @@ async function ExpertRoutes(app) {
             data: Expert,
         });
     });
-    app.get('/:id', { schema: { tags: ['Experts'] }, preHandler: [auth_1.authMiddleware] }, async (req, reply) => {
+    app.get('/:id', {
+        schema: {
+            tags: ['Experts'],
+            summary: 'Get expert by ID',
+            params: expertIdParamsSchema,
+            response: { 200: successObjectResponse }
+        }, preHandler: [auth_1.authMiddleware]
+    }, async (req, reply) => {
         const { id } = req.params;
-        const numericId = Number(id);
-        if (isNaN(numericId)) {
-            return reply.code(500).send({
-                success: false,
-                message: 'Invalid ID',
-            });
-        }
-        const Expert = await expertService.getexpertsById(numericId);
+        const Expert = await expertService.getexpertsById(id);
         reply.code(200).send({
             success: true,
             message: 'Expert fetched successfully',

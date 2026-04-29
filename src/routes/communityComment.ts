@@ -9,13 +9,49 @@ interface CommentBody {
     content: string;
 }
 
+const idParamsSchema = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['id'],
+    properties: {
+        id: { type: 'integer', minimum: 1 }
+    }
+} as const
+
+const postIdParamsSchema = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['postId'],
+    properties: {
+        postId: { type: 'integer', minimum: 1 }
+    }
+} as const
+
+const successObjectResponse = {
+    type: 'object',
+    properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+        data: { type: 'object' }
+    }
+} as const
+
+const successArrayResponse = {
+    type: 'object',
+    properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+        data: { type: 'array', items: { type: 'object' } }
+    }
+} as const
+
 export default async function communityComment(app: FastifyInstance) {
     app.addHook('preHandler', authMiddleware);
 
     app.post('/', {
         schema: {
             tags: ['Community Comments'],
-
+            summary: 'Create a community comment',
             body: {
                 type: 'object',
                 required: ['postId', 'userId', 'content'],
@@ -27,6 +63,7 @@ export default async function communityComment(app: FastifyInstance) {
                     content: { type: 'string' }
                 }
             },
+            response: { 200: successObjectResponse }
         }
     }, async (req, reply) => {
 
@@ -52,6 +89,8 @@ export default async function communityComment(app: FastifyInstance) {
         '/:id', {
         schema: {
             tags: ['Community Comments'],
+            summary: 'Update a community comment',
+            params: idParamsSchema,
             body: {
                 type: 'object',
                 additionalProperties: false,
@@ -62,6 +101,7 @@ export default async function communityComment(app: FastifyInstance) {
                     content: { type: 'string' }
                 }
             },
+            response: { 200: successObjectResponse }
         }
     },
         async (req, reply) => {
@@ -88,24 +128,19 @@ export default async function communityComment(app: FastifyInstance) {
     );
 
     app.get('/:postId', {
-        schema:
-            { tags: ['Community Comments'] },
+        schema: {
+            tags: ['Community Comments'],
+            summary: 'List nested comments for a post',
+            params: postIdParamsSchema,
+            response: { 200: successArrayResponse }
+        },
 
     },
         async (req, reply) => {
 
-            const { postId } = req.params as { postId: string };
-            const numericId = Number(postId);
-            console.log(postId);
+            const { postId } = req.params as { postId: number };
 
-            if (isNaN(numericId)) {
-                return reply.code(500).send({
-                    success: false,
-                    message: 'Invalid ID',
-                });
-            }
-
-            const comment = await communityComments.getNestedComments(numericId);
+            const comment = await communityComments.getNestedComments(postId);
 
             reply.code(200).send({
                 success: true,
@@ -114,7 +149,14 @@ export default async function communityComment(app: FastifyInstance) {
             });
 
         });
-    app.patch('/:id/status', { schema: { tags: ['Community Comments'] } }, async (req, reply) => {
+    app.patch('/:id/status', {
+        schema: {
+            tags: ['Community Comments'],
+            summary: 'Toggle a community comment status',
+            params: idParamsSchema,
+            response: { 200: successObjectResponse }
+        }
+    }, async (req, reply) => {
 
         const { id } = req.params as { id: number };
         const comment = await communityComments.CommentStatus(id);

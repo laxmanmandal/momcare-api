@@ -1,6 +1,16 @@
 import { FastifyInstance } from 'fastify'
 import * as mediaservice from '../services/mediaService'
 import { authMiddleware, onlyOrg } from '../middleware/auth';
+import createHttpError from 'http-errors';
+import {
+    assertAllowedFileFields,
+    assertAllowedKeys,
+    assertAtLeastOneDefined,
+    pickDefined,
+    readAssetReference,
+    readNumber,
+    readString
+} from '../utils/requestValidation';
 
 interface MediaSearchQuery {
     query?: string;
@@ -8,15 +18,57 @@ interface MediaSearchQuery {
     mimeType?: string;
 }
 
-const mediaWriteBody = {
+const mediaUuidParamsSchema = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['uuid'],
+    properties: {
+        uuid: { type: 'string', minLength: 2, maxLength: 64 }
+    }
+} as const
+
+const mediaIdParamsSchema = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['id'],
+    properties: {
+        id: { type: 'integer', minimum: 1 }
+    }
+} as const
+
+const mediaCreateBodySchema = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['title', 'type'],
+    properties: {
+        title: { type: 'string', minLength: 2, maxLength: 160 },
+        type: { type: 'string', minLength: 2, maxLength: 50 },
+        mimeType: { type: 'string', maxLength: 100 },
+        mimetype: { type: 'string', maxLength: 100 },
+        url: { type: 'string', contentEncoding: 'binary' },
+        thumbnail: { type: 'string', contentEncoding: 'binary' }
+    }
+} as const
+
+const mediaUpdateBodySchema = {
     type: 'object',
     additionalProperties: false,
     properties: {
-        title: { type: 'string' },
-        type: { type: 'string' },
-        mimetype: { type: 'string' },
-        url: { type: 'string' },
-        thumbnail: { type: 'string' }
+        title: { type: 'string', minLength: 2, maxLength: 160 },
+        type: { type: 'string', minLength: 2, maxLength: 50 },
+        mimeType: { type: 'string', maxLength: 100 },
+        mimetype: { type: 'string', maxLength: 100 },
+        url: { type: 'string', contentEncoding: 'binary' },
+        thumbnail: { type: 'string', contentEncoding: 'binary' }
+    }
+} as const
+
+const successObjectResponse = {
+    type: 'object',
+    properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+        data: { type: 'object' }
     }
 } as const
 
@@ -28,41 +80,43 @@ export default async function mediaRoutes(app: FastifyInstance) {
             schema: {
                 tags: ['Media Files'],
                 consumes: ['multipart/form-data'],
-                body: mediaWriteBody
+                summary: 'Create a media resource',
+                body: mediaCreateBodySchema,
+                response: { 201: successObjectResponse }
             },
             preHandler: [onlyOrg]
         }, async (req, reply) => {
-            try {
-                const { files, fields } = await app.parseMultipartMemory(req);
+            const { files, fields } = await app.parseMultipartMemory(req);
+            assertAllowedKeys(fields, ['title', 'type', 'mimeType', 'mimetype', 'url', 'thumbnail'])
+            assertAllowedFileFields(files, ['url', 'thumbnail'])
 
-                const mediaData: any = {
-                    uuid: await app.uid(fields.type, 'mediaResource'),
-                    title: fields.title,
-                    type: fields.type,
-                    mimeType: fields.mimetype,
-                };
-                // If URL is provided as text (video/link), use it
-                if (fields.url) {
-                    mediaData.url = fields.url;
-                } else if (files.url?.length) {
-                    mediaData.url = await app.saveFileBuffer(files.url[0], 'resources');
-                }
+            const mediaData: any = {
+                uuid: await app.uid(readString(fields, 'type', { required: true, minLength: 2, maxLength: 50 })!, 'mediaResource'),
+                title: readString(fields, 'title', { required: true, minLength: 2, maxLength: 160 })!,
+                type: readString(fields, 'type', { required: true, minLength: 2, maxLength: 50 })!,
+                mimeType: readString(fields, 'mimeType', { maxLength: 100 }) ?? readString(fields, 'mimetype', { maxLength: 100 }),
+            };
 
-                if (fields.thumbnail) {
-                    mediaData.thumbnail = fields.thumbnail;
-                } else if (files.thumbnail?.length) {
-                    mediaData.thumbnail = await app.saveFileBuffer(files.thumbnail[0], 'resources');
-                }
-                console.log(mediaData);
-
-                const media = await mediaservice.createMedia(mediaData);
-
-                reply.code(200).send({ success: true, message: 'Media resource created successfully', data: media });
-            } catch (error: any) {
-                req.log.error(error);
-                console.log(error);
-                reply.code(400).send({ success: false, message: 'Media resource not created', error: error.message });
+            if (files.url?.length) {
+                mediaData.url = await app.saveFileBuffer(files.url[0], 'resources');
+                mediaData.mimeType = files.url[0].mimetype;
+            } else {
+                mediaData.url = readAssetReference(fields, 'url');
             }
+
+            if (!mediaData.url) {
+                throw createHttpError(400, 'url is required')
+            }
+
+            if (files.thumbnail?.length) {
+                mediaData.thumbnail = await app.saveFileBuffer(files.thumbnail[0], 'resources');
+            } else {
+                mediaData.thumbnail = readAssetReference(fields, 'thumbnail');
+            }
+
+            const media = await mediaservice.createMedia(mediaData);
+
+            reply.code(201).send({ success: true, message: 'Media resource created successfully', data: media });
         });
 
     app.patch(
@@ -71,53 +125,55 @@ export default async function mediaRoutes(app: FastifyInstance) {
             schema: {
                 tags: ['Media Files'],
                 consumes: ['application/json', 'multipart/form-data'],
-                body: mediaWriteBody
+                summary: 'Update a media resource',
+                params: mediaUuidParamsSchema,
+                body: mediaUpdateBodySchema,
+                response: { 200: successObjectResponse }
             },
             preHandler: [onlyOrg]
         },
         async (req, reply) => {
-            try {
-                const { uuid } = req.params as { uuid: string };
+            const { uuid } = req.params as { uuid: string };
 
-                // Parse form data (multipart or json)
-                const { files, fields } = await app.parseMultipartMemory(req);
-                if (!req.isMultipart() && req.body) Object.assign(fields, req.body);
+            const { files, fields } = await app.parseMultipartMemory(req)
+            assertAllowedKeys(fields, ['title', 'type', 'mimeType', 'mimetype', 'url', 'thumbnail'])
+            assertAllowedFileFields(files, ['url', 'thumbnail'])
 
-                // Prepare update payload
-                const updateData: any = {
-                    title: fields.title,
-                    type: fields.type,
-                    mimeType: fields.mimetype,
-                };
+            // Prepare update payload
+            const updateData: any = pickDefined({
+                title: readString(fields, 'title', { minLength: 2, maxLength: 160 }),
+                type: readString(fields, 'type', { minLength: 2, maxLength: 50 }),
+                mimeType: readString(fields, 'mimeType', { maxLength: 100 }) ?? readString(fields, 'mimetype', { maxLength: 100 }),
+                url: undefined as string | undefined,
+                thumbnail: undefined as string | undefined,
+            });
 
-                if (fields.url) {
-                    updateData.url = fields.url;
-                } else if (files.url?.length) {
-                    updateData.url = await app.saveFileBuffer(files.url[0], 'resources');
-                }
-
-                if (fields.thumbnail) {
-                    updateData.thumbnail = fields.thumbnail;
-                } else if (files.thumbnail?.length) {
-                    updateData.thumbnail = await app.saveFileBuffer(files.thumbnail[0], 'resources');
-                }
-
-                // Update database record
-                const updatedmedia = await mediaservice.updateMedia(uuid, updateData);
-
-                reply.code(200).send({
-                    success: true,
-                    message: 'media resource updated successfully',
-                    data: updatedmedia,
-                });
-            } catch (error: any) {
-                req.log.error(error);
-                reply.code(400).send({
-                    success: false,
-                    message: 'Failed to update media resource',
-                    error: error.message,
-                });
+            if (files.url?.length) {
+                updateData.url = await app.saveFileBuffer(files.url[0], 'resources');
+                updateData.mimeType = files.url[0].mimetype;
+            } else {
+                updateData.url = readAssetReference(fields, 'url');
             }
+
+            if (files.thumbnail?.length) {
+                updateData.thumbnail = await app.saveFileBuffer(files.thumbnail[0], 'resources');
+            } else {
+                updateData.thumbnail = readAssetReference(fields, 'thumbnail');
+            }
+
+            assertAtLeastOneDefined(
+                Object.entries(updateData),
+                'At least one field is required to update the media resource'
+            )
+
+            // Update database record
+            const updatedmedia = await mediaservice.updateMedia(uuid, updateData);
+
+            reply.code(200).send({
+                success: true,
+                message: 'media resource updated successfully',
+                data: updatedmedia,
+            });
         }
     );
     app.get('/', {
@@ -178,6 +234,7 @@ export default async function mediaRoutes(app: FastifyInstance) {
     app.get('/:uuid', {
         schema: {
             tags: ['Media Files'],
+            params: mediaUuidParamsSchema,
             response: {
                 200: {
                     type: 'object',
@@ -215,12 +272,6 @@ export default async function mediaRoutes(app: FastifyInstance) {
     }, async (req, reply) => {
         try {
             const { uuid } = req.params as { uuid: string };
-            if (!uuid || typeof uuid !== 'string' || uuid.trim() === '') {
-                return reply.code(500).send({
-                    success: false,
-                    message: 'Invalid media UUID',
-                });
-            }
 
             const media = await mediaservice.getMediaByuuid(uuid);
 
@@ -241,6 +292,7 @@ export default async function mediaRoutes(app: FastifyInstance) {
     app.get('/mediaId/:id', {
         schema: {
             tags: ['Media Files'],
+            params: mediaIdParamsSchema,
             response: {
                 200: {
                     type: 'object',
@@ -303,8 +355,8 @@ export default async function mediaRoutes(app: FastifyInstance) {
                 additionalProperties: false,
                 properties: {
                     query: { type: 'string' },
-                    type: { type: 'string' },
-                    mimeType: { type: 'string' }
+                    type: { type: 'string', minLength: 2, maxLength: 50 },
+                    mimeType: { type: 'string', maxLength: 100 }
                 }
             }
         }

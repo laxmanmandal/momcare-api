@@ -36,11 +36,59 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = subscriptionRoutes;
 const service = __importStar(require("../services/SubscriptionSaleService"));
 const auth_1 = require("../middleware/auth");
+const paginatedPurchaseParamsSchema = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['entityId', 'page', 'limit'],
+    properties: {
+        entityId: { type: 'integer', minimum: 1 },
+        page: { type: 'integer', minimum: 1 },
+        limit: { type: 'integer', minimum: 1 }
+    }
+};
+const entityPlanParamsSchema = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['entityId', 'planId'],
+    properties: {
+        entityId: { type: 'integer', minimum: 1 },
+        planId: { type: 'integer', minimum: 1 }
+    }
+};
+const successObjectResponse = {
+    type: 'object',
+    properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+        data: { type: 'object' }
+    }
+};
+const successArrayResponse = {
+    type: 'object',
+    properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+        data: { type: 'array', items: { type: 'object' } }
+    }
+};
+const errorResponse = {
+    type: 'object',
+    properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+        error: { type: 'string' }
+    }
+};
 async function subscriptionRoutes(app) {
     // Auth applied to all subscription routes
     app.addHook('preHandler', auth_1.authMiddleware);
     app.get('/:entityId/:page/:limit/purchase', {
-        schema: { tags: ['AllocationPlan'] },
+        schema: {
+            tags: ['AllocationPlan'],
+            summary: 'List purchase transactions by entity',
+            params: paginatedPurchaseParamsSchema,
+            response: { 200: successArrayResponse, 400: errorResponse }
+        },
     }, async (req, reply) => {
         // parse params and convert to numbers
         const receiverId = parseInt(req.params.entityId, 10);
@@ -66,7 +114,12 @@ async function subscriptionRoutes(app) {
         }
     });
     app.get('/:entityId/:planId', {
-        schema: { tags: ['AllocationPlan'] },
+        schema: {
+            tags: ['AllocationPlan'],
+            summary: 'Get plan-wise balance for an entity',
+            params: entityPlanParamsSchema,
+            response: { 200: successObjectResponse, 400: errorResponse }
+        },
     }, async (req, reply) => {
         // parse params and convert to numbers
         const entityId = parseInt(req.params.entityId, 10);

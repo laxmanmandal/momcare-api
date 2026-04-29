@@ -41,6 +41,13 @@ const auth_1 = require("../middleware/auth");
 const client_1 = __importDefault(require("../prisma/client"));
 const userService = __importStar(require("../services/userService"));
 const jwt_1 = require("../utils/jwt");
+const errorResponse = {
+    type: 'object',
+    properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' }
+    }
+};
 async function userRoutes(app) {
     app.addHook('preHandler', auth_1.authMiddleware);
     // GET /me
@@ -107,21 +114,39 @@ async function userRoutes(app) {
             params: {
                 type: 'object',
                 properties: {
-                    entityId: { type: 'number' }
+                    entityId: { type: 'string' }
                 },
                 required: ['entityId']
             },
             querystring: {
                 type: 'object',
                 properties: {
-                    page: { type: 'number', default: 1 },
-                    limit: { type: 'number', default: 10 },
+                    page: { type: 'string', default: '1' },
+                    limit: { type: 'string', default: '10' },
                     search: { type: 'string' },
                     role: { type: 'string' },
                     type: { type: 'string' },
-                    isActive: { type: ['boolean', 'string'] },
+                    isActive: { type: 'string' },
                     sortField: { type: 'string' },
                     sortOrder: { type: 'string', enum: ['asc', 'desc'] }
+                }
+            },
+            response: {
+                200: {
+                    type: 'object',
+                    properties: {
+                        success: { type: 'boolean' },
+                        data: { type: 'array', items: { type: 'object' } },
+                        pagination: {
+                            type: 'object',
+                            properties: {
+                                total: { type: 'integer' },
+                                page: { type: 'integer' },
+                                limit: { type: 'integer' },
+                                totalPages: { type: 'integer' }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -203,52 +228,66 @@ async function userRoutes(app) {
         preHandler: [auth_1.authMiddleware, app.accessControl.check('LIST_USER')],
         schema: {
             tags: ['Users'],
+            params: {
+                type: 'object',
+                required: ['entityId', 'role'],
+                properties: {
+                    entityId: { type: 'string' },
+                    role: { type: 'string' }
+                }
+            },
             response: {
                 200: {
-                    type: 'array',
-                    items: {
-                        type: 'object',
-                        properties: {
-                            id: { type: 'integer' },
-                            uuid: { type: 'string' },
-                            name: { type: 'string' },
-                            child_gender: { type: 'string' },
-                            email: { type: 'string' },
-                            phone: { type: 'string' },
-                            type: { type: 'string' },
-                            expectedDate: { type: 'string', format: 'date-time' },
-                            dob: { type: 'string', format: 'date-time' },
-                            dom: { type: 'string', format: 'date-time' },
-                            role: { type: 'string' },
-                            imageUrl: { type: 'string' },
-                            location: { type: 'string' },
-                            isActive: { type: 'boolean' },
-                            created_at: { type: 'string', format: 'date-time' },
-                            updated_at: { type: 'string', format: 'date-time' },
-                            belongsToEntity: {
+                    type: 'object',
+                    properties: {
+                        success: { type: 'boolean' },
+                        data: {
+                            type: 'array',
+                            items: {
                                 type: 'object',
-                                nullable: true,
-                                properties: { id: { type: 'number' }, name: { type: 'string' } }
-                            },
-                            createdByUser: {
-                                type: 'object',
-                                nullable: true,
-                                properties: { id: { type: 'number' }, name: { type: 'string' } }
-                            },
-                            UserSubscription: {
-                                type: 'array',
-                                items: {
-                                    type: 'object',
-                                    properties: {
-                                        startedAt: { type: 'string', format: 'date-time' },
-                                        expiresAt: { type: 'string', format: 'date-time' },
-                                        subscriptionPlan: {
+                                properties: {
+                                    id: { type: 'integer' },
+                                    uuid: { type: 'string' },
+                                    name: { type: 'string' },
+                                    child_gender: { type: 'string' },
+                                    email: { type: 'string' },
+                                    phone: { type: 'string' },
+                                    type: { type: 'string' },
+                                    expectedDate: { type: 'string', format: 'date-time' },
+                                    dob: { type: 'string', format: 'date-time' },
+                                    dom: { type: 'string', format: 'date-time' },
+                                    role: { type: 'string' },
+                                    imageUrl: { type: 'string' },
+                                    location: { type: 'string' },
+                                    isActive: { type: 'boolean' },
+                                    created_at: { type: 'string', format: 'date-time' },
+                                    updated_at: { type: 'string', format: 'date-time' },
+                                    belongsToEntity: {
+                                        type: 'object',
+                                        nullable: true,
+                                        properties: { id: { type: 'number' }, name: { type: 'string' } }
+                                    },
+                                    createdByUser: {
+                                        type: 'object',
+                                        nullable: true,
+                                        properties: { id: { type: 'number' }, name: { type: 'string' } }
+                                    },
+                                    UserSubscription: {
+                                        type: 'array',
+                                        items: {
                                             type: 'object',
-                                            properties: { id: { type: 'number' }, name: { type: 'string' } }
+                                            properties: {
+                                                startedAt: { type: 'string', format: 'date-time' },
+                                                expiresAt: { type: 'string', format: 'date-time' },
+                                                subscriptionPlan: {
+                                                    type: 'object',
+                                                    properties: { id: { type: 'number' }, name: { type: 'string' } }
+                                                }
+                                            }
                                         }
                                     }
                                 }
-                            },
+                            }
                         }
                     }
                 }
@@ -261,6 +300,13 @@ async function userRoutes(app) {
     app.get('/entity/:entityId', {
         schema: {
             tags: ['Users'],
+            params: {
+                type: 'object',
+                required: ['entityId'],
+                properties: {
+                    entityId: { type: 'string' }
+                }
+            }
         }
     }, async (req) => {
         const { entityId } = req.params;
@@ -269,7 +315,28 @@ async function userRoutes(app) {
     // PATCH /:uuid/status  (toggle active/inactive)
     app.patch('/:uuid/status', {
         preHandler: [auth_1.authMiddleware, app.accessControl.check('UPDATE_USER_STATUS')],
-        schema: { tags: ['Users'] }
+        schema: {
+            tags: ['Users'],
+            params: {
+                type: 'object',
+                required: ['uuid'],
+                properties: {
+                    uuid: { type: 'string' }
+                }
+            },
+            response: {
+                200: {
+                    type: 'object',
+                    properties: {
+                        success: { type: 'boolean' },
+                        message: { type: 'string' },
+                        data: { type: 'object' }
+                    }
+                },
+                400: errorResponse,
+                401: errorResponse
+            }
+        }
     }, async (req, reply) => {
         const { uuid } = req.params;
         const updated = await userService.activeInactive(uuid);
@@ -281,7 +348,38 @@ async function userRoutes(app) {
             auth_1.authMiddleware,
             app.accessControl.check('UPDATE_USER'),
         ],
-        schema: { tags: ['Users'] }
+        schema: {
+            tags: ['Users'],
+            consumes: ['application/json', 'multipart/form-data'],
+            body: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                    name: { type: 'string', minLength: 2, maxLength: 120 },
+                    email: { type: 'string', format: 'email', nullable: true },
+                    phone: { type: 'string', minLength: 10, maxLength: 20 },
+                    child_gender: { type: 'string' },
+                    location: { type: 'string' },
+                    type: { type: 'string' },
+                    expectedDate: { type: 'string', format: 'date' },
+                    dob: { type: 'string', format: 'date' },
+                    dom: { type: 'string', format: 'date' },
+                    imageUrl: { type: 'string', contentEncoding: 'binary' }
+                }
+            },
+            response: {
+                200: {
+                    type: 'object',
+                    properties: {
+                        success: { type: 'boolean' },
+                        message: { type: 'string' },
+                        data: { type: 'object' }
+                    }
+                },
+                400: errorResponse,
+                401: errorResponse
+            }
+        }
     }, async (req, reply) => {
         // Get logged-in user's UUID from authMiddleware
         const uuid = req.user?.uuid;
@@ -335,7 +433,7 @@ async function userRoutes(app) {
                     }
                 });
                 if (emailExists) {
-                    reply.code(400).send({ success: false, message: `Email already exists` });
+                    return reply.code(400).send({ success: false, message: `Email already exists` });
                 }
                 updateData.email = value;
                 continue;

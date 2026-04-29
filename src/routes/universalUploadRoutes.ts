@@ -8,6 +8,23 @@ import { authMiddleware } from '../middleware/auth';
 
 const prisma = new PrismaClient();
 
+const uploadBodySchema = {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+        file: { type: 'string', contentEncoding: 'binary' }
+    }
+} as const
+
+const tableQuerySchema = {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+        table: { type: 'string' }
+    },
+    required: ['table']
+} as const
+
 const universalUploadRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
 
     // -----------------------------------------------------
@@ -23,13 +40,9 @@ const universalUploadRoutes: FastifyPluginAsync = async (fastify: FastifyInstanc
         schema: {
             tags: ['Upload from excel'],
             consumes: ['multipart/form-data'],
-            querystring: {
-                type: 'object',
-                properties: {
-                    table: { type: 'string' }
-                },
-                required: ['table']
-            }
+            summary: 'Upload an Excel file for a target table',
+            querystring: tableQuerySchema,
+            body: uploadBodySchema
         }
     }, async (request, reply) => {
 
@@ -109,7 +122,10 @@ const universalUploadRoutes: FastifyPluginAsync = async (fastify: FastifyInstanc
     // GET ALL UPLOAD CONFIGS
     // -----------------------------------------------------
     fastify.get('/upload-configs', {
-        schema: { tags: ['Upload from excel'] }
+        schema: {
+            tags: ['Upload from excel'],
+            summary: 'List available upload parser configs'
+        }
     }, async () => {
         const configs = Object.entries(PARSER_CONFIGS).map(([key, config]) => ({
             table: key,
@@ -132,7 +148,11 @@ const universalUploadRoutes: FastifyPluginAsync = async (fastify: FastifyInstanc
     fastify.get<{
         Querystring: { table: string };
     }>('/upload-config', {
-        schema: { tags: ['Upload from excel'] }
+        schema: {
+            tags: ['Upload from excel'],
+            summary: 'Get a single upload parser config',
+            querystring: tableQuerySchema
+        }
     }, async (request, reply) => {
         const { table } = request.query;
 

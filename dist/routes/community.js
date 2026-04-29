@@ -32,17 +32,22 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = community;
 const communityService = __importStar(require("../services/communityService"));
 const auth_1 = require("../middleware/auth");
+const http_errors_1 = __importDefault(require("http-errors"));
+const requestValidation_1 = require("../utils/requestValidation");
 const communityCreateBody = {
     type: 'object',
     additionalProperties: false,
     required: ['name'],
     properties: {
-        name: { type: 'string' },
-        description: { type: 'string' },
+        name: { type: 'string', minLength: 2, maxLength: 120 },
+        description: { type: 'string', maxLength: 1000 },
         imageUrl: { type: 'string', contentEncoding: 'binary' }
     }
 };
@@ -50,9 +55,29 @@ const communityUpdateBody = {
     type: 'object',
     additionalProperties: false,
     properties: {
-        name: { type: 'string' },
-        description: { type: 'string' },
+        name: { type: 'string', minLength: 2, maxLength: 120 },
+        description: { type: 'string', maxLength: 1000 },
         imageUrl: { type: 'string', contentEncoding: 'binary' }
+    }
+};
+const idParamsSchema = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['id'],
+    properties: {
+        id: { type: 'integer', minimum: 1 }
+    }
+};
+const communityResponse = {
+    type: 'object',
+    properties: {
+        id: { type: 'integer' },
+        name: { type: 'string' },
+        description: { type: 'string', nullable: true },
+        imageUrl: { type: 'string', nullable: true },
+        isActive: { type: 'boolean' },
+        created_at: { type: 'string', format: 'date-time' },
+        updated_at: { type: 'string', format: 'date-time' }
     }
 };
 async function community(app) {
@@ -61,16 +86,26 @@ async function community(app) {
         schema: {
             tags: ['Community'],
             consumes: ['multipart/form-data'],
-            body: communityCreateBody
+            body: communityCreateBody,
+            response: {
+                201: {
+                    type: 'object',
+                    properties: {
+                        success: { type: 'boolean' },
+                        message: { type: 'string' },
+                        data: communityResponse
+                    }
+                }
+            }
         },
         preHandler: [auth_1.onlyOrg]
     }, async (req, reply) => {
         const { files, fields } = await app.parseMultipartMemory(req);
-        console.log('✅ Parsed multipart fields:', fields);
-        console.log('✅ Parsed multipart files:', files);
+        (0, requestValidation_1.assertAllowedKeys)(fields, ['name', 'description']);
+        (0, requestValidation_1.assertAllowedFileFields)(files, ['imageUrl']);
         const community = {
-            name: fields.name,
-            description: fields.description,
+            name: (0, requestValidation_1.readString)(fields, 'name', { required: true, minLength: 2, maxLength: 120 }),
+            description: (0, requestValidation_1.readString)(fields, 'description', { maxLength: 1000 }),
         };
         const communityData = await communityService.createCommunity(community);
         if (files.imageUrl?.length) {
@@ -78,7 +113,7 @@ async function community(app) {
             await communityService.updateCommunity(Number(communityData.id), { imageUrl });
             Object.assign(communityData, { imageUrl });
         }
-        reply.code(200).send({
+        reply.code(201).send({
             success: true,
             message: 'Community created successfully',
             data: communityData,
@@ -88,33 +123,61 @@ async function community(app) {
         schema: {
             tags: ['Community'],
             consumes: ['application/json', 'multipart/form-data'],
-            body: communityUpdateBody
+            params: idParamsSchema,
+            body: communityUpdateBody,
+            response: {
+                200: {
+                    type: 'object',
+                    properties: {
+                        success: { type: 'boolean' },
+                        message: { type: 'string' },
+                        data: communityResponse
+                    }
+                }
+            }
         },
         preHandler: [auth_1.onlyOrg]
     }, async (req, reply) => {
         const { id } = req.params;
         // Parse form data (multipart or json)
         const { files, fields } = await app.parseMultipartMemory(req);
-        if (!req.isMultipart() && req.body)
-            Object.assign(fields, req.body);
+        (0, requestValidation_1.assertAllowedKeys)(fields, ['name', 'description']);
+        (0, requestValidation_1.assertAllowedFileFields)(files, ['imageUrl']);
         // Prepare update payload
-        const community = {
-            name: fields.name,
-            description: fields.description,
-        };
+        const community = (0, requestValidation_1.pickDefined)({
+            name: (0, requestValidation_1.readString)(fields, 'name', { minLength: 2, maxLength: 120 }),
+            description: (0, requestValidation_1.readString)(fields, 'description', { maxLength: 1000 }),
+        });
+        if (Object.keys(community).length === 0 && !files.imageUrl?.length) {
+            throw (0, http_errors_1.default)(400, 'At least one field is required');
+        }
         // Handle thumbnail upload (if provided)
         if (files.imageUrl?.length) {
             community.imageUrl = await app.saveFileBuffer(files.imageUrl[0], `_community`);
         }
         // Update database record
-        const communityData = await communityService.updateCommunity(Number(id), community);
+        const communityData = await communityService.updateCommunity(id, community);
         reply.code(200).send({
             success: true,
             message: 'community updated successfully',
             data: communityData,
         });
     });
-    app.get('/', { schema: { tags: ['Community'] } }, async (req, reply) => {
+    app.get('/', {
+        schema: {
+            tags: ['Community'],
+            response: {
+                200: {
+                    type: 'object',
+                    properties: {
+                        success: { type: 'boolean' },
+                        message: { type: 'string' },
+                        data: { type: 'array', items: communityResponse }
+                    }
+                }
+            }
+        }
+    }, async (req, reply) => {
         const communities = await communityService.getCommunity();
         reply.code(200).send({
             success: true,
@@ -122,23 +185,47 @@ async function community(app) {
             data: communities,
         });
     });
-    app.get('/:id', { schema: { tags: ['Community'] } }, async (req, reply) => {
-        const { id } = req.params;
-        const numericId = Number(id);
-        if (isNaN(numericId)) {
-            return reply.code(500).send({
-                success: false,
-                message: 'Invalid ID',
-            });
+    app.get('/:id', {
+        schema: {
+            tags: ['Community'],
+            params: idParamsSchema,
+            response: {
+                200: {
+                    type: 'object',
+                    properties: {
+                        success: { type: 'boolean' },
+                        message: { type: 'string' },
+                        data: communityResponse
+                    }
+                }
+            }
         }
-        const community = await communityService.getCommunityById(numericId);
+    }, async (req, reply) => {
+        const { id } = req.params;
+        const community = await communityService.getCommunityById(id);
         reply.code(200).send({
             success: true,
             message: 'community fetched successfully',
             data: community,
         });
     });
-    app.patch('/:id/status', { schema: { tags: ['Community'] }, preHandler: [auth_1.onlyOrg] }, async (req, reply) => {
+    app.patch('/:id/status', {
+        schema: {
+            tags: ['Community'],
+            params: idParamsSchema,
+            response: {
+                200: {
+                    type: 'object',
+                    properties: {
+                        success: { type: 'boolean' },
+                        message: { type: 'string' },
+                        data: communityResponse
+                    }
+                }
+            }
+        },
+        preHandler: [auth_1.onlyOrg]
+    }, async (req, reply) => {
         const { id } = req.params;
         const community = await communityService.CommunityStatus(id);
         return reply.send({ success: true, message: 'Community status updated successfully', data: community });
@@ -149,24 +236,32 @@ async function community(app) {
             body: {
                 type: 'object',
                 additionalProperties: false,
-                required: ['userId', 'communityId'],
+                required: ['communityId'],
                 properties: {
                     userId: { type: 'integer', minimum: 1 },
                     communityId: { type: 'integer', minimum: 1 }
                 }
+            },
+            response: {
+                200: {
+                    type: 'object',
+                    properties: {
+                        success: { type: 'boolean' },
+                        message: { type: 'string' },
+                        subscribed: { type: 'boolean' },
+                        data: { type: 'object' }
+                    }
+                }
             }
         }
     }, async (req, reply) => {
-        console.log(req.body);
         const { userId, communityId } = req.body ?? {};
-        if (!userId || !communityId) {
-            return reply.code(400).send({
-                success: false,
-                message: "userId and communityId are required"
-            });
+        const authenticatedUserId = (0, requestValidation_1.readIdParam)(req.user?.id, 'userId');
+        if (userId !== undefined && Number(userId) !== authenticatedUserId) {
+            throw (0, http_errors_1.default)(403, 'You cannot join a community for another user');
         }
         const result = await communityService.handleCommunityJoin({
-            userId: Number(userId),
+            userId: authenticatedUserId,
             communityId: Number(communityId)
         });
         return reply.code(200).send({

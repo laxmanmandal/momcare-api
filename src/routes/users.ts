@@ -5,6 +5,14 @@ import * as userService from '../services/userService';
 import { verifyToken } from '../utils/jwt';
 import { handlePrismaDuplicate } from '../utils/prisma-error';
 
+const errorResponse = {
+  type: 'object',
+  properties: {
+    success: { type: 'boolean' },
+    message: { type: 'string' }
+  }
+} as const
+
 export default async function userRoutes(app: FastifyInstance) {
   app.addHook('preHandler', authMiddleware)
   // GET /me
@@ -85,21 +93,39 @@ export default async function userRoutes(app: FastifyInstance) {
         params: {
           type: 'object',
           properties: {
-            entityId: { type: 'number' }
+            entityId: { type: 'string' }
           },
           required: ['entityId']
         },
         querystring: {
           type: 'object',
           properties: {
-            page: { type: 'number', default: 1 },
-            limit: { type: 'number', default: 10 },
+            page: { type: 'string', default: '1' },
+            limit: { type: 'string', default: '10' },
             search: { type: 'string' },
             role: { type: 'string' },
             type: { type: 'string' },
-            isActive: { type: ['boolean', 'string'] },
+            isActive: { type: 'string' },
             sortField: { type: 'string' },
             sortOrder: { type: 'string', enum: ['asc', 'desc'] }
+          }
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: { type: 'array', items: { type: 'object' } },
+              pagination: {
+                type: 'object',
+                properties: {
+                  total: { type: 'integer' },
+                  page: { type: 'integer' },
+                  limit: { type: 'integer' },
+                  totalPages: { type: 'integer' }
+                }
+              }
+            }
           }
         }
       }
@@ -195,54 +221,66 @@ export default async function userRoutes(app: FastifyInstance) {
       preHandler: [authMiddleware, app.accessControl.check('LIST_USER')],
       schema: {
         tags: ['Users'],
+        params: {
+          type: 'object',
+          required: ['entityId', 'role'],
+          properties: {
+            entityId: { type: 'string' },
+            role: { type: 'string' }
+          }
+        },
         response: {
           200: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                id: { type: 'integer' },
-                uuid: { type: 'string' },
-                name: { type: 'string' },
-                child_gender: { type: 'string' },
-                email: { type: 'string' },
-                phone: { type: 'string' },
-                type: { type: 'string' },
-                expectedDate: { type: 'string', format: 'date-time' },
-                dob: { type: 'string', format: 'date-time' },
-                dom: { type: 'string', format: 'date-time' },
-                role: { type: 'string' },
-                imageUrl: { type: 'string' },
-                location: { type: 'string' },
-                isActive: { type: 'boolean' },
-                created_at: { type: 'string', format: 'date-time' },
-                updated_at: { type: 'string', format: 'date-time' },
-                belongsToEntity: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'array',
+                items: {
                   type: 'object',
-                  nullable: true,
-                  properties: { id: { type: 'number' }, name: { type: 'string' } }
-                },
-
-                createdByUser: {
-                  type: 'object',
-                  nullable: true,
-                  properties: { id: { type: 'number' }, name: { type: 'string' } }
-                },
-                UserSubscription: {
-                  type: 'array',
-                  items: {
-                    type: 'object',
-                    properties: {
-                      startedAt: { type: 'string', format: 'date-time' },
-                      expiresAt: { type: 'string', format: 'date-time' },
-                      subscriptionPlan: {
+                  properties: {
+                    id: { type: 'integer' },
+                    uuid: { type: 'string' },
+                    name: { type: 'string' },
+                    child_gender: { type: 'string' },
+                    email: { type: 'string' },
+                    phone: { type: 'string' },
+                    type: { type: 'string' },
+                    expectedDate: { type: 'string', format: 'date-time' },
+                    dob: { type: 'string', format: 'date-time' },
+                    dom: { type: 'string', format: 'date-time' },
+                    role: { type: 'string' },
+                    imageUrl: { type: 'string' },
+                    location: { type: 'string' },
+                    isActive: { type: 'boolean' },
+                    created_at: { type: 'string', format: 'date-time' },
+                    updated_at: { type: 'string', format: 'date-time' },
+                    belongsToEntity: {
+                      type: 'object',
+                      nullable: true,
+                      properties: { id: { type: 'number' }, name: { type: 'string' } }
+                    },
+                    createdByUser: {
+                      type: 'object',
+                      nullable: true,
+                      properties: { id: { type: 'number' }, name: { type: 'string' } }
+                    },
+                    UserSubscription: {
+                      type: 'array',
+                      items: {
                         type: 'object',
-                        properties: { id: { type: 'number' }, name: { type: 'string' } }
+                        properties: {
+                          startedAt: { type: 'string', format: 'date-time' },
+                          expiresAt: { type: 'string', format: 'date-time' },
+                          subscriptionPlan: {
+                            type: 'object',
+                            properties: { id: { type: 'number' }, name: { type: 'string' } }
+                          }
+                        }
                       }
                     }
                   }
-                },
-
+                }
               }
             }
           }
@@ -260,7 +298,13 @@ export default async function userRoutes(app: FastifyInstance) {
     {
       schema: {
         tags: ['Users'],
-
+        params: {
+          type: 'object',
+          required: ['entityId'],
+          properties: {
+            entityId: { type: 'string' }
+          }
+        }
       }
     },
     async (req: FastifyRequest) => {
@@ -274,7 +318,28 @@ export default async function userRoutes(app: FastifyInstance) {
     '/:uuid/status',
     {
       preHandler: [authMiddleware, app.accessControl.check('UPDATE_USER_STATUS')],
-      schema: { tags: ['Users'] }
+      schema: {
+        tags: ['Users'],
+        params: {
+          type: 'object',
+          required: ['uuid'],
+          properties: {
+            uuid: { type: 'string' }
+          }
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              message: { type: 'string' },
+              data: { type: 'object' }
+            }
+          },
+          400: errorResponse,
+          401: errorResponse
+        }
+      }
     },
     async (req: FastifyRequest, reply: FastifyReply) => {
       const { uuid } = req.params as { uuid: string };
@@ -291,7 +356,38 @@ export default async function userRoutes(app: FastifyInstance) {
         authMiddleware,
         app.accessControl.check('UPDATE_USER'),
       ],
-      schema: { tags: ['Users'] }
+      schema: {
+        tags: ['Users'],
+        consumes: ['application/json', 'multipart/form-data'],
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            name: { type: 'string', minLength: 2, maxLength: 120 },
+            email: { type: 'string', format: 'email', nullable: true },
+            phone: { type: 'string', minLength: 10, maxLength: 20 },
+            child_gender: { type: 'string' },
+            location: { type: 'string' },
+            type: { type: 'string' },
+            expectedDate: { type: 'string', format: 'date' },
+            dob: { type: 'string', format: 'date' },
+            dom: { type: 'string', format: 'date' },
+            imageUrl: { type: 'string', contentEncoding: 'binary' }
+          }
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              message: { type: 'string' },
+              data: { type: 'object' }
+            }
+          },
+          400: errorResponse,
+          401: errorResponse
+        }
+      }
     },
     async (req: any, reply) => {
 
@@ -356,7 +452,7 @@ export default async function userRoutes(app: FastifyInstance) {
           });
 
           if (emailExists) {
-            reply.code(400).send({ success: false, message: `Email already exists` });
+            return reply.code(400).send({ success: false, message: `Email already exists` });
           }
 
           updateData.email = value;

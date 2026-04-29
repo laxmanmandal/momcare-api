@@ -13,6 +13,7 @@ type ApiFileEntry = {
 };
 
 type ReqUser = {
+  id?: number;
   uuid?: string;
   role?: string;
   name: string;

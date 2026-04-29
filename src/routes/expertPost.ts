@@ -1,6 +1,73 @@
 import { FastifyInstance } from 'fastify'
 import * as expertPostService from '../services/expertPostService'
 import { authMiddleware, onlyOrg } from '../middleware/auth';
+
+const expertPostIdParamsSchema = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['id'],
+    properties: {
+        id: { type: 'integer', minimum: 1 }
+    }
+} as const
+
+const postIdParamsSchema = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['postId'],
+    properties: {
+        postId: { type: 'integer', minimum: 1 }
+    }
+} as const
+
+const professionIdParamsSchema = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['professionId'],
+    properties: {
+        professionId: { type: 'integer', minimum: 1 }
+    }
+} as const
+
+const expertPostBody = {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+        title: { type: 'string' },
+        content: { type: 'string' },
+        expert_id: { type: 'integer', minimum: 1 },
+        mediaType: { type: 'string' },
+        media: { type: 'string', contentEncoding: 'binary' }
+    }
+} as const
+
+const professionBody = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['name'],
+    properties: {
+        name: { type: 'string', minLength: 1 }
+    }
+} as const
+
+const successObjectResponse = {
+    type: 'object',
+    properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+        data: { type: 'object' }
+    }
+} as const
+
+const successArrayResponse = {
+    type: 'object',
+    properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+        data: { type: 'array', items: { type: 'object' } }
+    }
+} as const
+
 export default async function expertPost(app: FastifyInstance) {
     app.addHook('preHandler', authMiddleware)
     app.post('/',
@@ -8,18 +75,9 @@ export default async function expertPost(app: FastifyInstance) {
             schema: {
                 tags: ['Expert Posts'],
                 consumes: ['multipart/form-data'],
-                body: {
-                    type: 'object',
-                    required: ['title', 'content', 'expert_id'],
-                    additionalProperties: false,
-                    properties: {
-                        title: { type: 'string' },
-                        content: { type: 'string' },
-                        expert_id: { type: 'integer', minimum: 1 },
-                        mediaType: { type: 'string' },
-                        media: { type: 'string', contentEncoding: 'binary' }
-                    }
-                }
+                summary: 'Create an expert post',
+                body: expertPostBody,
+                response: { 200: successObjectResponse }
             }
 
 
@@ -55,17 +113,10 @@ export default async function expertPost(app: FastifyInstance) {
             schema: {
                 tags: ['Expert Posts'],
                 consumes: ['application/json', 'multipart/form-data'],
-                body: {
-                    type: 'object',
-                    additionalProperties: false,
-                    properties: {
-                        title: { type: 'string' },
-                        content: { type: 'string' },
-                        expert_id: { type: 'integer', minimum: 1 },
-                        mediaType: { type: 'string' },
-                        media: { type: 'string', contentEncoding: 'binary' }
-                    }
-                }
+                summary: 'Update an expert post',
+                params: expertPostIdParamsSchema,
+                body: expertPostBody,
+                response: { 200: successObjectResponse }
             }
         },
         async (req, reply) => {
@@ -104,7 +155,14 @@ export default async function expertPost(app: FastifyInstance) {
     );
     app.patch(
         '/share/:postId',
-        { schema: { tags: ['Expert Posts'] } },
+        {
+            schema: {
+                tags: ['Expert Posts'],
+                summary: 'Increment expert post share count',
+                params: postIdParamsSchema,
+                response: { 200: successObjectResponse }
+            }
+        },
         async (req, reply) => {
 
             const { postId } = req.params as { postId: string };
@@ -123,7 +181,14 @@ export default async function expertPost(app: FastifyInstance) {
     );
     app.patch(
         '/view/:postId',
-        { schema: { tags: ['Expert Posts'] } },
+        {
+            schema: {
+                tags: ['Expert Posts'],
+                summary: 'Increment expert post view count',
+                params: postIdParamsSchema,
+                response: { 200: successObjectResponse }
+            }
+        },
         async (req, reply) => {
 
             const { postId } = req.params as { postId: string };
@@ -141,7 +206,13 @@ export default async function expertPost(app: FastifyInstance) {
         }
     );
     app.get('/',
-        { schema: { tags: ['Expert Posts'] } },
+        {
+            schema: {
+                tags: ['Expert Posts'],
+                summary: 'List expert posts',
+                response: { 200: successArrayResponse }
+            }
+        },
         async (req, reply) => {
 
             const communities = await expertPostService.getExpertPost();
@@ -157,13 +228,9 @@ export default async function expertPost(app: FastifyInstance) {
         {
             schema: {
                 tags: ['Expert Posts'],
-                params: {
-                    type: 'object',
-                    required: ['professionId'],
-                    properties: {
-                        professionId: { type: 'integer' }
-                    }
-                }
+                summary: 'List expert posts by profession ID',
+                params: professionIdParamsSchema,
+                response: { 200: successArrayResponse }
             }
         },
         async (req, reply) => {
@@ -179,22 +246,19 @@ export default async function expertPost(app: FastifyInstance) {
             });
         }
     );
-
-
-    app.get('/:id', { schema: { tags: ['Expert Posts'] } },
+    app.get('/:id', {
+        schema: {
+            tags: ['Expert Posts'],
+            summary: 'Get expert post by ID',
+            params: expertPostIdParamsSchema,
+            response: { 200: successObjectResponse }
+        }
+    },
         async (req, reply) => {
 
-            const { id } = req.params as { id: string };
-            const numericId = Number(id);
+            const { id } = req.params as { id: number };
 
-            if (isNaN(numericId)) {
-                return reply.code(500).send({
-                    success: false,
-                    message: 'Invalid ID',
-                });
-            }
-
-            const community = await expertPostService.getExpertPostById(numericId);
+            const community = await expertPostService.getExpertPostById(id);
 
             reply.code(200).send({
                 success: true,
@@ -203,7 +267,14 @@ export default async function expertPost(app: FastifyInstance) {
             });
 
         });
-    app.patch('/:id/status', { schema: { tags: ['Expert Posts'] } }, async (req, reply) => {
+    app.patch('/:id/status', {
+        schema: {
+            tags: ['Expert Posts'],
+            summary: 'Toggle expert post status',
+            params: expertPostIdParamsSchema,
+            response: { 200: successObjectResponse }
+        }
+    }, async (req, reply) => {
 
         const { id } = req.params as { id: number };
         const community = await expertPostService.expertPostStatus(id);
@@ -212,19 +283,13 @@ export default async function expertPost(app: FastifyInstance) {
     });
     app.post('/profession',
         {
+            preHandler: [onlyOrg],
             schema: {
                 tags: ['Expert Posts'],
                 consumes: ['application/json', 'multipart/form-data'],
-                body: {
-                    type: 'object',
-                    required: ['name'],
-                    additionalProperties: false,
-                    properties: {
-                        name: { type: 'string' },
-
-                    }
-                },
-                preHandler: [authMiddleware, onlyOrg]
+                summary: 'Create a profession',
+                body: professionBody,
+                response: { 200: successObjectResponse }
             }
         },
         async (req, reply) => {
@@ -246,7 +311,13 @@ export default async function expertPost(app: FastifyInstance) {
 
         });
     app.get('/professions',
-        { schema: { tags: ['Expert Posts'] } },
+        {
+            schema: {
+                tags: ['Expert Posts'],
+                summary: 'List professions',
+                response: { 200: successArrayResponse }
+            }
+        },
         async (req, reply) => {
 
             const professons = await expertPostService.getProfessions();

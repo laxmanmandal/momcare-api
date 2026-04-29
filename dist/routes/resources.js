@@ -51,13 +51,31 @@ const conceiveBody = {
         image: { type: 'string', contentEncoding: 'binary' }
     }
 };
+const conceiveIdParamsSchema = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['id'],
+    properties: {
+        id: { type: 'integer', minimum: 1 }
+    }
+};
+const successObjectResponse = {
+    type: 'object',
+    properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+        data: { type: 'object' }
+    }
+};
 async function resourceRoutes(app) {
     app.post('/conceive', {
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg],
         schema: {
             tags: ['Resources'],
             consumes: ['multipart/form-data'],
-            body: conceiveBody
+            summary: 'Create a conceive resource',
+            body: conceiveBody,
+            response: { 200: successObjectResponse }
         }
     }, async (req, reply) => {
         const { files, fields } = await app.parseMultipartMemory(req);
@@ -91,7 +109,10 @@ async function resourceRoutes(app) {
         schema: {
             tags: ['Resources'],
             consumes: ['application/json', 'multipart/form-data'],
-            body: conceiveBody
+            summary: 'Update a conceive resource',
+            params: conceiveIdParamsSchema,
+            body: conceiveBody,
+            response: { 200: successObjectResponse }
         },
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
     }, async (req, reply) => {

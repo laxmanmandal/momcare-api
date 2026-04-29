@@ -41,6 +41,13 @@ import LoginLogsRoutes from './routes/loginLogs';
 
 import fastifyRateLimit from '@fastify/rate-limit'
 
+const DEFAULT_MULTIPART_FILE_LIMIT = 25 * 1024 * 1024
+const multipartFileLimit = Number(process.env.MULTIPART_FILE_LIMIT_BYTES || DEFAULT_MULTIPART_FILE_LIMIT)
+const maxMultipartFileSize =
+    Number.isFinite(multipartFileLimit) && multipartFileLimit > 0
+        ? multipartFileLimit
+        : DEFAULT_MULTIPART_FILE_LIMIT
+
 //error handler
 const app = Fastify({
     trustProxy: true,
@@ -67,9 +74,6 @@ const app = Fastify({
     },
     bodyLimit: 1048576
 });
-app.addHook('onRequest', async (req) => {
-    (req as any).rawBody = req.raw;
-});
 app.register(fastifyRateLimit, {
     global: false   // important — prevents whole server from being limited
 });
@@ -81,7 +85,9 @@ app.register(formbody)
 app.register(fastifyMultipart, {
     attachFieldsToBody: false, //
     limits: {
-        fileSize: 500 * 1024 * 1024, // allow up to 100 MB
+        fileSize: maxMultipartFileSize,
+        files: 4,
+        parts: 20
     },
 });
 app.register(fastifyCors, {
@@ -159,6 +165,13 @@ export { UPLOAD_ROOT };
 
 // Parse multipart and keep files in memory
 app.decorate('parseMultipartMemory', async (req) => {
+    if (typeof req.isMultipart === 'function' && !req.isMultipart()) {
+        return {
+            files: {} as Record<string, any[]>,
+            fields: { ...((req.body as Record<string, any>) ?? {}) }
+        };
+    }
+
     const parts = req.parts()
     const files: Record<string, any[]> = {}
     const fields: Record<string, any> = {}

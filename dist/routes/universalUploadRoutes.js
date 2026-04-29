@@ -5,6 +5,21 @@ const excelparsarconfig_1 = require("../config/excelparsarconfig");
 const excelParsar_1 = require("../utils/excelParsar");
 const auth_1 = require("../middleware/auth");
 const prisma = new client_1.PrismaClient();
+const uploadBodySchema = {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+        file: { type: 'string', contentEncoding: 'binary' }
+    }
+};
+const tableQuerySchema = {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+        table: { type: 'string' }
+    },
+    required: ['table']
+};
 const universalUploadRoutes = async (fastify) => {
     // -----------------------------------------------------
     // UPLOAD EXCEL FILE
@@ -14,13 +29,9 @@ const universalUploadRoutes = async (fastify) => {
         schema: {
             tags: ['Upload from excel'],
             consumes: ['multipart/form-data'],
-            querystring: {
-                type: 'object',
-                properties: {
-                    table: { type: 'string' }
-                },
-                required: ['table']
-            }
+            summary: 'Upload an Excel file for a target table',
+            querystring: tableQuerySchema,
+            body: uploadBodySchema
         }
     }, async (request, reply) => {
         try {
@@ -89,7 +100,10 @@ const universalUploadRoutes = async (fastify) => {
     // GET ALL UPLOAD CONFIGS
     // -----------------------------------------------------
     fastify.get('/upload-configs', {
-        schema: { tags: ['Upload from excel'] }
+        schema: {
+            tags: ['Upload from excel'],
+            summary: 'List available upload parser configs'
+        }
     }, async () => {
         const configs = Object.entries(excelparsarconfig_1.PARSER_CONFIGS).map(([key, config]) => ({
             table: key,
@@ -107,7 +121,11 @@ const universalUploadRoutes = async (fastify) => {
     // GET SINGLE UPLOAD CONFIG
     // -----------------------------------------------------
     fastify.get('/upload-config', {
-        schema: { tags: ['Upload from excel'] }
+        schema: {
+            tags: ['Upload from excel'],
+            summary: 'Get a single upload parser config',
+            querystring: tableQuerySchema
+        }
     }, async (request, reply) => {
         const { table } = request.query;
         try {

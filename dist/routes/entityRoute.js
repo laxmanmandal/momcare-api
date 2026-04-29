@@ -36,10 +36,45 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = entityRoutes;
 const entityService = __importStar(require("../services/entityService"));
 const auth_1 = require("../middleware/auth");
+const idParamsSchema = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['id'],
+    properties: {
+        id: { type: 'integer', minimum: 1 }
+    }
+};
+const successObjectResponse = {
+    type: 'object',
+    properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+        data: { type: 'object' }
+    }
+};
+const successArrayResponse = {
+    type: 'object',
+    properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+        data: { type: 'array', items: { type: 'object' } }
+    }
+};
+const errorResponse = {
+    type: 'object',
+    properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' }
+    }
+};
 async function entityRoutes(app) {
     app.get('/channel/list', {
         preHandler: [auth_1.authMiddleware, app.accessControl.check('LIST_CHANNEL')],
-        schema: { tags: ['Entities'] }
+        schema: {
+            tags: ['Entities'],
+            summary: 'List channel entities',
+            response: { 200: successArrayResponse }
+        }
     }, async (req, reply) => {
         try {
             const payload = await entityService.getChannelEntity(req.user.belongsToId);
@@ -60,7 +95,11 @@ async function entityRoutes(app) {
     });
     app.get('/partner/list', {
         preHandler: [auth_1.authMiddleware, app.accessControl.check('LIST_PARTNER')],
-        schema: { tags: ['Entities'] }
+        schema: {
+            tags: ['Entities'],
+            summary: 'List partner entities',
+            response: { 200: successArrayResponse }
+        }
     }, async (req, reply) => {
         try {
             const payload = await entityService.getPartnerEntity(req.user.belongsToId);
@@ -81,12 +120,16 @@ async function entityRoutes(app) {
     });
     app.get('/:id', {
         preHandler: [auth_1.authMiddleware, app.accessControl.check('LIST_ENTITY')],
-        schema: { tags: ['Entities'] }
+        schema: {
+            tags: ['Entities'],
+            summary: 'Get entity by ID',
+            params: idParamsSchema,
+            response: { 200: successObjectResponse }
+        }
     }, async (req, reply) => {
         const { id } = req.params;
-        const numericId = Number(id);
         try {
-            const payload = await entityService.getentityTableById(numericId);
+            const payload = await entityService.getentityTableById(id);
             reply.code(200).send({
                 success: true,
                 message: 'Entity fetched successfully',
@@ -103,7 +146,12 @@ async function entityRoutes(app) {
         }
     });
     app.get('/all', {
-        preHandler: [auth_1.authMiddleware, app.accessControl.check('LIST_ENTITY')], schema: { tags: ['Entities'] }
+        preHandler: [auth_1.authMiddleware, app.accessControl.check('LIST_ENTITY')],
+        schema: {
+            tags: ['Entities'],
+            summary: 'List all entities',
+            response: { 200: successArrayResponse }
+        }
     }, async (req, reply) => {
         try {
             const payload = await entityService.getAllentities(req.user.belongsToId);
@@ -122,27 +170,30 @@ async function entityRoutes(app) {
             });
         }
     });
+    const entityBody = {
+        type: 'object',
+        required: ['name', 'type', 'email'],
+        additionalProperties: false,
+        properties: {
+            type: { type: 'string' },
+            name: { type: 'string' },
+            phone: { type: 'string' },
+            email: { type: 'string', format: 'email' },
+            location: { type: 'string', nullable: true },
+            description: { type: 'string', nullable: true },
+            imageUrl: { type: 'string', nullable: true },
+            createdBy: { type: 'number', nullable: true },
+            belongsToId: { type: 'number', nullable: true },
+            isActive: { type: 'boolean', nullable: true }
+        }
+    };
     app.post('/create', {
         preHandler: [auth_1.authMiddleware, app.accessControl.check('CREATE_ENTITY')],
         schema: {
             tags: ['Entities'],
-            body: {
-                type: 'object',
-                required: ['name', 'type', 'email'],
-                additionalProperties: false,
-                properties: {
-                    type: { type: 'string' },
-                    name: { type: 'string' },
-                    phone: { type: 'string' },
-                    email: { type: 'string', format: 'email' },
-                    location: { type: 'string', nullable: true },
-                    description: { type: 'string', nullable: true },
-                    imageUrl: { type: 'string', nullable: true },
-                    createdBy: { type: 'number', nullable: true },
-                    belongsToId: { type: 'number', nullable: true },
-                    isActive: { type: 'boolean', nullable: true }
-                }
-            }
+            summary: 'Create an entity',
+            body: entityBody,
+            response: { 201: successObjectResponse }
         }
     }, async (req, reply) => {
         const body = req.body;
@@ -163,8 +214,7 @@ async function entityRoutes(app) {
             belongsToId,
             isActive
         };
-        // if file exists in request.files or request.body (depending on plugin)
-        const maybeFile = req.files?.imageUrl ?? req.body.imageUrl; // shape may vary
+        const maybeFile = req.files?.imageUrl ?? req.body.imageUrl;
         let channel = await entityService.creatEntityTable(createData);
         if (maybeFile) {
             const f = Array.isArray(maybeFile) ? maybeFile[0] : maybeFile;
@@ -187,23 +237,9 @@ async function entityRoutes(app) {
     app.post('/register', {
         schema: {
             tags: ['Entities'],
-            body: {
-                type: 'object',
-                required: ['name', 'type', 'email'],
-                additionalProperties: false,
-                properties: {
-                    type: { type: 'string' },
-                    name: { type: 'string' },
-                    phone: { type: 'string' },
-                    email: { type: 'string', format: 'email' },
-                    location: { type: 'string', nullable: true },
-                    description: { type: 'string', nullable: true },
-                    imageUrl: { type: 'string', nullable: true },
-                    createdBy: { type: 'number', nullable: true },
-                    belongsToId: { type: 'number', nullable: true },
-                    isActive: { type: 'boolean', nullable: true }
-                }
-            }
+            summary: 'Register a new entity (public)',
+            body: entityBody,
+            response: { 201: successObjectResponse }
         }
     }, async (req, reply) => {
         const body = req.body;
@@ -224,8 +260,7 @@ async function entityRoutes(app) {
             belongsToId,
             isActive
         };
-        // if file exists in request.files or request.body (depending on plugin)
-        const maybeFile = req.files?.imageUrl ?? req.body.imageUrl; // shape may vary
+        const maybeFile = req.files?.imageUrl ?? req.body.imageUrl;
         let channel = await entityService.creatEntityTable(createData);
         if (maybeFile) {
             const f = Array.isArray(maybeFile) ? maybeFile[0] : maybeFile;
@@ -250,28 +285,42 @@ async function entityRoutes(app) {
             auth_1.authMiddleware,
             app.accessControl.check('UPDATE_ENTITY')
         ],
-        schema: { tags: ['Entities'] }
+        schema: {
+            tags: ['Entities'],
+            summary: 'Update an entity',
+            params: idParamsSchema,
+            body: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                    type: { type: 'string' },
+                    name: { type: 'string' },
+                    phone: { type: 'string' },
+                    email: { type: 'string', format: 'email' },
+                    location: { type: 'string', nullable: true },
+                    description: { type: 'string', nullable: true },
+                    imageUrl: { type: 'string', nullable: true },
+                    isActive: { type: 'boolean', nullable: true }
+                }
+            },
+            response: { 200: successObjectResponse, 400: errorResponse }
+        }
     }, async (req, reply) => {
-        const id = Number(req.params.id);
+        const id = req.params.id;
         let fields = {};
         let files = {};
-        // Only parse multipart if content type is multipart/form-data
         if (req.isMultipart && req.isMultipart()) {
             const result = await app.parseMultipartMemory(req);
             fields = result.fields || {};
             files = result.files || {};
         }
         else {
-            // not multipart — take JSON body directly
             fields = req.body;
         }
-        // now fields has data regardless of content type
         if (!fields || typeof fields !== 'object') {
             return reply.code(400).send({ message: 'Invalid body format' });
         }
-        // update entity
         const updated = await entityService.updateEntityTable(id, fields);
-        // handle file upload separately
         if (files.imageUrl?.length) {
             updated.imageUrl = await app.saveFileBuffer(files.imageUrl[0], `Entities`);
         }

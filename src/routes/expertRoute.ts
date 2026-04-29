@@ -14,12 +14,41 @@ const expertBody = {
     }
 } as const
 
+const expertIdParamsSchema = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['id'],
+    properties: {
+        id: { type: 'integer', minimum: 1 }
+    }
+} as const
+
+const successObjectResponse = {
+    type: 'object',
+    properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+        data: { type: 'object' }
+    }
+} as const
+
+const successArrayResponse = {
+    type: 'object',
+    properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+        data: { type: 'array', items: { type: 'object' } }
+    }
+} as const
+
 export default async function ExpertRoutes(app: FastifyInstance) {
     app.post('/', {
         schema: {
             tags: ['Experts'],
             consumes: ['multipart/form-data'],
-            body: expertBody
+            summary: 'Create an expert',
+            body: expertBody,
+            response: { 200: successObjectResponse }
         }, preHandler: [authMiddleware, onlyOrg]
     }, async (req, reply) => {
 
@@ -53,7 +82,10 @@ export default async function ExpertRoutes(app: FastifyInstance) {
         schema: {
             tags: ['Experts'],
             consumes: ['application/json', 'multipart/form-data'],
-            body: expertBody
+            summary: 'Update an expert',
+            params: expertIdParamsSchema,
+            body: expertBody,
+            response: { 200: successObjectResponse }
         }, preHandler: [authMiddleware, onlyOrg] },
         async (req, reply) => {
 
@@ -89,7 +121,13 @@ export default async function ExpertRoutes(app: FastifyInstance) {
 
         }
     );
-    app.get('/', { schema: { tags: ['Experts'] }, preHandler: [authMiddleware] },
+    app.get('/', {
+        schema: {
+            tags: ['Experts'],
+            summary: 'List experts',
+            response: { 200: successArrayResponse }
+        }, preHandler: [authMiddleware]
+    },
         async (req, reply) => {
 
             const Expert = await expertService.getexperts();
@@ -100,21 +138,20 @@ export default async function ExpertRoutes(app: FastifyInstance) {
             });
 
         });
-    app.get('/:id', { schema: { tags: ['Experts'] }, preHandler: [authMiddleware] },
+    app.get('/:id', {
+        schema: {
+            tags: ['Experts'],
+            summary: 'Get expert by ID',
+            params: expertIdParamsSchema,
+            response: { 200: successObjectResponse }
+        }, preHandler: [authMiddleware]
+    },
 
         async (req, reply) => {
 
-            const { id } = req.params as { id: string };
-            const numericId = Number(id);
+            const { id } = req.params as { id: number };
 
-            if (isNaN(numericId)) {
-                return reply.code(500).send({
-                    success: false,
-                    message: 'Invalid ID',
-                });
-            }
-
-            const Expert = await expertService.getexpertsById(numericId);
+            const Expert = await expertService.getexpertsById(id);
 
             reply.code(200).send({
                 success: true,

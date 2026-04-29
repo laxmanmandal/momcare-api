@@ -4,6 +4,21 @@ import { authMiddleware } from '../middleware/auth'
 import { Prisma } from '@prisma/client';
 import prisma from '../prisma/client';
 
+const successArrayResponse = {
+  type: 'object',
+  properties: {
+    count: { type: 'integer' },
+    data: { type: 'array', items: { type: 'object' } }
+  }
+} as const
+
+const errorResponse = {
+  type: 'object',
+  properties: {
+    error: { type: 'string' }
+  }
+} as const
+
 export default async function healthRoutes(app: FastifyInstance) {
   app.addHook('preHandler', authMiddleware)
 
@@ -37,6 +52,7 @@ export default async function healthRoutes(app: FastifyInstance) {
             },
           },
           400: { type: 'object', properties: { error: { type: 'string' } } },
+          500: { type: 'object', properties: { error: { type: 'string' } } }
         },
       },
     },
@@ -59,7 +75,13 @@ export default async function healthRoutes(app: FastifyInstance) {
   );
 
   app.get('/symptoms',
-    { schema: { tags: ['Health'] }, preHandler: [authMiddleware] },
+    {
+      schema: {
+        tags: ['Health'],
+        summary: 'List the authenticated user symptom entries from the last 30 days',
+        response: { 200: successArrayResponse, 500: errorResponse }
+      }, preHandler: [authMiddleware]
+    },
 
 
     async (request: any, reply) => {

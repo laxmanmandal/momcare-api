@@ -32,80 +32,116 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = CouponRoute;
 const couponService = __importStar(require("../services/couponService"));
 const auth_1 = require("../middleware/auth");
 const client_1 = require("@prisma/client");
-const couponWriteBody = {
+const http_errors_1 = __importDefault(require("http-errors"));
+const requestValidation_1 = require("../utils/requestValidation");
+const couponIdParamsSchema = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['id'],
+    properties: {
+        id: { type: 'integer', minimum: 1 }
+    }
+};
+const couponBodySchema = {
     type: 'object',
     additionalProperties: false,
     properties: {
-        code: { type: 'string' },
-        title: { type: 'string' },
-        description: { type: 'string' },
-        percent: { type: 'number' },
-        fixed_amount: { type: 'number' },
-        assigned_user_id: { type: 'integer', minimum: 1 },
+        code: { type: 'string', minLength: 3, maxLength: 50 },
+        percent: { type: 'number', minimum: 0, maximum: 100, nullable: true },
+        fixed_amount: { type: 'number', minimum: 0, nullable: true },
+        assigned_user_id: { type: 'integer', minimum: 1, nullable: true },
         effective_at: { type: 'string', format: 'date-time' },
         expires_at: { type: 'string', format: 'date-time' },
         image: { type: 'string', contentEncoding: 'binary' }
     }
 };
+const successObjectResponse = {
+    type: 'object',
+    properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+        data: { type: 'object' }
+    }
+};
+const successArrayResponse = {
+    type: 'object',
+    properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+        data: { type: 'array', items: { type: 'object' } }
+    }
+};
 async function CouponRoute(app) {
-    function normalizeNumber(input) {
-        if (input === null || input === undefined)
-            return null;
-        if (typeof input === 'string') {
-            const trimmed = input.trim();
-            if (trimmed === '' || trimmed.toLowerCase() === 'null')
-                return null;
-            const parsed = Number(trimmed);
-            return Number.isFinite(parsed) ? parsed : null;
+    function buildCouponPayload(fields, isCreate) {
+        (0, requestValidation_1.assertAllowedKeys)(fields, [
+            'code',
+            'percent',
+            'fixed_amount',
+            'assigned_user_id',
+            'effective_at',
+            'expires_at'
+        ]);
+        const code = (0, requestValidation_1.readString)(fields, 'code', { required: isCreate, minLength: 3, maxLength: 50, pattern: /^[A-Za-z0-9_-]+$/ });
+        const percent = (0, requestValidation_1.readNullableNumber)(fields, 'percent', { min: 0, max: 100 });
+        const fixedAmount = (0, requestValidation_1.readNullableNumber)(fields, 'fixed_amount', { min: 0 });
+        const assignedUserId = (0, requestValidation_1.readNullableNumber)(fields, 'assigned_user_id', { min: 1, integer: true });
+        const effectiveAt = (0, requestValidation_1.readDateValue)(fields, 'effective_at', isCreate);
+        const expiresAt = (0, requestValidation_1.readDateValue)(fields, 'expires_at', isCreate);
+        if (isCreate) {
+            if (percent === null && fixedAmount === null) {
+                throw (0, http_errors_1.default)(400, 'Either percent or fixed_amount is required');
+            }
+            if (percent !== null && percent !== undefined && fixedAmount !== null && fixedAmount !== undefined) {
+                throw (0, http_errors_1.default)(400, 'Percent and fixed_amount cannot both be provided');
+            }
         }
-        if (typeof input === 'number') {
-            return Number.isFinite(input) ? input : null;
+        else if (percent !== undefined || fixedAmount !== undefined) {
+            if (percent !== null && percent !== undefined && fixedAmount !== null && fixedAmount !== undefined) {
+                throw (0, http_errors_1.default)(400, 'Percent and fixed_amount cannot both be provided');
+            }
+            if (percent === null && fixedAmount === null) {
+                throw (0, http_errors_1.default)(400, 'At least one discount value must remain set');
+            }
         }
-        return null;
+        if (effectiveAt && expiresAt && effectiveAt > expiresAt) {
+            throw (0, http_errors_1.default)(400, 'effective_at must be before or equal to expires_at');
+        }
+        return (0, requestValidation_1.pickDefined)({
+            code,
+            percent,
+            fixed_amount: fixedAmount,
+            assigned_user_id: assignedUserId,
+            effective_at: effectiveAt,
+            expires_at: expiresAt
+        });
     }
     app.post('/create', {
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg],
         schema: {
             tags: ['Coupon'],
             consumes: ['multipart/form-data'],
-            body: couponWriteBody
+            summary: 'Create a coupon',
+            body: couponBodySchema,
+            response: { 201: successObjectResponse }
         },
     }, async (req, reply) => {
         const { files, fields } = await app.parseMultipartMemory(req);
-        // Simple fix: Convert empty strings to null for decimal fields
-        const fixedData = {
-            ...fields,
-            percent: fields.percent === '' ? null : fields.percent,
-            fixed_amount: fields.fixed_amount === '' ? null : fields.fixed_amount,
-            assigned_user_id: normalizeNumber(fields.assigned_user_id)
-        };
-        // inside your route handler
-        const percent = normalizeNumber(fields.percent);
-        const fixedAmount = normalizeNumber(fields.fixed_amount);
-        if (percent !== null && fixedAmount !== null) {
-            return reply.send({
-                success: false,
-                message: "Percent and fixed amount both cannot be provided"
-            });
-        }
-        if (percent === null && fixedAmount === null) {
-            return reply.send({
-                success: false,
-                message: "Percent or fixed amount is required"
-            });
-        }
-        const coupon = await couponService.createCoupon(fixedData);
+        (0, requestValidation_1.assertAllowedFileFields)(files, ['image']);
+        const coupon = await couponService.createCoupon(buildCouponPayload(fields, true));
         if (coupon && files.image?.length) {
             const image = await app.saveFileBuffer(files.image[0], '_coupons');
             await couponService.updateCoupon(Number(coupon.id), { image });
             coupon.image = image;
         }
-        return reply.code(200).send({
+        return reply.code(201).send({
             success: true,
             message: 'Coupon created successfully',
             data: coupon,
@@ -119,9 +155,10 @@ async function CouponRoute(app) {
             body: {
                 type: "object",
                 required: ["planId"],
+                additionalProperties: false,
                 properties: {
-                    couponCode: { type: "string" },
-                    planId: { type: "number" }
+                    couponCode: { type: "string", minLength: 3, maxLength: 50 },
+                    planId: { type: "integer", minimum: 1 }
                 }
             },
             response: {
@@ -232,7 +269,11 @@ async function CouponRoute(app) {
         });
     });
     app.get('/', {
-        schema: { tags: ['Coupon'] },
+        schema: {
+            tags: ['Coupon'],
+            summary: 'List coupons',
+            response: { 200: successArrayResponse }
+        },
     }, async (req, reply) => {
         const dailytips = await couponService.getCoupons();
         reply.code(200).send({
@@ -266,39 +307,19 @@ async function CouponRoute(app) {
         schema: {
             tags: ['Coupon'],
             consumes: ['application/json', 'multipart/form-data'],
-            body: couponWriteBody
+            summary: 'Update a coupon',
+            params: couponIdParamsSchema,
+            body: couponBodySchema,
+            response: { 200: successObjectResponse }
         },
     }, async (req, reply) => {
         const { files, fields } = await app.parseMultipartMemory(req);
         const { id } = req.params;
-        if (!req.isMultipart() && req.body)
-            Object.assign(fields, req.body);
-        // Simple fix: Convert empty strings to null for decimal fields
-        const fixedData = {
-            ...fields,
-            percent: fields.percent === '' ? null : fields.percent,
-            fixed_amount: fields.fixed_amount === '' ? null : fields.fixed_amount,
-            assigned_user_id: normalizeNumber(fields.assigned_user_id)
-        };
-        // inside your route handler
-        const percent = normalizeNumber(fields.percent);
-        const fixedAmount = normalizeNumber(fields.fixed_amount);
-        if (percent !== null && fixedAmount !== null) {
-            return reply.send({
-                success: false,
-                message: "Percent and fixed amount both cannot be provided"
-            });
-        }
-        if (percent === null && fixedAmount === null) {
-            return reply.send({
-                success: false,
-                message: "Percent or fixed amount is required"
-            });
-        }
-        console.log(fixedData);
-        const coupon = await couponService.updateCoupon(Number(id), fixedData);
+        (0, requestValidation_1.assertAllowedFileFields)(files, ['image']);
+        const coupon = await couponService.updateCoupon(id, buildCouponPayload(fields, false));
         if (files.image?.length) {
             coupon.image = await app.saveFileBuffer(files.image[0], '_coupons');
+            await couponService.updateCoupon(id, { image: coupon.image });
         }
         return reply.code(200).send({
             success: true,
@@ -307,14 +328,26 @@ async function CouponRoute(app) {
         });
     });
     app.patch('/:id/status', {
-        schema: { tags: ['Coupon'] },
+        schema: {
+            tags: ['Coupon'],
+            summary: 'Toggle coupon status',
+            params: couponIdParamsSchema,
+            response: { 200: successObjectResponse }
+        },
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
     }, async (req, reply) => {
         const { id } = req.params;
         const coupon = await couponService.CouponStatus(Number(id), reply);
         return reply.send({ success: true, message: 'Coupon status updated successfully', data: coupon });
     });
-    app.delete('/delete/:id', { schema: { tags: ['Coupon'] }, preHandler: [auth_1.authMiddleware, auth_1.onlyOrg] }, async (req, reply) => {
+    app.delete('/delete/:id', {
+        schema: {
+            tags: ['Coupon'],
+            summary: 'Delete a coupon',
+            params: couponIdParamsSchema,
+            response: { 200: successObjectResponse }
+        }, preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
+    }, async (req, reply) => {
         const { id } = req.params;
         await couponService.deleteCoupon(Number(id));
         return reply.send({ success: true, message: 'Coupon deleted successfully' });

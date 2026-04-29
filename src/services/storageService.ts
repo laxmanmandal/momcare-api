@@ -1,12 +1,23 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { v2 as cloudinary } from 'cloudinary';
+import createHttpError from 'http-errors';
 
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const UPLOAD_DIR = process.env.UPLOAD_DIR || './momcare-media';
 
 // Resolve absolute upload path from project root
 const UPLOAD_ROOT = path.resolve(process.cwd(), UPLOAD_DIR);
+const MAX_SAFE_FILENAME_LENGTH = 80;
+const allowedMimeTypes = new Map<string, string>([
+    ['image/png', '.png'],
+    ['image/jpeg', '.jpg'],
+    ['image/jpg', '.jpg'],
+    ['video/mp4', '.mp4'],
+    ['video/mov', '.mov'],
+    ['video/quicktime', '.mov'],
+    ['application/pdf', '.pdf']
+]);
 
 // ============================================================================
 // CLOUDINARY CONFIG (Development)
@@ -36,13 +47,16 @@ export const storageService = {
         mimeType: string,
         folder: string
     ): Promise<string> {
-        const allowed = [
-            'image/png', 'image/jpeg', 'image/jpg', 'video/mp4',
-            'video/mov', 'application/pdf'
-        ];
+        if (!allowedMimeTypes.has(mimeType)) {
+            throw createHttpError(400, `Unsupported file type: ${mimeType}`);
+        }
 
-        if (!allowed.includes(mimeType)) {
-            throw new Error(`Unsupported file type: ${mimeType}`);
+        if (fileBuffer.length === 0) {
+            throw createHttpError(400, 'Uploaded file is empty')
+        }
+
+        if (!matchesExpectedSignature(fileBuffer, mimeType)) {
+            throw createHttpError(400, `Uploaded file content does not match ${mimeType}`)
         }
 
         if (NODE_ENV === 'development') {
@@ -87,12 +101,13 @@ async function uploadToCloudinary(
     mimeType: string,
     folder: string
 ): Promise<string> {
+    const safeBaseName = sanitizeFilenameBase(filename)
     return new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
             {
                 folder: `momcare/${folder}`,
                 resource_type: 'auto',
-                public_id: filename.split('.')[0] + '_' + Date.now(),
+                public_id: `${safeBaseName}_${Date.now()}`,
                 overwrite: true,
             },
             (error, result) => {
@@ -147,8 +162,8 @@ async function uploadToLocalStorage(
 
         // Generate unique filename
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const ext = path.extname(filename);
-        const baseName = path.basename(filename, ext);
+        const ext = getSafeExtension(filename, mimeType);
+        const baseName = sanitizeFilenameBase(filename);
         const uniqueName = `${baseName}_${timestamp}${ext}`;
 
         const fullPath = path.join(folderPath, uniqueName);
@@ -165,7 +180,8 @@ async function uploadToLocalStorage(
 
 async function deleteFromLocalStorage(filePath: string): Promise<void> {
     try {
-        const fullPath = path.join(UPLOAD_ROOT, filePath.replace(/^\//, ''));
+        const relativePath = filePath.replace(/^\//, '');
+        const fullPath = resolveLocalUploadPath(relativePath);
 
         await fs.access(fullPath); // Check if file exists
         await fs.unlink(fullPath);
@@ -177,4 +193,76 @@ async function deleteFromLocalStorage(filePath: string): Promise<void> {
         }
         console.error('❌ Local storage delete error:', err.message);
     }
+}
+
+function sanitizeFilenameBase(filename: string): string {
+    const ext = path.extname(filename);
+    const rawBaseName = path.basename(filename, ext);
+    const safeBaseName = rawBaseName
+        .replace(/[^a-zA-Z0-9_-]/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_+|_+$/g, '')
+
+    return (safeBaseName || 'upload').slice(0, MAX_SAFE_FILENAME_LENGTH)
+}
+
+function getSafeExtension(filename: string, mimeType: string): string {
+    const mappedExtension = allowedMimeTypes.get(mimeType)
+    if (mappedExtension) {
+        return mappedExtension
+    }
+
+    const rawExtension = path.extname(filename).toLowerCase()
+    if (rawExtension) {
+        return rawExtension
+    }
+
+    return '.bin'
+}
+
+function resolveLocalUploadPath(relativePath: string): string {
+    const normalizedPath = path.posix.normalize(`/${relativePath}`).replace(/^\/+/, '')
+    const absolutePath = path.resolve(UPLOAD_ROOT, normalizedPath)
+
+    if (absolutePath !== UPLOAD_ROOT && !absolutePath.startsWith(`${UPLOAD_ROOT}${path.sep}`)) {
+        throw createHttpError(400, 'Invalid file path')
+    }
+
+    return absolutePath
+}
+
+function matchesExpectedSignature(buffer: Buffer, mimeType: string): boolean {
+    switch (mimeType) {
+        case 'image/png':
+            return buffer.length >= 8 && buffer.subarray(0, 8).equals(
+                Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+            )
+        case 'image/jpeg':
+        case 'image/jpg':
+            return buffer.length >= 3
+                && buffer[0] === 0xff
+                && buffer[1] === 0xd8
+                && buffer[2] === 0xff
+        case 'application/pdf':
+            return buffer.length >= 5 && buffer.subarray(0, 5).toString('ascii') === '%PDF-'
+        case 'video/mp4':
+            return hasIsoBaseMediaHeader(buffer)
+        case 'video/mov':
+        case 'video/quicktime':
+            return hasIsoBaseMediaHeader(buffer, ['qt  '])
+        default:
+            return false
+    }
+}
+
+function hasIsoBaseMediaHeader(buffer: Buffer, acceptedBrands?: string[]): boolean {
+    if (buffer.length < 12) return false
+    if (buffer.subarray(4, 8).toString('ascii') !== 'ftyp') return false
+
+    if (!acceptedBrands || acceptedBrands.length === 0) {
+        return true
+    }
+
+    const brand = buffer.subarray(8, 12).toString('ascii')
+    return acceptedBrands.includes(brand)
 }

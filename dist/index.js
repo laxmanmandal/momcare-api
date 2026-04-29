@@ -44,6 +44,11 @@ const error_1 = require("./utils/error");
 const universalUploadRoutes_1 = __importDefault(require("./routes/universalUploadRoutes"));
 const loginLogs_1 = __importDefault(require("./routes/loginLogs"));
 const rate_limit_1 = __importDefault(require("@fastify/rate-limit"));
+const DEFAULT_MULTIPART_FILE_LIMIT = 25 * 1024 * 1024;
+const multipartFileLimit = Number(process.env.MULTIPART_FILE_LIMIT_BYTES || DEFAULT_MULTIPART_FILE_LIMIT);
+const maxMultipartFileSize = Number.isFinite(multipartFileLimit) && multipartFileLimit > 0
+    ? multipartFileLimit
+    : DEFAULT_MULTIPART_FILE_LIMIT;
 //error handler
 const app = (0, fastify_1.default)({
     trustProxy: true,
@@ -69,9 +74,6 @@ const app = (0, fastify_1.default)({
     },
     bodyLimit: 1048576
 });
-app.addHook('onRequest', async (req) => {
-    req.rawBody = req.raw;
-});
 app.register(rate_limit_1.default, {
     global: false // important — prevents whole server from being limited
 });
@@ -82,7 +84,9 @@ app.register(formbody_1.default);
 app.register(multipart_1.fastifyMultipart, {
     attachFieldsToBody: false, //
     limits: {
-        fileSize: 500 * 1024 * 1024, // allow up to 100 MB
+        fileSize: maxMultipartFileSize,
+        files: 4,
+        parts: 20
     },
 });
 app.register(cors_1.default, {
@@ -148,6 +152,12 @@ else {
 -------------------------------------------------------------------------- */
 // Parse multipart and keep files in memory
 app.decorate('parseMultipartMemory', async (req) => {
+    if (typeof req.isMultipart === 'function' && !req.isMultipart()) {
+        return {
+            files: {},
+            fields: { ...(req.body ?? {}) }
+        };
+    }
     const parts = req.parts();
     const files = {};
     const fields = {};
@@ -235,8 +245,8 @@ app.get('/', async () => ({
 }));
 const start = async () => {
     try {
-        const port = Number(process.env.PORT || 8000);
-        const host = 'localhost';
+        const port = Number(process.env.PORT || 8080);
+        const host = '0.0.0.0';
         console.log('🔧 Initializing server...');
         console.log(`   NODE_ENV: ${process.env.NODE_ENV}`);
         console.log(`   PORT: ${port}`);

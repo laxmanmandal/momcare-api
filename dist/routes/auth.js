@@ -46,11 +46,18 @@ const client_2 = __importDefault(require("../prisma/client"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const loginratelimiter_1 = require("../middleware/loginratelimiter");
 const otpratelimiter_1 = require("../middleware/otpratelimiter");
+const http_errors_1 = __importDefault(require("http-errors"));
+const phonePattern = /^[0-9+() -]{10,20}$/;
+const otpPattern = /^[0-9]{4,8}$/;
 async function authRoutes(app) {
     const roleEnum = Object.keys(client_1.Role).filter(k => isNaN(Number(k)));
     app.post('/request-otp', {
         config: {
-            swaggerPublic: true
+            swaggerPublic: true,
+            rateLimit: {
+                max: 3,
+                timeWindow: 10 * 60 * 1000
+            }
         },
         schema: {
             tags: ['Auth'],
@@ -59,7 +66,7 @@ async function authRoutes(app) {
                 required: ['phone'],
                 additionalProperties: false,
                 properties: {
-                    phone: { type: 'string', minLength: 6 }
+                    phone: { type: 'string', minLength: 10, maxLength: 20, pattern: phonePattern.source }
                 }
             }
         }
@@ -74,7 +81,11 @@ async function authRoutes(app) {
     });
     app.post("/verify-otp", {
         config: {
-            swaggerPublic: true
+            swaggerPublic: true,
+            rateLimit: {
+                max: 5,
+                timeWindow: 10 * 60 * 1000
+            }
         },
         schema: {
             tags: ['Auth'],
@@ -83,8 +94,8 @@ async function authRoutes(app) {
                 required: ['phone', 'otp'],
                 additionalProperties: false,
                 properties: {
-                    phone: { type: 'string', minLength: 6 },
-                    otp: { type: 'string', minLength: 4 }
+                    phone: { type: 'string', minLength: 10, maxLength: 20, pattern: phonePattern.source },
+                    otp: { type: 'string', minLength: 4, maxLength: 8, pattern: otpPattern.source }
                 }
             }
         }
@@ -133,12 +144,12 @@ async function authRoutes(app) {
                 additionalProperties: false,
                 required: ['role', 'phone', 'name'],
                 properties: {
-                    name: { type: 'string', minLength: 2 },
-                    type: { type: 'string' },
-                    location: { type: 'string', minLength: 2 },
-                    email: { type: 'string', format: 'email' },
-                    phone: { type: 'string', minLength: 6 },
-                    password: { type: 'string', minLength: 8 },
+                    name: { type: 'string', minLength: 2, maxLength: 120 },
+                    type: { type: 'string', maxLength: 50 },
+                    location: { type: 'string', minLength: 2, maxLength: 255 },
+                    email: { type: 'string', format: 'email', maxLength: 254 },
+                    phone: { type: 'string', minLength: 10, maxLength: 20, pattern: phonePattern.source },
+                    password: { type: 'string', minLength: 8, maxLength: 128 },
                     role: { type: 'string', enum: roleEnum },
                     belongsToId: { type: 'integer' },
                     createdBy: { type: 'integer' },
@@ -178,7 +189,11 @@ async function authRoutes(app) {
     // login route (keeps schema simple)
     app.post('/login', {
         config: {
-            swaggerPublic: true
+            swaggerPublic: true,
+            rateLimit: {
+                max: 5,
+                timeWindow: 15 * 60 * 1000
+            }
         },
         schema: {
             tags: ['Auth'],
@@ -187,8 +202,8 @@ async function authRoutes(app) {
                 required: ['email', 'password'],
                 additionalProperties: false,
                 properties: {
-                    email: { type: 'string', format: 'email' },
-                    password: { type: 'string', minLength: 8 }
+                    email: { type: 'string', format: 'email', maxLength: 254 },
+                    password: { type: 'string', minLength: 8, maxLength: 128 }
                 }
             }
         }
@@ -216,7 +231,11 @@ async function authRoutes(app) {
     // refresh route
     app.post('/refresh', {
         config: {
-            swaggerPublic: true
+            swaggerPublic: true,
+            rateLimit: {
+                max: 10,
+                timeWindow: 15 * 60 * 1000
+            }
         },
         schema: {
             tags: ['Auth'],
@@ -236,17 +255,24 @@ async function authRoutes(app) {
     app.post('/change-password', {
         schema: {
             tags: ['Auth'],
+            body: {
+                type: 'object',
+                additionalProperties: false,
+                required: ['userId', 'old_password', 'new_password'],
+                properties: {
+                    userId: { type: 'integer', minimum: 1 },
+                    old_password: { type: 'string', minLength: 8, maxLength: 128 },
+                    new_password: { type: 'string', minLength: 8, maxLength: 128 }
+                }
+            }
         },
         preHandler: [auth_1.authMiddleware, app.accessControl.check('CHANGE_PASSWORD')],
     }, async (req, res) => {
         const authUserId = Number(req.user.id); // assuming user is authenticated
         const userId = Number(req.body.userId);
         const { old_password, new_password } = req.body;
-        if (!old_password || !new_password) {
-            return res.status(400).send({ success: false, message: "Both old and new passwords are required." });
-        }
         if (authUserId !== userId) {
-            return res.status(400).send({ success: false, message: "Unauthorised !" });
+            throw (0, http_errors_1.default)(403, 'Unauthorized');
         }
         // 1. Fetch user
         const user = await client_2.default.user.findUnique({

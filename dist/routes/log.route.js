@@ -10,6 +10,23 @@ const fs_1 = require("fs");
 const stream_1 = require("stream");
 const util_1 = require("util");
 const pump = (0, util_1.promisify)(stream_1.pipeline);
+const textResponse = {
+    type: 'string'
+};
+const successObjectResponse = {
+    type: 'object',
+    properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' }
+    }
+};
+const errorResponse = {
+    type: 'object',
+    properties: {
+        error: { type: 'string' },
+        details: { type: 'string' }
+    }
+};
 async function LogRoutes(app) {
     const LOG_PATH = path_1.default.join(process.cwd(), 'logs', 'app.log');
     // Ensure logs directory exists
@@ -17,7 +34,13 @@ async function LogRoutes(app) {
     /**
      * GET /logs - View logs as plain text
      */
-    app.get('/', { schema: { tags: ['Server-logs'] } }, async (req, reply) => {
+    app.get('/', {
+        schema: {
+            tags: ['Server-logs'],
+            summary: 'View logs as plain text',
+            response: { 200: textResponse, 500: errorResponse }
+        }
+    }, async (req, reply) => {
         try {
             const logContent = await promises_1.default.readFile(LOG_PATH, 'utf8');
             return reply
@@ -36,7 +59,13 @@ async function LogRoutes(app) {
     /**
      * GET /logs/download - Download log file
      */
-    app.get('/download', { schema: { tags: ['Server-logs'] } }, async (req, reply) => {
+    app.get('/download', {
+        schema: {
+            tags: ['Server-logs'],
+            summary: 'Download the server log file',
+            response: { 200: textResponse, 404: errorResponse, 500: errorResponse }
+        }
+    }, async (req, reply) => {
         try {
             // 1. Verify file exists
             await promises_1.default.access(LOG_PATH, fs_1.constants.R_OK);
@@ -64,7 +93,13 @@ async function LogRoutes(app) {
     /**
      * DELETE /logs/clear - Clear log file
      */
-    app.delete('/clear', { schema: { tags: ['Server-logs'] } }, async (req, reply) => {
+    app.delete('/clear', {
+        schema: {
+            tags: ['Server-logs'],
+            summary: 'Clear the server log file',
+            response: { 200: successObjectResponse, 500: successObjectResponse }
+        }
+    }, async (req, reply) => {
         try {
             await promises_1.default.writeFile(LOG_PATH, '', { encoding: 'utf8' });
             req.log.info('Log file cleared');
@@ -81,7 +116,13 @@ async function LogRoutes(app) {
     /**
      * GET /logs/json - Return logs as JSON lines (for frontend)
      */
-    app.get('/json', { schema: { tags: ['Server-logs'] } }, async (req, reply) => {
+    app.get('/json', {
+        schema: {
+            tags: ['Server-logs'],
+            summary: 'Read logs as parsed JSON lines',
+            response: { 200: { type: 'array', items: { type: 'object' } }, 500: errorResponse }
+        }
+    }, async (req, reply) => {
         try {
             const content = await promises_1.default.readFile(LOG_PATH, 'utf8');
             const lines = content

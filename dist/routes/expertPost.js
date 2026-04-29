@@ -36,24 +36,74 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = expertPost;
 const expertPostService = __importStar(require("../services/expertPostService"));
 const auth_1 = require("../middleware/auth");
+const expertPostIdParamsSchema = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['id'],
+    properties: {
+        id: { type: 'integer', minimum: 1 }
+    }
+};
+const postIdParamsSchema = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['postId'],
+    properties: {
+        postId: { type: 'integer', minimum: 1 }
+    }
+};
+const professionIdParamsSchema = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['professionId'],
+    properties: {
+        professionId: { type: 'integer', minimum: 1 }
+    }
+};
+const expertPostBody = {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+        title: { type: 'string' },
+        content: { type: 'string' },
+        expert_id: { type: 'integer', minimum: 1 },
+        mediaType: { type: 'string' },
+        media: { type: 'string', contentEncoding: 'binary' }
+    }
+};
+const professionBody = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['name'],
+    properties: {
+        name: { type: 'string', minLength: 1 }
+    }
+};
+const successObjectResponse = {
+    type: 'object',
+    properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+        data: { type: 'object' }
+    }
+};
+const successArrayResponse = {
+    type: 'object',
+    properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+        data: { type: 'array', items: { type: 'object' } }
+    }
+};
 async function expertPost(app) {
     app.addHook('preHandler', auth_1.authMiddleware);
     app.post('/', {
         schema: {
             tags: ['Expert Posts'],
             consumes: ['multipart/form-data'],
-            body: {
-                type: 'object',
-                required: ['title', 'content', 'expert_id'],
-                additionalProperties: false,
-                properties: {
-                    title: { type: 'string' },
-                    content: { type: 'string' },
-                    expert_id: { type: 'integer', minimum: 1 },
-                    mediaType: { type: 'string' },
-                    media: { type: 'string', contentEncoding: 'binary' }
-                }
-            }
+            summary: 'Create an expert post',
+            body: expertPostBody,
+            response: { 200: successObjectResponse }
         }
     }, async (req, reply) => {
         const { files, fields } = await app.parseMultipartMemory(req);
@@ -80,17 +130,10 @@ async function expertPost(app) {
         schema: {
             tags: ['Expert Posts'],
             consumes: ['application/json', 'multipart/form-data'],
-            body: {
-                type: 'object',
-                additionalProperties: false,
-                properties: {
-                    title: { type: 'string' },
-                    content: { type: 'string' },
-                    expert_id: { type: 'integer', minimum: 1 },
-                    mediaType: { type: 'string' },
-                    media: { type: 'string', contentEncoding: 'binary' }
-                }
-            }
+            summary: 'Update an expert post',
+            params: expertPostIdParamsSchema,
+            body: expertPostBody,
+            response: { 200: successObjectResponse }
         }
     }, async (req, reply) => {
         const { id } = req.params;
@@ -118,7 +161,14 @@ async function expertPost(app) {
             data: expertPostData,
         });
     });
-    app.patch('/share/:postId', { schema: { tags: ['Expert Posts'] } }, async (req, reply) => {
+    app.patch('/share/:postId', {
+        schema: {
+            tags: ['Expert Posts'],
+            summary: 'Increment expert post share count',
+            params: postIdParamsSchema,
+            response: { 200: successObjectResponse }
+        }
+    }, async (req, reply) => {
         const { postId } = req.params;
         // Update database record
         const communityData = await expertPostService.incrementShareCount(Number(postId));
@@ -128,7 +178,14 @@ async function expertPost(app) {
             data: communityData,
         });
     });
-    app.patch('/view/:postId', { schema: { tags: ['Expert Posts'] } }, async (req, reply) => {
+    app.patch('/view/:postId', {
+        schema: {
+            tags: ['Expert Posts'],
+            summary: 'Increment expert post view count',
+            params: postIdParamsSchema,
+            response: { 200: successObjectResponse }
+        }
+    }, async (req, reply) => {
         const { postId } = req.params;
         // Update database record
         const communityData = await expertPostService.incrementViewCount(Number(postId));
@@ -138,7 +195,13 @@ async function expertPost(app) {
             data: communityData,
         });
     });
-    app.get('/', { schema: { tags: ['Expert Posts'] } }, async (req, reply) => {
+    app.get('/', {
+        schema: {
+            tags: ['Expert Posts'],
+            summary: 'List expert posts',
+            response: { 200: successArrayResponse }
+        }
+    }, async (req, reply) => {
         const communities = await expertPostService.getExpertPost();
         reply.code(200).send({
             success: true,
@@ -149,13 +212,9 @@ async function expertPost(app) {
     app.get('/profession/:professionId', {
         schema: {
             tags: ['Expert Posts'],
-            params: {
-                type: 'object',
-                required: ['professionId'],
-                properties: {
-                    professionId: { type: 'integer' }
-                }
-            }
+            summary: 'List expert posts by profession ID',
+            params: professionIdParamsSchema,
+            response: { 200: successArrayResponse }
         }
     }, async (req, reply) => {
         const { professionId } = req.params;
@@ -166,40 +225,42 @@ async function expertPost(app) {
             data: posts
         });
     });
-    app.get('/:id', { schema: { tags: ['Expert Posts'] } }, async (req, reply) => {
-        const { id } = req.params;
-        const numericId = Number(id);
-        if (isNaN(numericId)) {
-            return reply.code(500).send({
-                success: false,
-                message: 'Invalid ID',
-            });
+    app.get('/:id', {
+        schema: {
+            tags: ['Expert Posts'],
+            summary: 'Get expert post by ID',
+            params: expertPostIdParamsSchema,
+            response: { 200: successObjectResponse }
         }
-        const community = await expertPostService.getExpertPostById(numericId);
+    }, async (req, reply) => {
+        const { id } = req.params;
+        const community = await expertPostService.getExpertPostById(id);
         reply.code(200).send({
             success: true,
             message: 'Expert Post fetched successfully',
             data: community,
         });
     });
-    app.patch('/:id/status', { schema: { tags: ['Expert Posts'] } }, async (req, reply) => {
+    app.patch('/:id/status', {
+        schema: {
+            tags: ['Expert Posts'],
+            summary: 'Toggle expert post status',
+            params: expertPostIdParamsSchema,
+            response: { 200: successObjectResponse }
+        }
+    }, async (req, reply) => {
         const { id } = req.params;
         const community = await expertPostService.expertPostStatus(id);
         return reply.send({ success: true, message: 'Expert Post status updated successfully', data: community });
     });
     app.post('/profession', {
+        preHandler: [auth_1.onlyOrg],
         schema: {
             tags: ['Expert Posts'],
             consumes: ['application/json', 'multipart/form-data'],
-            body: {
-                type: 'object',
-                required: ['name'],
-                additionalProperties: false,
-                properties: {
-                    name: { type: 'string' },
-                }
-            },
-            preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
+            summary: 'Create a profession',
+            body: professionBody,
+            response: { 200: successObjectResponse }
         }
     }, async (req, reply) => {
         const { fields } = req.isMultipart()
@@ -215,7 +276,13 @@ async function expertPost(app) {
             data: PData,
         });
     });
-    app.get('/professions', { schema: { tags: ['Expert Posts'] } }, async (req, reply) => {
+    app.get('/professions', {
+        schema: {
+            tags: ['Expert Posts'],
+            summary: 'List professions',
+            response: { 200: successArrayResponse }
+        }
+    }, async (req, reply) => {
         const professons = await expertPostService.getProfessions();
         reply.code(200).send({
             success: true,

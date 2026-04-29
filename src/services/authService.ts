@@ -60,6 +60,11 @@ export async function signup(data: any) {
   const createdBy = toNumber(data.createdBy);
 
   /* ─────────────── 4️⃣ Prepare auth fields ─────────────── */
+  const email = typeof data.email === 'string' ? data.email.trim().toLowerCase() : undefined;
+  const phone = typeof data.phone === 'string' ? data.phone.trim() : data.phone;
+  const name = typeof data.name === 'string' ? data.name.trim() : data.name;
+  const location = typeof data.location === 'string' ? data.location.trim() : data.location;
+  const type = typeof data.type === 'string' ? data.type.trim() : data.type;
   const hashedPassword =
     data.password ? await bcrypt.hash(String(data.password), 10) : undefined;
 
@@ -70,12 +75,12 @@ export async function signup(data: any) {
 
     const createdUser = await tx.user.create({
       data: {
-        name: data.name,
-        email: data.email ?? null,
+        name,
+        email: email ?? null,
         password: roleForDb !== 'USER' ? hashedPassword : null,
-        phone: data.phone,
-        type: data.type ?? undefined,
-        location: data.location ?? undefined,
+        phone,
+        type: type ?? undefined,
+        location: location ?? undefined,
         role: roleForDb,
         uuid,
         createdBy,
@@ -104,8 +109,10 @@ export async function login(data: any, ip: string) {
     throw new Unauthorized("Unauthorized");
   }
 
+  const email = String(data.email).trim().toLowerCase();
+
   const user = await prisma.user.findUnique({
-    where: { email: data.email },
+    where: { email },
     select: {
       id: true,
       uuid: true,
@@ -272,6 +279,5 @@ export async function getUserFromPayload(uuid: string) {
   if (!user) throw new BadRequest('User not found');
   return user;
 }
-
 
 

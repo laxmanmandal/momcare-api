@@ -40,6 +40,19 @@ exports.default = healthRoutes;
 const healthService = __importStar(require("../services/healthService"));
 const auth_1 = require("../middleware/auth");
 const client_1 = __importDefault(require("../prisma/client"));
+const successArrayResponse = {
+    type: 'object',
+    properties: {
+        count: { type: 'integer' },
+        data: { type: 'array', items: { type: 'object' } }
+    }
+};
+const errorResponse = {
+    type: 'object',
+    properties: {
+        error: { type: 'string' }
+    }
+};
 async function healthRoutes(app) {
     app.addHook('preHandler', auth_1.authMiddleware);
     // Symptoms
@@ -69,6 +82,7 @@ async function healthRoutes(app) {
                     },
                 },
                 400: { type: 'object', properties: { error: { type: 'string' } } },
+                500: { type: 'object', properties: { error: { type: 'string' } } }
             },
         },
     }, async (req, reply) => {
@@ -86,7 +100,13 @@ async function healthRoutes(app) {
             return reply.status(500).send({ error: 'Failed to create symptom entry' });
         }
     });
-    app.get('/symptoms', { schema: { tags: ['Health'] }, preHandler: [auth_1.authMiddleware] }, async (request, reply) => {
+    app.get('/symptoms', {
+        schema: {
+            tags: ['Health'],
+            summary: 'List the authenticated user symptom entries from the last 30 days',
+            response: { 200: successArrayResponse, 500: errorResponse }
+        }, preHandler: [auth_1.authMiddleware]
+    }, async (request, reply) => {
         try {
             // Get current date and subtract 30 days
             const thirtyDaysAgo = new Date();

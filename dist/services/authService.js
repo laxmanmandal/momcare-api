@@ -91,18 +91,23 @@ async function signup(data) {
     const belongsToId = toNumber(data.belongsToId);
     const createdBy = toNumber(data.createdBy);
     /* ─────────────── 4️⃣ Prepare auth fields ─────────────── */
+    const email = typeof data.email === 'string' ? data.email.trim().toLowerCase() : undefined;
+    const phone = typeof data.phone === 'string' ? data.phone.trim() : data.phone;
+    const name = typeof data.name === 'string' ? data.name.trim() : data.name;
+    const location = typeof data.location === 'string' ? data.location.trim() : data.location;
+    const type = typeof data.type === 'string' ? data.type.trim() : data.type;
     const hashedPassword = data.password ? await bcryptjs_1.default.hash(String(data.password), 10) : undefined;
     const uuid = await generateCustomId(roleForDb);
     /* ─────────────── 5️⃣ DB transaction ─────────────── */
     const user = await client_1.default.$transaction(async (tx) => {
         const createdUser = await tx.user.create({
             data: {
-                name: data.name,
-                email: data.email ?? null,
+                name,
+                email: email ?? null,
                 password: roleForDb !== 'USER' ? hashedPassword : null,
-                phone: data.phone,
-                type: data.type ?? undefined,
-                location: data.location ?? undefined,
+                phone,
+                type: type ?? undefined,
+                location: location ?? undefined,
                 role: roleForDb,
                 uuid,
                 createdBy,
@@ -125,8 +130,9 @@ async function login(data, ip) {
     if (!data.email || !data.password) {
         throw new http_errors_1.Unauthorized("Unauthorized");
     }
+    const email = String(data.email).trim().toLowerCase();
     const user = await client_1.default.user.findUnique({
-        where: { email: data.email },
+        where: { email },
         select: {
             id: true,
             uuid: true,

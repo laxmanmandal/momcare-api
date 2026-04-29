@@ -2,6 +2,54 @@ import { FastifyInstance } from 'fastify';
 import * as service from '../services/SubscriptionSaleService';
 import { authMiddleware } from '../middleware/auth';
 
+const paginatedPurchaseParamsSchema = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['entityId', 'page', 'limit'],
+    properties: {
+        entityId: { type: 'integer', minimum: 1 },
+        page: { type: 'integer', minimum: 1 },
+        limit: { type: 'integer', minimum: 1 }
+    }
+} as const
+
+const entityPlanParamsSchema = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['entityId', 'planId'],
+    properties: {
+        entityId: { type: 'integer', minimum: 1 },
+        planId: { type: 'integer', minimum: 1 }
+    }
+} as const
+
+const successObjectResponse = {
+    type: 'object',
+    properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+        data: { type: 'object' }
+    }
+} as const
+
+const successArrayResponse = {
+    type: 'object',
+    properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+        data: { type: 'array', items: { type: 'object' } }
+    }
+} as const
+
+const errorResponse = {
+    type: 'object',
+    properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+        error: { type: 'string' }
+    }
+} as const
+
 export default async function subscriptionRoutes(app: FastifyInstance) {
     // Auth applied to all subscription routes
     app.addHook('preHandler', authMiddleware);
@@ -9,7 +57,12 @@ export default async function subscriptionRoutes(app: FastifyInstance) {
     app.get(
         '/:entityId/:page/:limit/purchase',
         {
-            schema: { tags: ['AllocationPlan'] },
+            schema: {
+                tags: ['AllocationPlan'],
+                summary: 'List purchase transactions by entity',
+                params: paginatedPurchaseParamsSchema,
+                response: { 200: successArrayResponse, 400: errorResponse }
+            },
         },
         async (req: any, reply) => {
             // parse params and convert to numbers
@@ -40,7 +93,12 @@ export default async function subscriptionRoutes(app: FastifyInstance) {
     app.get(
         '/:entityId/:planId',
         {
-            schema: { tags: ['AllocationPlan'] },
+            schema: {
+                tags: ['AllocationPlan'],
+                summary: 'Get plan-wise balance for an entity',
+                params: entityPlanParamsSchema,
+                response: { 200: successObjectResponse, 400: errorResponse }
+            },
         },
         async (req: any, reply) => {
             // parse params and convert to numbers

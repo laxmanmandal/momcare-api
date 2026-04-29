@@ -36,36 +36,50 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = subscriptionRoutes;
 const subscriptionService = __importStar(require("../services/subscriptionService"));
 const auth_1 = require("../middleware/auth");
-const planCreateBody = {
+const uuidParamsSchema = {
     type: 'object',
     additionalProperties: false,
+    required: ['uuid'],
     properties: {
-        name: { type: 'string' },
-        price: { type: 'number', minimum: 0 },
-        courseIds: {
-            oneOf: [
-                { type: 'string' },
-                {
-                    type: 'array',
-                    items: { type: 'integer', minimum: 1 }
-                }
-            ]
-        },
-        thumbnail: { type: 'string', contentEncoding: 'binary' }
+        uuid: { type: 'string', minLength: 2, maxLength: 64 }
+    }
+};
+const idsParamsSchema = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['ids'],
+    properties: {
+        ids: { type: 'string', minLength: 1 }
+    }
+};
+const successObjectResponse = {
+    type: 'object',
+    properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+        data: { type: 'object' }
+    }
+};
+const successArrayResponse = {
+    type: 'object',
+    properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+        data: { type: 'array', items: { type: 'object' } }
     }
 };
 async function subscriptionRoutes(app) {
-    // Auth applied to all subscription routes
     app.addHook('preHandler', auth_1.authMiddleware);
     app.get('/plans', {
         schema: {
             tags: ['Subscription Plans'],
+            summary: 'List all subscription plans',
+            description: 'Returns all subscription plans with course counts.',
+            response: { 200: successArrayResponse, 500: successObjectResponse }
         }
     }, async (_, reply) => {
         try {
-            // Fetch plans with courses from service
             const plans = await subscriptionService.getPlans();
-            // Map each plan to include coursesCount
             const plansWithCount = plans.map(plan => ({
                 ...plan,
                 coursesCount: Array.isArray(plan.courses) ? plan.courses.length : 0
@@ -88,6 +102,9 @@ async function subscriptionRoutes(app) {
     app.get('/plans/:uuid', {
         schema: {
             tags: ['Subscription Plans'],
+            summary: 'Get subscription plan by UUID',
+            params: uuidParamsSchema,
+            response: { 200: successObjectResponse, 404: successObjectResponse }
         }
     }, async (req, reply) => {
         try {
@@ -106,11 +123,17 @@ async function subscriptionRoutes(app) {
             });
         }
     });
-    app.get('/plans/many/:ids', { schema: { tags: ['Subscription Plans'] } }, async (req, reply) => {
+    app.get('/plans/many/:ids', {
+        schema: {
+            tags: ['Subscription Plans'],
+            summary: 'Get many plans by IDs',
+            params: idsParamsSchema,
+            response: { 200: successArrayResponse, 500: successObjectResponse }
+        }
+    }, async (req, reply) => {
         try {
-            const { ids } = req.params; // '2,8,9'
-            const idArray = ids.split(',').map(Number); // [2, 8, 9]
-            // Call your existing function
+            const { ids } = req.params;
+            const idArray = ids.split(',').map(Number);
             const courses = await subscriptionService.getPlansByManyIds(idArray);
             return reply.code(200).send({
                 success: true,
@@ -127,14 +150,28 @@ async function subscriptionRoutes(app) {
             });
         }
     });
-    // ========================
-    // CREATE PLAN
-    // ========================
     app.post('/plans', {
         schema: {
             tags: ['Subscription Plans'],
+            summary: 'Create a subscription plan',
+            description: 'Creates a new subscription plan. Supports multipart for thumbnail upload.',
             consumes: ['multipart/form-data'],
-            body: planCreateBody
+            body: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                    name: { type: 'string', minLength: 1 },
+                    price: { type: 'number', minimum: 0 },
+                    courseIds: {
+                        oneOf: [
+                            { type: 'string' },
+                            { type: 'array', items: { type: 'integer', minimum: 1 } }
+                        ]
+                    },
+                    thumbnail: { type: 'string', contentEncoding: 'binary' }
+                }
+            },
+            response: { 201: successObjectResponse, 400: successObjectResponse }
         },
         preHandler: [auth_1.onlyOrg]
     }, async (req, reply) => {
@@ -142,14 +179,11 @@ async function subscriptionRoutes(app) {
         try {
             let uuid = await app.uid('plan', 'subscriptionPlan');
             let courseIds = fields.courseIds;
-            // Convert everything to array of numbers
             if (typeof courseIds === 'string') {
-                // If JSON array: "[1,2]"
                 if (courseIds.trim().startsWith('[')) {
                     courseIds = JSON.parse(courseIds).map(Number);
                 }
                 else {
-                    // CSV: "1,2,3"
                     courseIds = courseIds.split(',').map(Number);
                 }
             }
@@ -157,7 +191,7 @@ async function subscriptionRoutes(app) {
                 name: fields.name,
                 price: fields.price,
                 uuid: uuid,
-                courseIds: courseIds, // always number[]
+                courseIds: courseIds,
             };
             const result = await subscriptionService.createPlan(planData);
             if (files.thumbnail?.length && result) {
@@ -172,9 +206,7 @@ async function subscriptionRoutes(app) {
             });
         }
         catch (error) {
-            // log full error stack
             req.log.error(error);
-            console.log(error);
             return reply.code(400).send({
                 success: false,
                 message: 'Failed to create subscription plan',
@@ -182,12 +214,26 @@ async function subscriptionRoutes(app) {
             });
         }
     });
-    // ========================
-    // UPDATE PLAN
-    // ========================
     app.patch('/plans/:uuid', {
         schema: {
             tags: ['Subscription Plans'],
+            summary: 'Update a subscription plan',
+            params: uuidParamsSchema,
+            body: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                    name: { type: 'string', minLength: 1 },
+                    price: { type: 'number', minimum: 0 },
+                    courseIds: {
+                        oneOf: [
+                            { type: 'string' },
+                            { type: 'array', items: { type: 'integer', minimum: 1 } }
+                        ]
+                    }
+                }
+            },
+            response: { 200: successObjectResponse, 400: successObjectResponse }
         },
         preHandler: [auth_1.onlyOrg]
     }, async (req, reply) => {
@@ -208,11 +254,12 @@ async function subscriptionRoutes(app) {
             });
         }
     });
-    // ========================
-    // CHANGE PLAN STATUS
     app.patch('/plan/:uuid/status', {
         schema: {
-            tags: ['Subscription Plans']
+            tags: ['Subscription Plans'],
+            summary: 'Toggle plan active status',
+            params: uuidParamsSchema,
+            response: { 200: successObjectResponse, 400: successObjectResponse }
         },
         preHandler: [auth_1.onlyOrg]
     }, async (req, reply) => {
@@ -232,12 +279,14 @@ async function subscriptionRoutes(app) {
             });
         }
     });
-    // ========================
-    // CHANGE PLAN VISIBILITY
     app.patch('/plan/:uuid/visiblity', {
         schema: {
             tags: ['Subscription Plans'],
-        }, preHandler: [auth_1.onlyOrg]
+            summary: 'Toggle plan visibility',
+            params: uuidParamsSchema,
+            response: { 200: successObjectResponse, 400: successObjectResponse }
+        },
+        preHandler: [auth_1.onlyOrg]
     }, async (req, reply) => {
         try {
             const { uuid } = req.params;

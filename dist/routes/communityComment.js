@@ -36,11 +36,44 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = communityComment;
 const communityComments = __importStar(require("../services/communityComments"));
 const auth_1 = require("../middleware/auth");
+const idParamsSchema = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['id'],
+    properties: {
+        id: { type: 'integer', minimum: 1 }
+    }
+};
+const postIdParamsSchema = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['postId'],
+    properties: {
+        postId: { type: 'integer', minimum: 1 }
+    }
+};
+const successObjectResponse = {
+    type: 'object',
+    properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+        data: { type: 'object' }
+    }
+};
+const successArrayResponse = {
+    type: 'object',
+    properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+        data: { type: 'array', items: { type: 'object' } }
+    }
+};
 async function communityComment(app) {
     app.addHook('preHandler', auth_1.authMiddleware);
     app.post('/', {
         schema: {
             tags: ['Community Comments'],
+            summary: 'Create a community comment',
             body: {
                 type: 'object',
                 required: ['postId', 'userId', 'content'],
@@ -52,6 +85,7 @@ async function communityComment(app) {
                     content: { type: 'string' }
                 }
             },
+            response: { 200: successObjectResponse }
         }
     }, async (req, reply) => {
         const { postId, userId, parentId, content } = req.body;
@@ -70,6 +104,8 @@ async function communityComment(app) {
     app.patch('/:id', {
         schema: {
             tags: ['Community Comments'],
+            summary: 'Update a community comment',
+            params: idParamsSchema,
             body: {
                 type: 'object',
                 additionalProperties: false,
@@ -80,6 +116,7 @@ async function communityComment(app) {
                     content: { type: 'string' }
                 }
             },
+            response: { 200: successObjectResponse }
         }
     }, async (req, reply) => {
         const { id } = req.params;
@@ -98,25 +135,29 @@ async function communityComment(app) {
         });
     });
     app.get('/:postId', {
-        schema: { tags: ['Community Comments'] },
+        schema: {
+            tags: ['Community Comments'],
+            summary: 'List nested comments for a post',
+            params: postIdParamsSchema,
+            response: { 200: successArrayResponse }
+        },
     }, async (req, reply) => {
         const { postId } = req.params;
-        const numericId = Number(postId);
-        console.log(postId);
-        if (isNaN(numericId)) {
-            return reply.code(500).send({
-                success: false,
-                message: 'Invalid ID',
-            });
-        }
-        const comment = await communityComments.getNestedComments(numericId);
+        const comment = await communityComments.getNestedComments(postId);
         reply.code(200).send({
             success: true,
             message: 'comment fetched successfully',
             data: comment,
         });
     });
-    app.patch('/:id/status', { schema: { tags: ['Community Comments'] } }, async (req, reply) => {
+    app.patch('/:id/status', {
+        schema: {
+            tags: ['Community Comments'],
+            summary: 'Toggle a community comment status',
+            params: idParamsSchema,
+            response: { 200: successObjectResponse }
+        }
+    }, async (req, reply) => {
         const { id } = req.params;
         const comment = await communityComments.CommentStatus(id);
         return reply.send({ success: true, message: 'comment removed successfully', data: comment });

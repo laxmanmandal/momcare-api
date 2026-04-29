@@ -7,6 +7,26 @@ import { promisify } from 'util';
 
 const pump = promisify(pipeline);
 
+const textResponse = {
+    type: 'string'
+} as const
+
+const successObjectResponse = {
+    type: 'object',
+    properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' }
+    }
+} as const
+
+const errorResponse = {
+    type: 'object',
+    properties: {
+        error: { type: 'string' },
+        details: { type: 'string' }
+    }
+} as const
+
 export default async function LogRoutes(app: FastifyInstance) {
     const LOG_PATH = path.join(process.cwd(), 'logs', 'app.log');
 
@@ -16,7 +36,13 @@ export default async function LogRoutes(app: FastifyInstance) {
     /**
      * GET /logs - View logs as plain text
      */
-    app.get('/', { schema: { tags: ['Server-logs'] } }, async (req, reply) => {
+    app.get('/', {
+        schema: {
+            tags: ['Server-logs'],
+            summary: 'View logs as plain text',
+            response: { 200: textResponse, 500: errorResponse }
+        }
+    }, async (req, reply) => {
         try {
             const logContent = await fs.readFile(LOG_PATH, 'utf8');
             return reply
@@ -35,7 +61,13 @@ export default async function LogRoutes(app: FastifyInstance) {
     /**
      * GET /logs/download - Download log file
      */
-    app.get('/download', { schema: { tags: ['Server-logs'] } }, async (req, reply) => {
+    app.get('/download', {
+        schema: {
+            tags: ['Server-logs'],
+            summary: 'Download the server log file',
+            response: { 200: textResponse, 404: errorResponse, 500: errorResponse }
+        }
+    }, async (req, reply) => {
         try {
             // 1. Verify file exists
             await fs.access(LOG_PATH, fsConstants.R_OK);
@@ -68,7 +100,13 @@ export default async function LogRoutes(app: FastifyInstance) {
     /**
      * DELETE /logs/clear - Clear log file
      */
-    app.delete('/clear', { schema: { tags: ['Server-logs'] } }, async (req, reply) => {
+    app.delete('/clear', {
+        schema: {
+            tags: ['Server-logs'],
+            summary: 'Clear the server log file',
+            response: { 200: successObjectResponse, 500: successObjectResponse }
+        }
+    }, async (req, reply) => {
         try {
             await fs.writeFile(LOG_PATH, '', { encoding: 'utf8' });
             req.log.info('Log file cleared');
@@ -85,7 +123,13 @@ export default async function LogRoutes(app: FastifyInstance) {
     /**
      * GET /logs/json - Return logs as JSON lines (for frontend)
      */
-    app.get('/json', { schema: { tags: ['Server-logs'] } }, async (req, reply) => {
+    app.get('/json', {
+        schema: {
+            tags: ['Server-logs'],
+            summary: 'Read logs as parsed JSON lines',
+            response: { 200: { type: 'array', items: { type: 'object' } }, 500: errorResponse }
+        }
+    }, async (req, reply) => {
         try {
             const content = await fs.readFile(LOG_PATH, 'utf8');
             const lines = content
