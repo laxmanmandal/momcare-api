@@ -92,7 +92,7 @@ const successObjectResponse = {
     properties: {
         success: { type: 'boolean' },
         message: { type: 'string' },
-        data: { type: 'object' }
+        data: { type: 'object', additionalProperties: true }
     }
 };
 const successArrayResponse = {
@@ -100,7 +100,7 @@ const successArrayResponse = {
     properties: {
         success: { type: 'boolean' },
         message: { type: 'string' },
-        data: { type: 'array', items: { type: 'object' } }
+        data: { type: 'array', items: { type: 'object', additionalProperties: true } }
     }
 };
 // ================= ROUTES =================
@@ -186,6 +186,20 @@ async function communityPost(app) {
         return reply.send({
             success: true,
             message: 'Post updated',
+            data
+        });
+    });
+    // ================= GET BY TYPE =================
+    app.get('/', {
+        schema: {
+            tags: ['Community Posts'],
+            summary: 'List all community posts',
+            response: { 200: successArrayResponse }
+        }
+    }, async (req, reply) => {
+        const data = await communityService.getCommunityPost();
+        return reply.send({
+            success: true,
             data
         });
     });

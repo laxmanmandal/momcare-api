@@ -249,7 +249,7 @@ async function community(app) {
                         success: { type: 'boolean' },
                         message: { type: 'string' },
                         subscribed: { type: 'boolean' },
-                        data: { type: 'object' }
+                        data: { type: 'object', additionalProperties: true }
                     }
                 }
             }

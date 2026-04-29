@@ -115,14 +115,19 @@ export default async function userRoutes(app: FastifyInstance) {
             type: 'object',
             properties: {
               success: { type: 'boolean' },
-              data: { type: 'array', items: { type: 'object' } },
-              pagination: {
+              message: { type: 'string' },
+              data: { type: 'array', items: { type: 'object', additionalProperties: true } },
+              total: { type: 'integer' },
+              page: { type: 'integer' },
+              limit: { type: 'integer' },
+              totalPages: { type: 'integer' },
+              filters: {
                 type: 'object',
                 properties: {
-                  total: { type: 'integer' },
-                  page: { type: 'integer' },
-                  limit: { type: 'integer' },
-                  totalPages: { type: 'integer' }
+                  search: { type: 'string' },
+                  role: { type: 'string' },
+                  type: { type: 'string' },
+                  isActive: { type: ['string', 'boolean'] }
                 }
               }
             }
@@ -135,11 +140,17 @@ export default async function userRoutes(app: FastifyInstance) {
       const { entityId } = req.params;
       const query = req.query;
 
-      return userService.getUsers(
+      const result = await userService.getUsers(
         Number(entityId),
         req.user,
         query
       );
+
+      return {
+        success: true,
+        message: 'Users fetched successfully',
+        ...result
+      };
     }
   );
 
@@ -333,7 +344,7 @@ export default async function userRoutes(app: FastifyInstance) {
             properties: {
               success: { type: 'boolean' },
               message: { type: 'string' },
-              data: { type: 'object' }
+              data: { type: 'object', additionalProperties: true }
             }
           },
           400: errorResponse,
@@ -344,7 +355,11 @@ export default async function userRoutes(app: FastifyInstance) {
     async (req: FastifyRequest, reply: FastifyReply) => {
       const { uuid } = req.params as { uuid: string };
       const updated = await userService.activeInactive(uuid);
-      return reply.send(updated);
+      return reply.send({
+        success: true,
+        message: 'User status updated successfully',
+        data: updated
+      });
     }
   );
 
@@ -381,7 +396,7 @@ export default async function userRoutes(app: FastifyInstance) {
             properties: {
               success: { type: 'boolean' },
               message: { type: 'string' },
-              data: { type: 'object' }
+              data: { type: 'object', additionalProperties: true }
             }
           },
           400: errorResponse,

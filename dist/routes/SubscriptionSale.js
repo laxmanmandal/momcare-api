@@ -60,7 +60,7 @@ const successObjectResponse = {
     properties: {
         success: { type: 'boolean' },
         message: { type: 'string' },
-        data: { type: 'object' }
+        data: { type: 'object', additionalProperties: true }
     }
 };
 const successArrayResponse = {
@@ -68,7 +68,7 @@ const successArrayResponse = {
     properties: {
         success: { type: 'boolean' },
         message: { type: 'string' },
-        data: { type: 'array', items: { type: 'object' } }
+        data: { type: 'array', items: { type: 'object', additionalProperties: true } }
     }
 };
 const errorResponse = {
@@ -87,7 +87,7 @@ async function subscriptionRoutes(app) {
             tags: ['AllocationPlan'],
             summary: 'List purchase transactions by entity',
             params: paginatedPurchaseParamsSchema,
-            response: { 200: successArrayResponse, 400: errorResponse }
+            response: { 200: successObjectResponse, 400: errorResponse }
         },
     }, async (req, reply) => {
         // parse params and convert to numbers

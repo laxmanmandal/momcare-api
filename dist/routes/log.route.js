@@ -120,7 +120,7 @@ async function LogRoutes(app) {
         schema: {
             tags: ['Server-logs'],
             summary: 'Read logs as parsed JSON lines',
-            response: { 200: { type: 'array', items: { type: 'object' } }, 500: errorResponse }
+            response: { 200: { type: 'array', items: { type: 'object', additionalProperties: true } }, 500: errorResponse }
         }
     }, async (req, reply) => {
         try {

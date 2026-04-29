@@ -28,7 +28,7 @@ const successObjectResponse = {
     properties: {
         success: { type: 'boolean' },
         message: { type: 'string' },
-        data: { type: 'object' }
+        data: { type: 'object', additionalProperties: true }
     }
 } as const
 
@@ -37,7 +37,7 @@ const successArrayResponse = {
     properties: {
         success: { type: 'boolean' },
         message: { type: 'string' },
-        data: { type: 'array', items: { type: 'object' } }
+        data: { type: 'array', items: { type: 'object', additionalProperties: true } }
     }
 } as const
 
@@ -61,7 +61,7 @@ export default async function subscriptionRoutes(app: FastifyInstance) {
                 tags: ['AllocationPlan'],
                 summary: 'List purchase transactions by entity',
                 params: paginatedPurchaseParamsSchema,
-                response: { 200: successArrayResponse, 400: errorResponse }
+                response: { 200: successObjectResponse, 400: errorResponse }
             },
         },
         async (req: any, reply) => {

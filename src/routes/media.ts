@@ -68,7 +68,7 @@ const successObjectResponse = {
     properties: {
         success: { type: 'boolean' },
         message: { type: 'string' },
-        data: { type: 'object' }
+        data: { type: 'object', additionalProperties: true }
     }
 } as const
 

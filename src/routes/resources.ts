@@ -28,12 +28,12 @@ const conceiveIdParamsSchema = {
 } as const
 
 const successObjectResponse = {
-  type: 'object',
-  properties: {
-    success: { type: 'boolean' },
-    message: { type: 'string' },
-    data: { type: 'object' }
-  }
+    type: 'object',
+    properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+        data: { type: 'object', additionalProperties: true }
+    }
 } as const
 
 export default async function resourceRoutes(app: FastifyInstance) {

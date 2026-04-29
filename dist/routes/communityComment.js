@@ -57,7 +57,7 @@ const successObjectResponse = {
     properties: {
         success: { type: 'boolean' },
         message: { type: 'string' },
-        data: { type: 'object' }
+        data: { type: 'object', additionalProperties: true }
     }
 };
 const successArrayResponse = {
@@ -65,7 +65,7 @@ const successArrayResponse = {
     properties: {
         success: { type: 'boolean' },
         message: { type: 'string' },
-        data: { type: 'array', items: { type: 'object' } }
+        data: { type: 'array', items: { type: 'object', additionalProperties: true } }
     }
 };
 async function communityComment(app) {

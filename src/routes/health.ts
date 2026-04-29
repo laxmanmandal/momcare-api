@@ -8,7 +8,7 @@ const successArrayResponse = {
   type: 'object',
   properties: {
     count: { type: 'integer' },
-    data: { type: 'array', items: { type: 'object' } }
+    data: { type: 'array', items: { type: 'object', additionalProperties: true } }
   }
 } as const
 

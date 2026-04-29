@@ -256,7 +256,7 @@ export default async function community(app: FastifyInstance) {
             success: { type: 'boolean' },
             message: { type: 'string' },
             subscribed: { type: 'boolean' },
-            data: { type: 'object' }
+            data: { type: 'object', additionalProperties: true }
           }
         }
       }
@@ -286,4 +286,3 @@ export default async function community(app: FastifyInstance) {
   });
 
 }
-

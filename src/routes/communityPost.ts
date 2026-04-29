@@ -69,7 +69,7 @@ const successObjectResponse = {
     properties: {
         success: { type: 'boolean' },
         message: { type: 'string' },
-        data: { type: 'object' }
+        data: { type: 'object', additionalProperties: true }
     }
 } as const
 
@@ -78,7 +78,7 @@ const successArrayResponse = {
     properties: {
         success: { type: 'boolean' },
         message: { type: 'string' },
-        data: { type: 'array', items: { type: 'object' } }
+        data: { type: 'array', items: { type: 'object', additionalProperties: true } }
     }
 } as const
 
