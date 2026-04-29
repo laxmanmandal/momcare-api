@@ -125,7 +125,8 @@ export function errorHandler(
 
         send(e.statusCode, e.message, {
             error: e.code || e.name,
-            code: e.code
+            code: e.code,
+            details: e.details
         });
         return;
     }

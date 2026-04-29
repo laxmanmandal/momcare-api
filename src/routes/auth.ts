@@ -9,11 +9,28 @@ import bcrypt from 'bcryptjs';
 import { loginRateLimiter, recordFailedAttempt, resetAttempts } from '../middleware/loginratelimiter';
 import { normalizePhone, otpRateLimiter, recordFailedVerification, recordSendSuccess, resetOtpAttempts } from '../middleware/otpratelimiter';
 import createHttpError from 'http-errors';
+import { z } from 'zod';
+import { parseWithZod } from '../utils/zodValidation';
 
 type LoginBody = { email: string; password: string };
 type RefreshBody = { refreshToken: string };
 const phonePattern = /^[0-9+() -]{10,20}$/;
 const otpPattern = /^[0-9]{4,8}$/;
+
+
+const requestOtpSchema = z.object({
+  phone: z.string().trim().regex(phonePattern, 'phone must be a valid mobile number')
+}).strict();
+
+const verifyOtpSchema = z.object({
+  phone: z.string().trim().regex(phonePattern, 'phone must be a valid mobile number'),
+  otp: z.string().trim().regex(otpPattern, 'otp must be 4-8 numeric digits')
+}).strict();
+
+const loginSchema = z.object({
+  email: z.string().trim().email(),
+  password: z.string().min(8).max(128)
+}).strict();
 
 export default async function authRoutes(app: FastifyInstance) {
   const roleEnum = Object.keys(Role).filter(k => isNaN(Number(k)));
@@ -41,7 +58,8 @@ export default async function authRoutes(app: FastifyInstance) {
     const key = otpRateLimiter(req, reply);
     if (!key) return; // blocked or invalid
 
-    const phone = normalizePhone(req.body.phone);
+    const body = parseWithZod(requestOtpSchema, req.body);
+    const phone = normalizePhone(body.phone);
 
 
     await createAndSendOtpForPhone(phone);
@@ -80,7 +98,7 @@ export default async function authRoutes(app: FastifyInstance) {
       const key = otpRateLimiter(req, reply);
       if (!key) return;
 
-      const { phone: rawPhone, otp } = req.body;
+      const { phone: rawPhone, otp } = parseWithZod(verifyOtpSchema, req.body);
       if (!rawPhone || !otp) {
         return reply.code(400).send({ success: false, error: "phone and otp required" });
       }
@@ -216,9 +234,11 @@ export default async function authRoutes(app: FastifyInstance) {
       )?.split(',')[0]?.trim()
       || req.ip;
 
+    const body = parseWithZod(loginSchema, req.body);
+
     try {
       const { accessToken, refreshToken } =
-        await authService.login(req.body, ip);
+        await authService.login(body, ip);
 
       resetAttempts(key);
 
