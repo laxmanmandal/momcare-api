@@ -135,6 +135,47 @@ app.register(fastifySwagger, {
             }
         }
 
+        // Convert Swagger 2 style formData params (in: 'formData') into OpenAPI3 requestBody multipart/form-data
+        try {
+            const params = (transformedSchema as any).parameters;
+            if (Array.isArray(params)) {
+                const formParams = params.filter((p: any) => p && p.in === 'formData');
+                if (formParams.length) {
+                    const props: Record<string, any> = {};
+                    const required: string[] = [];
+                    for (const p of formParams) {
+                        const name = p.name;
+                        if (p.required) required.push(name);
+                        if (p.type === 'file') {
+                            props[name] = { type: 'string', format: 'binary' };
+                        } else if (p.type) {
+                            props[name] = { type: p.type, description: p.description };
+                        } else {
+                            props[name] = { type: 'string', description: p.description };
+                        }
+                    }
+
+                    (transformedSchema as any).requestBody = {
+                        content: {
+                            'multipart/form-data': {
+                                schema: {
+                                    type: 'object',
+                                    properties: props,
+                                    required: required.length ? required : undefined
+                                }
+                            }
+                        }
+                    };
+
+                    // Remove formData params from parameters list
+                    (transformedSchema as any).parameters = params.filter((p: any) => !(p && p.in === 'formData'));
+                    if ((transformedSchema as any).parameters.length === 0) delete (transformedSchema as any).parameters;
+                }
+            }
+        } catch (err) {
+            /* ignore */
+        }
+
         const transformedUrl =
             url !== '/' && url.endsWith('/') ? url.slice(0, -1) : url
 
