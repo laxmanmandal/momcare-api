@@ -7,7 +7,7 @@ import {
     entityUpdateSchema,
     validateData
 } from '../validations';
-import { zodToFormDataParams } from '../utils/zodFormData'
+import { zodToFormDataParams, zodToMultipartRequestBody } from '../utils/zodFormData'
 
 const successObjectResponse = {
     type: 'object',
@@ -166,6 +166,7 @@ export default async function entityRoutes(app: FastifyInstance) {
                 tags: ['Entities'],
                 summary: 'Create an entity',
                 parameters: zodToFormDataParams(entityBodySchema as any),
+                requestBody: zodToMultipartRequestBody(entityBodySchema as any),
                 response: { 201: successObjectResponse }
             }
         },
@@ -222,6 +223,7 @@ export default async function entityRoutes(app: FastifyInstance) {
                 tags: ['Entities'],
                 summary: 'Register a new entity (public)',
                 parameters: zodToFormDataParams(entityBodySchema as any),
+                requestBody: zodToMultipartRequestBody(entityBodySchema as any),
                 response: { 201: successObjectResponse }
             }
         },

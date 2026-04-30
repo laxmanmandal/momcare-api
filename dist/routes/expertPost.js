@@ -62,6 +62,7 @@ async function expertPost(app) {
             consumes: ['multipart/form-data'],
             summary: 'Create an expert post',
             parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.expertPostCreateMultipartSchema),
+            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.expertPostCreateMultipartSchema),
             response: { 200: successObjectResponse }
         }
     }, async (req, reply) => {
@@ -90,6 +91,7 @@ async function expertPost(app) {
             consumes: ['application/json', 'multipart/form-data'],
             summary: 'Update an expert post',
             parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.expertPostUpdateMultipartSchema),
+            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.expertPostUpdateMultipartSchema),
             response: { 200: successObjectResponse }
         }
     }, async (req, reply) => {

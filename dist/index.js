@@ -62,7 +62,12 @@ const app = (0, fastify_1.default)({
             },
         },
     },
-    bodyLimit: 1048576
+    bodyLimit: 1048576,
+    ajv: {
+        customOptions: {
+            strictTypes: false
+        }
+    }
 });
 app.register(rate_limit_1.default, {
     global: false // important — prevents whole server from being limited
@@ -86,16 +91,20 @@ app.register(cors_1.default, {
 });
 app.register(swagger_1.default, {
     hideUntagged: true,
-    swagger: {
+    openapi: {
+        openapi: '3.0.0',
         info: {
             title: 'LMS API',
             description: 'Learning Management System API with RBAC & Swagger',
             version: '1.0.0'
         },
-        schemes: ['http', 'https'],
-        produces: ['application/json'],
-        securityDefinitions: {
-            BearerAuth: { type: 'apiKey', name: 'Authorization', in: 'header' }
+        servers: [
+            { url: 'http://0.0.0.0:8080', description: 'Local server' }
+        ],
+        components: {
+            securitySchemes: {
+                BearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }
+            }
         }
     },
     transform: ({ schema, url, route }) => {
@@ -110,19 +119,9 @@ app.register(swagger_1.default, {
             for (const ph of preHandlers) {
                 if (ph && ph._zodSchema) {
                     const { source, schema: zschema } = ph._zodSchema;
-                    const name = `auto_${(url || '').replace(/[^a-zA-Z0-9]/g, '_')}_${source}`;
-                    const json = (0, zod_to_json_schema_1.zodToJsonSchema)(zschema, name);
+                    const json = (0, zod_to_json_schema_1.zodToJsonSchema)(zschema, { target: 'openApi3' });
                     const key = source === 'query' ? 'querystring' : source;
-                    const j = json;
-                    const tgtKey = key;
-                    if (j && j.definitions && j.$ref) {
-                        ;
-                        transformedSchema[tgtKey] = { $ref: j.$ref, definitions: j.definitions };
-                    }
-                    else if (j) {
-                        ;
-                        transformedSchema[tgtKey] = j;
-                    }
+                    transformedSchema[key] = json;
                 }
             }
         }
@@ -130,6 +129,49 @@ app.register(swagger_1.default, {
             if (app.log && typeof app.log.warn === 'function') {
                 app.log.warn('Zod->JSON schema conversion failed for route', url, err);
             }
+        }
+        // Convert Swagger 2 style formData params (in: 'formData') into OpenAPI3 requestBody multipart/form-data
+        try {
+            const params = transformedSchema.parameters;
+            if (Array.isArray(params)) {
+                const formParams = params.filter((p) => p && p.in === 'formData');
+                if (formParams.length) {
+                    const props = {};
+                    const required = [];
+                    for (const p of formParams) {
+                        const name = p.name;
+                        if (p.required)
+                            required.push(name);
+                        if (p.type === 'file') {
+                            props[name] = { type: 'string', format: 'binary' };
+                        }
+                        else if (p.type) {
+                            props[name] = { type: p.type, description: p.description };
+                        }
+                        else {
+                            props[name] = { type: 'string', description: p.description };
+                        }
+                    }
+                    transformedSchema.requestBody = {
+                        content: {
+                            'multipart/form-data': {
+                                schema: {
+                                    type: 'object',
+                                    properties: props,
+                                    required: required.length ? required : undefined
+                                }
+                            }
+                        }
+                    };
+                    // Remove formData params from parameters list
+                    transformedSchema.parameters = params.filter((p) => !(p && p.in === 'formData'));
+                    if (transformedSchema.parameters.length === 0)
+                        delete transformedSchema.parameters;
+                }
+            }
+        }
+        catch (err) {
+            /* ignore */
         }
         const transformedUrl = url !== '/' && url.endsWith('/') ? url.slice(0, -1) : url;
         return { schema: transformedSchema, url: transformedUrl };

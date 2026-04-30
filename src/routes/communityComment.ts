@@ -9,7 +9,7 @@ import {
     communityCommentUpdateSchema,
     validateData
 } from '../validations';
-import { zodToFormDataParams } from '../utils/zodFormData'
+import { zodToFormDataParams, zodToMultipartRequestBody } from '../utils/zodFormData'
 
 const successObjectResponse = {
     type: 'object',
@@ -67,6 +67,7 @@ export default async function communityComment(app: FastifyInstance) {
                 summary: 'Update a community comment',
                 body: zodToJsonSchema(communityCommentUpdateSchema as any, 'communityCommentUpdateBody'),
                 parameters: zodToFormDataParams(communityCommentUpdateSchema as any),
+                requestBody: zodToMultipartRequestBody(communityCommentUpdateSchema as any),
                 response: { 200: successObjectResponse }
             }
         },

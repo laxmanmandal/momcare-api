@@ -9,7 +9,7 @@ import {
     mediaUpdateMultipartSchema,
     validateData
 } from '../validations';
-import { zodToFormDataParams } from '../utils/zodFormData'
+import { zodToFormDataParams, zodToMultipartRequestBody } from '../utils/zodFormData'
 
 const successObjectResponse = {
     type: 'object',
@@ -29,6 +29,7 @@ export default async function mediaRoutes(app: FastifyInstance) {
                 tags: ['Media Files'],
                 consumes: ['multipart/form-data'],
                 parameters: zodToFormDataParams(mediaCreateMultipartSchema as any),
+                requestBody: zodToMultipartRequestBody(mediaCreateMultipartSchema as any),
                 summary: 'Create a media resource',
                 response: { 201: successObjectResponse }
             },
@@ -71,6 +72,7 @@ export default async function mediaRoutes(app: FastifyInstance) {
                 tags: ['Media Files'],
                 consumes: ['application/json', 'multipart/form-data'],
                 parameters: zodToFormDataParams(mediaUpdateMultipartSchema as any),
+                requestBody: zodToMultipartRequestBody(mediaUpdateMultipartSchema as any),
                 summary: 'Update a media resource',
                 response: { 200: successObjectResponse }
             },

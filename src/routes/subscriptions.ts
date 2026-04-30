@@ -9,7 +9,7 @@ import {
   validateData
 } from '../validations';
 import { zodToJsonSchema } from 'zod-to-json-schema'
-import { zodToFormDataParams } from '../utils/zodFormData'
+import { zodToFormDataParams, zodToMultipartRequestBody } from '../utils/zodFormData'
 
 const successObjectResponse = {
   type: 'object',
@@ -117,6 +117,7 @@ export default async function subscriptionRoutes(app: FastifyInstance) {
         description: 'Creates a new subscription plan. Supports multipart for thumbnail upload.',
         consumes: ['multipart/form-data'],
         parameters: zodToFormDataParams(subscriptionPlanCreateSchema as any),
+        requestBody: zodToMultipartRequestBody(subscriptionPlanCreateSchema as any),
         response: { 201: successObjectResponse, 400: successObjectResponse }
       },
     preHandler: [onlyOrg]

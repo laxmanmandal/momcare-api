@@ -43,7 +43,6 @@ const userService = __importStar(require("../services/userService"));
 const jwt_1 = require("../utils/jwt");
 const validations_1 = require("../validations");
 const zod_to_json_schema_1 = require("zod-to-json-schema");
-const zodFormData_1 = require("../utils/zodFormData");
 const errorResponse = {
     type: 'object',
     properties: {
@@ -136,7 +135,7 @@ async function userRoutes(app) {
                                 search: { type: 'string' },
                                 role: { type: 'string' },
                                 type: { type: 'string' },
-                                isActive: { type: ['string', 'boolean'] }
+                                isActive: { oneOf: [{ type: 'string' }, { type: 'boolean' }] }
                             }
                         }
                     }
@@ -343,8 +342,7 @@ async function userRoutes(app) {
         schema: {
             tags: ['Users'],
             consumes: ['application/json', 'multipart/form-data'],
-            body: (0, zod_to_json_schema_1.zodToJsonSchema)(validations_1.userUpdateBodySchema, 'userUpdateBody'),
-            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.userUpdateBodySchema),
+            body: (0, zod_to_json_schema_1.zodToJsonSchema)(validations_1.userUpdateBodySchema, { target: 'openApi3' }),
             response: {
                 200: {
                     type: 'object',

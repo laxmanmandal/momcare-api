@@ -62,6 +62,7 @@ async function communityPost(app) {
             summary: 'Create a community post',
             consumes: ['multipart/form-data'],
             parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.communityPostCreateMultipartSchema),
+            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.communityPostCreateMultipartSchema),
             response: { 201: successObjectResponse }
         }
     }, async (req, reply) => {
@@ -99,6 +100,7 @@ async function communityPost(app) {
             summary: 'Update a community post',
             consumes: ['application/json', 'multipart/form-data'],
             parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.communityPostUpdateMultipartSchema),
+            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.communityPostUpdateMultipartSchema),
             response: { 200: successObjectResponse }
         }
     }, async (req, reply) => {

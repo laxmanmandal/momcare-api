@@ -94,7 +94,7 @@ async function courseRoutes(app) {
             tags: ['Lessons-courses'],
             summary: 'Create a lesson',
             response: { 201: successObjectResponse },
-            body: (0, zod_to_json_schema_1.zodToJsonSchema)(validations_1.courseLessonBodySchema, 'courseLessonBody')
+            body: (0, zod_to_json_schema_1.zodToJsonSchema)(validations_1.courseLessonBodySchema, { target: 'openApi3' })
         },
         preHandler: [auth_1.onlyOrg]
     }, async (req, reply) => {
@@ -109,7 +109,7 @@ async function courseRoutes(app) {
             tags: ['Lessons-courses'],
             summary: 'Update a lesson',
             response: { 200: successObjectResponse },
-            body: (0, zod_to_json_schema_1.zodToJsonSchema)(validations_1.courseLessonBodySchema, 'courseLessonBody')
+            body: (0, zod_to_json_schema_1.zodToJsonSchema)(validations_1.courseLessonBodySchema, { target: 'openApi3' })
         },
         preHandler: [auth_1.onlyOrg]
     }, async (req, reply) => {
@@ -160,7 +160,7 @@ async function courseRoutes(app) {
             tags: ['Lesson-media'],
             summary: 'Create or update lesson medias',
             response: { 201: successObjectResponse },
-            body: (0, zod_to_json_schema_1.zodToJsonSchema)(validations_1.courseLessonMediaBodySchema, 'courseLessonMediaBody')
+            body: (0, zod_to_json_schema_1.zodToJsonSchema)(validations_1.courseLessonMediaBodySchema, { target: 'openApi3' })
         },
         preHandler: [auth_1.onlyOrg]
     }, async (req, reply) => {
@@ -224,7 +224,7 @@ async function courseRoutes(app) {
             tags: ['Lessons-courses'],
             summary: 'Create a course',
             response: { 201: successObjectResponse },
-            body: (0, zod_to_json_schema_1.zodToJsonSchema)(validations_1.courseCreateBodySchema, 'courseCreateBody')
+            body: (0, zod_to_json_schema_1.zodToJsonSchema)(validations_1.courseCreateBodySchema, { target: 'openApi3' })
         },
         preHandler: [auth_1.onlyOrg]
     }, async (req, reply) => {
@@ -239,7 +239,7 @@ async function courseRoutes(app) {
             tags: ['Lessons-courses'],
             summary: 'Update a course',
             response: { 200: successObjectResponse },
-            body: (0, zod_to_json_schema_1.zodToJsonSchema)(validations_1.courseUpdateBodySchema, 'courseUpdateBody')
+            body: (0, zod_to_json_schema_1.zodToJsonSchema)(validations_1.courseUpdateBodySchema, { target: 'openApi3' })
         },
         preHandler: [auth_1.onlyOrg]
     }, async (req, reply) => {

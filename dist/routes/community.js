@@ -57,6 +57,7 @@ async function community(app) {
             tags: ["Community"],
             consumes: ["multipart/form-data"],
             parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.communityCreateMultipartSchema),
+            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.communityCreateMultipartSchema),
             body: {
                 properties: {
                     name: { type: "string", description: "Name of the community" },
@@ -101,6 +102,7 @@ async function community(app) {
             tags: ["Community"],
             consumes: ["application/json", "multipart/form-data"],
             parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.communityUpdateMultipartSchema),
+            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.communityUpdateMultipartSchema),
             params: {
                 type: "object",
                 properties: {

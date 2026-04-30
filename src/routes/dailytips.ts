@@ -7,7 +7,7 @@ import {
     dailyTipUpdateMultipartSchema,
     validateData
 } from '../validations';
-import { zodToFormDataParams } from '../utils/zodFormData'
+import { zodToFormDataParams, zodToMultipartRequestBody } from '../utils/zodFormData'
 
 const successObjectResponse = {
     type: 'object',
@@ -36,6 +36,7 @@ export default async function dailytipsRoute(app: FastifyInstance) {
                 summary: 'Create a daily tip',
                 consumes: ['multipart/form-data'],
                 parameters: zodToFormDataParams(dailyTipCreateMultipartSchema as any),
+                requestBody: zodToMultipartRequestBody(dailyTipCreateMultipartSchema as any),
                 response: { 200: successObjectResponse }
             },
             preHandler: [authMiddleware, onlyOrg]
@@ -78,6 +79,8 @@ export default async function dailytipsRoute(app: FastifyInstance) {
                 tags: ['Dailytips'],
                 summary: 'Update a daily tip',
                 consumes: ['application/json', 'multipart/form-data'],
+                parameters: zodToFormDataParams(dailyTipUpdateMultipartSchema as any),
+                requestBody: zodToMultipartRequestBody(dailyTipUpdateMultipartSchema as any),
                 response: { 200: successObjectResponse }
             },
             preHandler: [authMiddleware, onlyOrg]

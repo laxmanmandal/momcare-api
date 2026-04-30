@@ -84,6 +84,7 @@ async function communityComment(app) {
             summary: 'Update a community comment',
             body: (0, zod_to_json_schema_1.zodToJsonSchema)(validations_1.communityCommentUpdateSchema, 'communityCommentUpdateBody'),
             parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.communityCommentUpdateSchema),
+            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.communityCommentUpdateSchema),
             response: { 200: successObjectResponse }
         }
     }, async (req, reply) => {

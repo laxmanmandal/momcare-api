@@ -8,7 +8,7 @@ import {
   conceiveUpdateMultipartSchema,
   validateData
 } from '../validations';
-import { zodToFormDataParams } from '../utils/zodFormData'
+import { zodToFormDataParams, zodToMultipartRequestBody } from '../utils/zodFormData'
 
 const successObjectResponse = {
     type: 'object',
@@ -29,6 +29,7 @@ export default async function resourceRoutes(app: FastifyInstance) {
         tags: ['Resources'],
         consumes: ['multipart/form-data'],
         parameters: zodToFormDataParams(conceiveCreateMultipartSchema as any),
+        requestBody: zodToMultipartRequestBody(conceiveCreateMultipartSchema as any),
         body: {
           properties: {
             week: { type: 'number' },
@@ -77,6 +78,7 @@ export default async function resourceRoutes(app: FastifyInstance) {
         tags: ['Resources'],
         consumes: ['application/json', 'multipart/form-data'],
         parameters: zodToFormDataParams(conceiveUpdateMultipartSchema as any),
+        requestBody: zodToMultipartRequestBody(conceiveUpdateMultipartSchema as any),
         params: {
           type: 'object',
           properties: { id: { type: 'integer' } },

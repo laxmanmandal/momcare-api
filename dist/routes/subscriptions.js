@@ -142,6 +142,7 @@ async function subscriptionRoutes(app) {
             description: 'Creates a new subscription plan. Supports multipart for thumbnail upload.',
             consumes: ['multipart/form-data'],
             parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.subscriptionPlanCreateSchema),
+            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.subscriptionPlanCreateSchema),
             response: { 201: successObjectResponse, 400: successObjectResponse }
         },
         preHandler: [auth_1.onlyOrg]

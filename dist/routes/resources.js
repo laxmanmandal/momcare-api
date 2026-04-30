@@ -53,6 +53,7 @@ async function resourceRoutes(app) {
             tags: ['Resources'],
             consumes: ['multipart/form-data'],
             parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.conceiveCreateMultipartSchema),
+            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.conceiveCreateMultipartSchema),
             body: {
                 properties: {
                     week: { type: 'number' },
@@ -88,6 +89,7 @@ async function resourceRoutes(app) {
             tags: ['Resources'],
             consumes: ['application/json', 'multipart/form-data'],
             parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.conceiveUpdateMultipartSchema),
+            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.conceiveUpdateMultipartSchema),
             params: {
                 type: 'object',
                 properties: { id: { type: 'integer' } },

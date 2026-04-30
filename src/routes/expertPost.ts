@@ -10,7 +10,7 @@ import {
     professionCreateSchema,
     validateData
 } from '../validations';
-import { zodToFormDataParams } from '../utils/zodFormData'
+import { zodToFormDataParams, zodToMultipartRequestBody } from '../utils/zodFormData'
 
 const successObjectResponse = {
     type: 'object',
@@ -41,6 +41,7 @@ export default async function expertPost(app: FastifyInstance) {
                 consumes: ['multipart/form-data'],
                 summary: 'Create an expert post',
                 parameters: zodToFormDataParams(expertPostCreateMultipartSchema as any),
+                requestBody: zodToMultipartRequestBody(expertPostCreateMultipartSchema as any),
                 response: { 200: successObjectResponse }
             }
         },
@@ -79,6 +80,7 @@ export default async function expertPost(app: FastifyInstance) {
                 consumes: ['application/json', 'multipart/form-data'],
                 summary: 'Update an expert post',
                 parameters: zodToFormDataParams(expertPostUpdateMultipartSchema as any),
+                requestBody: zodToMultipartRequestBody(expertPostUpdateMultipartSchema as any),
                 response: { 200: successObjectResponse }
             }
         },

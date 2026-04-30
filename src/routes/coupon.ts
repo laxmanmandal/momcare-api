@@ -10,7 +10,7 @@ import {
     couponUpdateMultipartSchema,
     validateData
 } from '../validations';
-import { zodToFormDataParams } from '../utils/zodFormData'
+import { zodToFormDataParams, zodToMultipartRequestBody } from '../utils/zodFormData'
 import { zodToJsonSchema } from 'zod-to-json-schema'
 
 const successObjectResponse = {
@@ -40,6 +40,7 @@ export default async function CouponRoute(app: FastifyInstance) {
                 tags: ['Coupon'],
                 consumes: ['multipart/form-data'],
                 parameters: zodToFormDataParams(couponCreateMultipartSchema as any),
+                requestBody: zodToMultipartRequestBody(couponCreateMultipartSchema as any),
                 summary: 'Create a coupon',
                 response: { 201: successObjectResponse }
             }
@@ -239,6 +240,7 @@ export default async function CouponRoute(app: FastifyInstance) {
                 tags: ['Coupon'],
                 consumes: ['multipart/form-data', 'application/json'],
                 parameters: zodToFormDataParams(couponUpdateMultipartSchema as any),
+                requestBody: zodToMultipartRequestBody(couponUpdateMultipartSchema as any),
                 summary: 'Update a coupon',
                 response: { 200: successObjectResponse }
             }

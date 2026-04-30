@@ -9,7 +9,7 @@ import {
     validateData
 } from '../validations';
 import { zodToJsonSchema } from 'zod-to-json-schema'
-import { zodToFormDataParams } from '../utils/zodFormData'
+import { zodToFormDataParams, zodToMultipartRequestBody } from '../utils/zodFormData'
 
 const successObjectResponse = {
     type: 'object',
@@ -74,6 +74,7 @@ export default async function dietNuskhaRoute(app: FastifyInstance) {
             summary: 'Create a diet chart entry',
             consumes: ['multipart/form-data'],
             parameters: zodToFormDataParams(dietChartMultipartSchema as any),
+            requestBody: zodToMultipartRequestBody(dietChartMultipartSchema as any),
             response: { 200: successObjectResponse, 500: successObjectResponse }
         },
         preHandler: [authMiddleware, onlyOrg]
@@ -107,6 +108,7 @@ export default async function dietNuskhaRoute(app: FastifyInstance) {
             summary: 'Update a diet chart entry',
             consumes: ['application/json', 'multipart/form-data'],
             parameters: zodToFormDataParams(dietChartMultipartSchema as any),
+            requestBody: zodToMultipartRequestBody(dietChartMultipartSchema as any),
             response: { 200: successObjectResponse, 500: successObjectResponse }
         },
         preHandler: [authMiddleware, onlyOrg]

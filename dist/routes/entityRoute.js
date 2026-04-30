@@ -172,6 +172,7 @@ async function entityRoutes(app) {
             tags: ['Entities'],
             summary: 'Create an entity',
             parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.entityBodySchema),
+            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.entityBodySchema),
             response: { 201: successObjectResponse }
         }
     }, async (req, reply) => {
@@ -219,6 +220,7 @@ async function entityRoutes(app) {
             tags: ['Entities'],
             summary: 'Register a new entity (public)',
             parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.entityBodySchema),
+            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.entityBodySchema),
             response: { 201: successObjectResponse }
         }
     }, async (req, reply) => {

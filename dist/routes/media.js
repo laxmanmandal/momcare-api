@@ -53,6 +53,7 @@ async function mediaRoutes(app) {
             tags: ['Media Files'],
             consumes: ['multipart/form-data'],
             parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.mediaCreateMultipartSchema),
+            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.mediaCreateMultipartSchema),
             summary: 'Create a media resource',
             response: { 201: successObjectResponse }
         },
@@ -86,6 +87,7 @@ async function mediaRoutes(app) {
             tags: ['Media Files'],
             consumes: ['application/json', 'multipart/form-data'],
             parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.mediaUpdateMultipartSchema),
+            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.mediaUpdateMultipartSchema),
             summary: 'Update a media resource',
             response: { 200: successObjectResponse }
         },

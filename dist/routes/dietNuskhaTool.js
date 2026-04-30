@@ -96,6 +96,7 @@ async function dietNuskhaRoute(app) {
             summary: 'Create a diet chart entry',
             consumes: ['multipart/form-data'],
             parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.dietChartMultipartSchema),
+            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.dietChartMultipartSchema),
             response: { 200: successObjectResponse, 500: successObjectResponse }
         },
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
@@ -128,6 +129,7 @@ async function dietNuskhaRoute(app) {
             summary: 'Update a diet chart entry',
             consumes: ['application/json', 'multipart/form-data'],
             parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.dietChartMultipartSchema),
+            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.dietChartMultipartSchema),
             response: { 200: successObjectResponse, 500: successObjectResponse }
         },
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]

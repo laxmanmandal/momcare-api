@@ -9,7 +9,7 @@ import {
   positiveIntSchema,
   validateData,
 } from "../validations";
-import { zodToFormDataParams } from '../utils/zodFormData'
+import { zodToFormDataParams, zodToMultipartRequestBody } from '../utils/zodFormData'
 
 const communityResponse = {
   type: "object",
@@ -34,6 +34,7 @@ export default async function community(app: FastifyInstance) {
         tags: ["Community"],
         consumes: ["multipart/form-data"],
         parameters: zodToFormDataParams(communityCreateMultipartSchema as any),
+        requestBody: zodToMultipartRequestBody(communityCreateMultipartSchema as any),
         body: {
           properties: {
             name: { type: "string", description: "Name of the community" },
@@ -93,6 +94,7 @@ export default async function community(app: FastifyInstance) {
         tags: ["Community"],
         consumes: ["application/json", "multipart/form-data"],
         parameters: zodToFormDataParams(communityUpdateMultipartSchema as any),
+        requestBody: zodToMultipartRequestBody(communityUpdateMultipartSchema as any),
         params: {
           type: "object",
           properties: {

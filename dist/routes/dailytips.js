@@ -61,6 +61,7 @@ async function dailytipsRoute(app) {
             summary: 'Create a daily tip',
             consumes: ['multipart/form-data'],
             parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.dailyTipCreateMultipartSchema),
+            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.dailyTipCreateMultipartSchema),
             response: { 200: successObjectResponse }
         },
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
@@ -91,6 +92,8 @@ async function dailytipsRoute(app) {
             tags: ['Dailytips'],
             summary: 'Update a daily tip',
             consumes: ['application/json', 'multipart/form-data'],
+            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.dailyTipUpdateMultipartSchema),
+            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.dailyTipUpdateMultipartSchema),
             response: { 200: successObjectResponse }
         },
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
