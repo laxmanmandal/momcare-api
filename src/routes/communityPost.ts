@@ -1,68 +1,15 @@
-import { FastifyInstance } from 'fastify'
-import * as communityService from '../services/communityPosts'
-import { authMiddleware } from '../middleware/auth'
-import { PostType } from '@prisma/client'
-import createHttpError from 'http-errors'
+import { FastifyInstance } from 'fastify';
+import * as communityService from '../services/communityPosts';
+import { authMiddleware } from '../middleware/auth';
 import {
-    assertAllowedFileFields,
-    assertAllowedKeys,
-    assertAtLeastOneDefined,
-    pickDefined,
-    readEnumString,
-    readIdParam,
-    readNumber,
-    readString
-} from '../utils/requestValidation'
-
-// ================= SCHEMAS =================
-const postIdParamsSchema = {
-    type: 'object',
-    additionalProperties: false,
-    required: ['id'],
-    properties: {
-        id: { type: 'integer', minimum: 1 }
-    }
-} as const
-
-const communityPostTypes = Object.values(PostType) as [PostType, ...PostType[]]
-
-const postTypeParamsSchema = {
-    type: 'object',
-    additionalProperties: false,
-    required: ['type'],
-    properties: {
-        type: { type: 'string', enum: communityPostTypes }
-    }
-} as const
-
-const communityPostCreateBody = {
-    type: 'object',
-    additionalProperties: false,
-    required: ['title', 'content', 'communityId'],
-    properties: {
-        title: { type: 'string', minLength: 2, maxLength: 160 },
-        content: { type: 'string', minLength: 2, maxLength: 10000 },
-        communityId: { type: 'integer', minimum: 1 },
-        userId: { type: 'integer', minimum: 1 },
-        mediaType: { type: 'string', maxLength: 50 },
-        type: { type: 'string', enum: communityPostTypes },
-        media: { type: 'string', contentEncoding: 'binary' }
-    }
-} as const
-
-const communityPostUpdateBody = {
-    type: 'object',
-    additionalProperties: false,
-    properties: {
-        title: { type: 'string', minLength: 2, maxLength: 160 },
-        content: { type: 'string', minLength: 2, maxLength: 10000 },
-        communityId: { type: 'integer', minimum: 1 },
-        userId: { type: 'integer', minimum: 1 },
-        mediaType: { type: 'string', maxLength: 50 },
-        type: { type: 'string', enum: communityPostTypes },
-        media: { type: 'string', contentEncoding: 'binary' }
-    }
-} as const
+    communityPostCreateMultipartSchema,
+    communityPostIdParamsSchema,
+    communityPostTypeParamsSchema,
+    communityPostUpdateMultipartSchema,
+    positiveIntSchema,
+    validateData
+} from '../validations';
+import { zodToFormDataParams } from '../utils/zodFormData'
 
 const successObjectResponse = {
     type: 'object',
@@ -71,7 +18,7 @@ const successObjectResponse = {
         message: { type: 'string' },
         data: { type: 'object', additionalProperties: true }
     }
-} as const
+} as const;
 
 const successArrayResponse = {
     type: 'object',
@@ -80,222 +27,227 @@ const successArrayResponse = {
         message: { type: 'string' },
         data: { type: 'array', items: { type: 'object', additionalProperties: true } }
     }
-} as const
+} as const;
 
-// ================= ROUTES =================
 export default async function communityPost(app: FastifyInstance) {
+    app.addHook('preHandler', authMiddleware);
 
-    app.addHook('preHandler', authMiddleware)
+    app.post(
+        '/',
+        {
+            schema: {
+                tags: ['Community Posts'],
+                summary: 'Create a community post',
+                consumes: ['multipart/form-data'],
+                parameters: zodToFormDataParams(communityPostCreateMultipartSchema as any),
+                response: { 201: successObjectResponse }
+            }
+        },
+        async (req, reply) => {
+            const { fields, files } = validateData(
+                communityPostCreateMultipartSchema,
+                await app.parseMultipartMemory(req)
+            );
+            const userId = validateData(positiveIntSchema, req.user?.id);
 
-    // ================= CREATE =================
-    app.post('/', {
-        schema: {
-            tags: ['Community Posts'],
-            summary: 'Create a community post',
-            consumes: ['multipart/form-data'],
-            body: communityPostCreateBody,
-            response: { 201: successObjectResponse }
+            if (fields.userId !== undefined && fields.userId !== userId) {
+                throw Object.assign(new Error('Unauthorized user'), {
+                    statusCode: 403,
+                    code: 'FORBIDDEN'
+                });
+            }
+
+            const payload = {
+                title: fields.title,
+                content: fields.content,
+                communityId: fields.communityId,
+                userId,
+                mediaType: fields.mediaType,
+                type: fields.type
+            };
+
+            const data = await communityService.createCommunityPost(payload as any);
+
+            if (files.media?.length) {
+                const media = await app.saveFileBuffer(files.media[0], 'community_posts');
+                await communityService.updateCommunityPost(data.id, { media });
+                data.media = media;
+            }
+
+            return reply.code(201).send({
+                success: true,
+                message: 'Post created',
+                data
+            });
         }
-    }, async (req, reply) => {
+    );
 
-        const { files, fields } = await app.parseMultipartMemory(req)
+    app.patch(
+        '/:id',
+        {
+            schema: {
+                tags: ['Community Posts'],
+                summary: 'Update a community post',
+                consumes: ['application/json', 'multipart/form-data'],
+                parameters: zodToFormDataParams(communityPostUpdateMultipartSchema as any),
+                response: { 200: successObjectResponse }
+            }
+        },
+        async (req, reply) => {
+            const { id } = validateData(communityPostIdParamsSchema, req.params);
+            const { fields, files } = validateData(
+                communityPostUpdateMultipartSchema,
+                await app.parseMultipartMemory(req)
+            );
+            const userId = validateData(positiveIntSchema, req.user?.id);
 
-        assertAllowedKeys(fields, ['title', 'content', 'communityId', 'userId', 'mediaType', 'type'])
-        assertAllowedFileFields(files, ['media'])
+            if (fields.userId !== undefined && fields.userId !== userId) {
+                throw Object.assign(new Error('Unauthorized user'), {
+                    statusCode: 403,
+                    code: 'FORBIDDEN'
+                });
+            }
 
-        const userId = readIdParam(req.user?.id, 'userId')
+            const payload: Record<string, unknown> = {
+                title: fields.title,
+                content: fields.content,
+                communityId: fields.communityId,
+                userId: fields.userId !== undefined ? userId : undefined,
+                mediaType: fields.mediaType,
+                type: fields.type,
+                media: undefined
+            };
 
-        if (fields.userId && Number(fields.userId) !== userId) {
-            throw createHttpError(403, 'Unauthorized user')
+            if (files.media?.length) {
+                payload.media = await app.saveFileBuffer(files.media[0], 'community_posts');
+            }
+
+            const data = await communityService.updateCommunityPost(id, payload as any);
+
+            return reply.send({
+                success: true,
+                message: 'Post updated',
+                data
+            });
         }
+    );
 
-        const payload = {
-            title: readString(fields, 'title', { required: true, minLength: 2, maxLength: 160 })!,
-            content: readString(fields, 'content', { required: true, minLength: 2, maxLength: 10000 })!,
-            communityId: readNumber(fields, 'communityId', { required: true, integer: true, min: 1 })!,
-            userId,
-            mediaType: readString(fields, 'mediaType', { maxLength: 50 }),
-            type: readEnumString(fields, 'type', communityPostTypes),
+    app.get(
+        '/',
+        {
+            schema: {
+                tags: ['Community Posts'],
+                summary: 'List all community posts',
+                response: { 200: successArrayResponse }
+            }
+        },
+        async (_req, reply) => {
+            const data = await communityService.getCommunityPost();
+
+            return reply.send({
+                success: true,
+                data
+            });
         }
+    );
 
-        const data = await communityService.createCommunityPost(payload)
+    app.get(
+        '/type/:type',
+        {
+            schema: {
+                tags: ['Community Posts'],
+                summary: 'List community posts by type',
+                response: { 200: successArrayResponse }
+            }
+        },
+        async (req, reply) => {
+            const { type } = validateData(communityPostTypeParamsSchema, req.params);
+            const data = await communityService.getPostByType(type);
 
-        if (files.media?.length) {
-            const media = await app.saveFileBuffer(files.media[0], 'community_posts')
-            await communityService.updateCommunityPost(data.id, { media })
-            data.media = media
+            return reply.send({
+                success: true,
+                data
+            });
         }
+    );
 
-        return reply.code(201).send({
-            success: true,
-            message: 'Post created',
-            data
-        })
-    })
+    app.get(
+        '/user/posts',
+        {
+            schema: {
+                tags: ['Community Posts'],
+                summary: 'List community posts for the authenticated user',
+                response: { 200: successArrayResponse }
+            }
+        },
+        async (req, reply) => {
+            const data = await communityService.getPostByUser(req.user?.id);
 
-    // ================= UPDATE =================
-    app.patch('/:id', {
-        schema: {
-            tags: ['Community Posts'],
-            summary: 'Update a community post',
-            consumes: ['application/json', 'multipart/form-data'],
-            params: postIdParamsSchema,
-            body: communityPostUpdateBody,
-            response: { 200: successObjectResponse }
+            return reply.send({
+                success: true,
+                data
+            });
         }
-    }, async (req, reply) => {
+    );
 
-        const { id } = req.params as { id: number }
+    app.get(
+        '/community/:id',
+        {
+            schema: {
+                tags: ['Community Posts'],
+                summary: 'List community posts by community ID',
+                response: { 200: successArrayResponse }
+            }
+        },
+        async (req, reply) => {
+            const { id } = validateData(communityPostIdParamsSchema, req.params);
+            const data = await communityService.getPostByCommunityId(id);
 
-        let fields: any = {}
-        let files: any = {}
-
-        if (req.isMultipart()) {
-            ({ fields, files } = await app.parseMultipartMemory(req))
-        } else {
-            fields = req.body as any
+            return reply.send({
+                success: true,
+                data
+            });
         }
+    );
 
-        assertAllowedKeys(fields, ['title', 'content', 'communityId', 'userId', 'mediaType', 'type'])
-        assertAllowedFileFields(files, ['media'])
+    app.get(
+        '/:id',
+        {
+            schema: {
+                tags: ['Community Posts'],
+                summary: 'Get a community post by ID',
+                response: { 200: successObjectResponse }
+            }
+        },
+        async (req, reply) => {
+            const { id } = validateData(communityPostIdParamsSchema, req.params);
+            const data = await communityService.getCommunityPostById(id);
 
-        const userId = readIdParam(req.user?.id, 'userId')
-
-        if (fields.userId && Number(fields.userId) !== userId) {
-            throw createHttpError(403, 'Unauthorized user')
+            return reply.send({
+                success: true,
+                data
+            });
         }
+    );
 
-        const payload = pickDefined({
-            title: readString(fields, 'title', { minLength: 2, maxLength: 160 }),
-            content: readString(fields, 'content', { minLength: 2, maxLength: 10000 }),
-            communityId: readNumber(fields, 'communityId', { integer: true, min: 1 }),
-            userId: fields.userId ? userId : undefined,
-            mediaType: readString(fields, 'mediaType', { maxLength: 50 }),
-            type: readEnumString(fields, 'type', communityPostTypes),
-            media: undefined as string | undefined
-        })
+    app.patch(
+        '/:id/status',
+        {
+            schema: {
+                tags: ['Community Posts'],
+                summary: 'Toggle a community post status',
+                response: { 200: successObjectResponse }
+            }
+        },
+        async (req, reply) => {
+            const { id } = validateData(communityPostIdParamsSchema, req.params);
+            const data = await communityService.communityPostStatus(id);
 
-        assertAtLeastOneDefined(Object.entries(payload), 'Nothing to update')
-
-        if (files.media?.length) {
-            payload.media = await app.saveFileBuffer(files.media[0], 'community_posts')
+            return reply.send({
+                success: true,
+                message: 'Status updated',
+                data
+            });
         }
-
-        const data = await communityService.updateCommunityPost(id, payload)
-
-        return reply.send({
-            success: true,
-            message: 'Post updated',
-            data
-        })
-    })
-
-    // ================= GET BY TYPE =================
-    app.get('/', {
-        schema: {
-            tags: ['Community Posts'],
-            summary: 'List all community posts',
-            response: { 200: successArrayResponse }
-        }
-    }, async (req, reply) => {
-        const data = await communityService.getCommunityPost()
-
-        return reply.send({
-            success: true,
-            data
-        })
-    })
-
-    // ================= GET BY TYPE =================
-    app.get('/type/:type', {
-        schema: {
-            tags: ['Community Posts'],
-            summary: 'List community posts by type',
-            params: postTypeParamsSchema,
-            response: { 200: successArrayResponse }
-        }
-    }, async (req, reply) => {
-        const { type } = req.params as { type: PostType }
-
-        const data = await communityService.getPostByType(type)
-
-        return reply.send({
-            success: true,
-            data
-        })
-    })
-
-    // ================= USER POSTS =================
-    app.get('/user/posts', {
-        schema: {
-            tags: ['Community Posts'],
-            summary: 'List community posts for the authenticated user',
-            response: { 200: successArrayResponse }
-        }
-    }, async (req, reply) => {
-        const data = await communityService.getPostByUser(req.user?.id)
-
-        return reply.send({
-            success: true,
-            data
-        })
-    })
-
-    // ================= BY COMMUNITY =================
-    app.get('/community/:id', {
-        schema: {
-            tags: ['Community Posts'],
-            summary: 'List community posts by community ID',
-            params: postIdParamsSchema,
-            response: { 200: successArrayResponse }
-        }
-    }, async (req, reply) => {
-        const { id } = req.params as { id: number }
-
-        const data = await communityService.getPostByCommunityId(id)
-
-        return reply.send({
-            success: true,
-            data
-        })
-    })
-
-    // ================= GET SINGLE =================
-    app.get('/:id', {
-        schema: {
-            tags: ['Community Posts'],
-            summary: 'Get a community post by ID',
-            params: postIdParamsSchema,
-            response: { 200: successObjectResponse }
-        }
-    }, async (req, reply) => {
-        const { id } = req.params as { id: number }
-
-        const data = await communityService.getCommunityPostById(id)
-
-        return reply.send({
-            success: true,
-            data
-        })
-    })
-
-    // ================= STATUS =================
-    app.patch('/:id/status', {
-        schema: {
-            tags: ['Community Posts'],
-            summary: 'Toggle a community post status',
-            params: postIdParamsSchema,
-            response: { 200: successObjectResponse }
-        }
-    }, async (req, reply) => {
-        const { id } = req.params as { id: number }
-
-        const data = await communityService.communityPostStatus(id)
-
-        return reply.send({
-            success: true,
-            message: 'Status updated',
-            data
-        })
-    })
+    );
 }

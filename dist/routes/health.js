@@ -40,6 +40,8 @@ exports.default = healthRoutes;
 const healthService = __importStar(require("../services/healthService"));
 const auth_1 = require("../middleware/auth");
 const client_1 = __importDefault(require("../prisma/client"));
+const validations_1 = require("../validations");
+const zod_to_json_schema_1 = require("zod-to-json-schema");
 const successArrayResponse = {
     type: 'object',
     properties: {
@@ -60,17 +62,7 @@ async function healthRoutes(app) {
         schema: {
             tags: ['Health'],
             description: 'Create a symptom entry',
-            body: {
-                type: 'object',
-                required: ['symptoms'],
-                properties: {
-                    symptoms: {
-                        type: 'array',
-                        items: { type: 'string' },
-                        minItems: 1,
-                    },
-                },
-            },
+            body: (0, zod_to_json_schema_1.zodToJsonSchema)(validations_1.healthSymptomsSchema, 'healthSymptomsBody'),
             response: {
                 201: {
                     type: 'object',
@@ -87,10 +79,7 @@ async function healthRoutes(app) {
         },
     }, async (req, reply) => {
         try {
-            const { symptoms } = req.body;
-            if (!Array.isArray(symptoms) || symptoms.length === 0) {
-                return reply.status(400).send({ error: ' non-empty symptoms array are required' });
-            }
+            const { symptoms } = (0, validations_1.validateData)(validations_1.healthSymptomsSchema, req.body ?? {});
             const entry = await healthService.addSymptomEntry(req.user.id, symptoms);
             return reply.status(201).send('Symptom added successfully');
         }

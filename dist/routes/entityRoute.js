@@ -36,14 +36,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = entityRoutes;
 const entityService = __importStar(require("../services/entityService"));
 const auth_1 = require("../middleware/auth");
-const idParamsSchema = {
-    type: 'object',
-    additionalProperties: false,
-    required: ['id'],
-    properties: {
-        id: { type: 'integer', minimum: 1 }
-    }
-};
+const validations_1 = require("../validations");
+const zodFormData_1 = require("../utils/zodFormData");
 const successObjectResponse = {
     type: 'object',
     properties: {
@@ -123,11 +117,10 @@ async function entityRoutes(app) {
         schema: {
             tags: ['Entities'],
             summary: 'Get entity by ID',
-            params: idParamsSchema,
             response: { 200: successObjectResponse }
         }
     }, async (req, reply) => {
-        const { id } = req.params;
+        const { id } = (0, validations_1.validateData)(validations_1.entityIdParamsSchema, req.params);
         try {
             const payload = await entityService.getentityTableById(id);
             reply.code(200).send({
@@ -171,33 +164,20 @@ async function entityRoutes(app) {
         }
     });
     const entityBody = {
-        type: 'object',
-        required: ['name', 'type', 'email'],
-        additionalProperties: false,
-        properties: {
-            type: { type: 'string' },
-            name: { type: 'string' },
-            phone: { type: 'string' },
-            email: { type: 'string', format: 'email' },
-            location: { type: 'string', nullable: true },
-            description: { type: 'string', nullable: true },
-            imageUrl: { type: 'string', nullable: true },
-            createdBy: { type: 'number', nullable: true },
-            belongsToId: { type: 'number', nullable: true },
-            isActive: { type: 'boolean', nullable: true }
-        }
+        type: 'object'
     };
     app.post('/create', {
         preHandler: [auth_1.authMiddleware, app.accessControl.check('CREATE_ENTITY')],
         schema: {
             tags: ['Entities'],
             summary: 'Create an entity',
-            body: entityBody,
+            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.entityBodySchema),
             response: { 201: successObjectResponse }
         }
     }, async (req, reply) => {
-        const body = req.body;
-        const createdBy = (typeof req.body.id === 'number' ? req.body.id : null) ?? req.user?.id;
+        const { fields, files } = await app.parseMultipartMemory(req);
+        const body = (0, validations_1.validateData)(validations_1.entityBodySchema, req.isMultipart() ? fields : req.body ?? fields);
+        const createdBy = (typeof req.body?.id === 'number' ? req.body.id : null) ?? req.user?.id;
         const belongsToId = req.user?.belongsToId !== undefined && req.user?.belongsToId !== null
             ? Number(req.user.belongsToId)
             : null;
@@ -214,7 +194,7 @@ async function entityRoutes(app) {
             belongsToId,
             isActive
         };
-        const maybeFile = req.files?.imageUrl ?? req.body.imageUrl;
+        const maybeFile = files.imageUrl ?? req.body.imageUrl;
         let channel = await entityService.creatEntityTable(createData);
         if (maybeFile) {
             const f = Array.isArray(maybeFile) ? maybeFile[0] : maybeFile;
@@ -238,13 +218,14 @@ async function entityRoutes(app) {
         schema: {
             tags: ['Entities'],
             summary: 'Register a new entity (public)',
-            body: entityBody,
+            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.entityBodySchema),
             response: { 201: successObjectResponse }
         }
     }, async (req, reply) => {
-        const body = req.body;
-        const createdBy = (typeof req.body.id === 'number' ? req.body.id : null) ?? req.user?.id;
-        const belongsToId = body.belongsToId !== undefined && body.belongsToId !== null && body.belongsToId !== ''
+        const { fields, files } = await app.parseMultipartMemory(req);
+        const body = (0, validations_1.validateData)(validations_1.entityBodySchema, req.isMultipart() ? fields : req.body ?? fields);
+        const createdBy = (typeof req.body?.id === 'number' ? req.body.id : null) ?? req.user?.id;
+        const belongsToId = body.belongsToId !== undefined && body.belongsToId !== null
             ? Number(body.belongsToId)
             : null;
         const isActive = body.isActive === undefined ? false : Boolean(body.isActive === 'true' || body.isActive === true);
@@ -260,7 +241,7 @@ async function entityRoutes(app) {
             belongsToId,
             isActive
         };
-        const maybeFile = req.files?.imageUrl ?? req.body.imageUrl;
+        const maybeFile = files.imageUrl ?? req.body.imageUrl;
         let channel = await entityService.creatEntityTable(createData);
         if (maybeFile) {
             const f = Array.isArray(maybeFile) ? maybeFile[0] : maybeFile;
@@ -288,39 +269,13 @@ async function entityRoutes(app) {
         schema: {
             tags: ['Entities'],
             summary: 'Update an entity',
-            params: idParamsSchema,
-            body: {
-                type: 'object',
-                additionalProperties: false,
-                properties: {
-                    type: { type: 'string' },
-                    name: { type: 'string' },
-                    phone: { type: 'string' },
-                    email: { type: 'string', format: 'email' },
-                    location: { type: 'string', nullable: true },
-                    description: { type: 'string', nullable: true },
-                    imageUrl: { type: 'string', nullable: true },
-                    isActive: { type: 'boolean', nullable: true }
-                }
-            },
             response: { 200: successObjectResponse, 400: errorResponse }
         }
     }, async (req, reply) => {
-        const id = req.params.id;
-        let fields = {};
-        let files = {};
-        if (req.isMultipart && req.isMultipart()) {
-            const result = await app.parseMultipartMemory(req);
-            fields = result.fields || {};
-            files = result.files || {};
-        }
-        else {
-            fields = req.body;
-        }
-        if (!fields || typeof fields !== 'object') {
-            return reply.code(400).send({ message: 'Invalid body format' });
-        }
-        const updated = await entityService.updateEntityTable(id, fields);
+        const { id } = (0, validations_1.validateData)(validations_1.entityIdParamsSchema, req.params);
+        const { fields, files } = await app.parseMultipartMemory(req);
+        const body = (0, validations_1.validateData)(validations_1.entityUpdateSchema, req.isMultipart() ? fields : req.body ?? fields);
+        const updated = await entityService.updateEntityTable(id, body);
         if (files.imageUrl?.length) {
             updated.imageUrl = await app.saveFileBuffer(files.imageUrl[0], `Entities`);
         }

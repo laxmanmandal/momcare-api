@@ -32,61 +32,12 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = communityPost;
 const communityService = __importStar(require("../services/communityPosts"));
 const auth_1 = require("../middleware/auth");
-const client_1 = require("@prisma/client");
-const http_errors_1 = __importDefault(require("http-errors"));
-const requestValidation_1 = require("../utils/requestValidation");
-// ================= SCHEMAS =================
-const postIdParamsSchema = {
-    type: 'object',
-    additionalProperties: false,
-    required: ['id'],
-    properties: {
-        id: { type: 'integer', minimum: 1 }
-    }
-};
-const communityPostTypes = Object.values(client_1.PostType);
-const postTypeParamsSchema = {
-    type: 'object',
-    additionalProperties: false,
-    required: ['type'],
-    properties: {
-        type: { type: 'string', enum: communityPostTypes }
-    }
-};
-const communityPostCreateBody = {
-    type: 'object',
-    additionalProperties: false,
-    required: ['title', 'content', 'communityId'],
-    properties: {
-        title: { type: 'string', minLength: 2, maxLength: 160 },
-        content: { type: 'string', minLength: 2, maxLength: 10000 },
-        communityId: { type: 'integer', minimum: 1 },
-        userId: { type: 'integer', minimum: 1 },
-        mediaType: { type: 'string', maxLength: 50 },
-        type: { type: 'string', enum: communityPostTypes },
-        media: { type: 'string', contentEncoding: 'binary' }
-    }
-};
-const communityPostUpdateBody = {
-    type: 'object',
-    additionalProperties: false,
-    properties: {
-        title: { type: 'string', minLength: 2, maxLength: 160 },
-        content: { type: 'string', minLength: 2, maxLength: 10000 },
-        communityId: { type: 'integer', minimum: 1 },
-        userId: { type: 'integer', minimum: 1 },
-        mediaType: { type: 'string', maxLength: 50 },
-        type: { type: 'string', enum: communityPostTypes },
-        media: { type: 'string', contentEncoding: 'binary' }
-    }
-};
+const validations_1 = require("../validations");
+const zodFormData_1 = require("../utils/zodFormData");
 const successObjectResponse = {
     type: 'object',
     properties: {
@@ -103,33 +54,32 @@ const successArrayResponse = {
         data: { type: 'array', items: { type: 'object', additionalProperties: true } }
     }
 };
-// ================= ROUTES =================
 async function communityPost(app) {
     app.addHook('preHandler', auth_1.authMiddleware);
-    // ================= CREATE =================
     app.post('/', {
         schema: {
             tags: ['Community Posts'],
             summary: 'Create a community post',
             consumes: ['multipart/form-data'],
-            body: communityPostCreateBody,
+            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.communityPostCreateMultipartSchema),
             response: { 201: successObjectResponse }
         }
     }, async (req, reply) => {
-        const { files, fields } = await app.parseMultipartMemory(req);
-        (0, requestValidation_1.assertAllowedKeys)(fields, ['title', 'content', 'communityId', 'userId', 'mediaType', 'type']);
-        (0, requestValidation_1.assertAllowedFileFields)(files, ['media']);
-        const userId = (0, requestValidation_1.readIdParam)(req.user?.id, 'userId');
-        if (fields.userId && Number(fields.userId) !== userId) {
-            throw (0, http_errors_1.default)(403, 'Unauthorized user');
+        const { fields, files } = (0, validations_1.validateData)(validations_1.communityPostCreateMultipartSchema, await app.parseMultipartMemory(req));
+        const userId = (0, validations_1.validateData)(validations_1.positiveIntSchema, req.user?.id);
+        if (fields.userId !== undefined && fields.userId !== userId) {
+            throw Object.assign(new Error('Unauthorized user'), {
+                statusCode: 403,
+                code: 'FORBIDDEN'
+            });
         }
         const payload = {
-            title: (0, requestValidation_1.readString)(fields, 'title', { required: true, minLength: 2, maxLength: 160 }),
-            content: (0, requestValidation_1.readString)(fields, 'content', { required: true, minLength: 2, maxLength: 10000 }),
-            communityId: (0, requestValidation_1.readNumber)(fields, 'communityId', { required: true, integer: true, min: 1 }),
+            title: fields.title,
+            content: fields.content,
+            communityId: fields.communityId,
             userId,
-            mediaType: (0, requestValidation_1.readString)(fields, 'mediaType', { maxLength: 50 }),
-            type: (0, requestValidation_1.readEnumString)(fields, 'type', communityPostTypes),
+            mediaType: fields.mediaType,
+            type: fields.type
         };
         const data = await communityService.createCommunityPost(payload);
         if (files.media?.length) {
@@ -143,42 +93,33 @@ async function communityPost(app) {
             data
         });
     });
-    // ================= UPDATE =================
     app.patch('/:id', {
         schema: {
             tags: ['Community Posts'],
             summary: 'Update a community post',
             consumes: ['application/json', 'multipart/form-data'],
-            params: postIdParamsSchema,
-            body: communityPostUpdateBody,
+            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.communityPostUpdateMultipartSchema),
             response: { 200: successObjectResponse }
         }
     }, async (req, reply) => {
-        const { id } = req.params;
-        let fields = {};
-        let files = {};
-        if (req.isMultipart()) {
-            ({ fields, files } = await app.parseMultipartMemory(req));
+        const { id } = (0, validations_1.validateData)(validations_1.communityPostIdParamsSchema, req.params);
+        const { fields, files } = (0, validations_1.validateData)(validations_1.communityPostUpdateMultipartSchema, await app.parseMultipartMemory(req));
+        const userId = (0, validations_1.validateData)(validations_1.positiveIntSchema, req.user?.id);
+        if (fields.userId !== undefined && fields.userId !== userId) {
+            throw Object.assign(new Error('Unauthorized user'), {
+                statusCode: 403,
+                code: 'FORBIDDEN'
+            });
         }
-        else {
-            fields = req.body;
-        }
-        (0, requestValidation_1.assertAllowedKeys)(fields, ['title', 'content', 'communityId', 'userId', 'mediaType', 'type']);
-        (0, requestValidation_1.assertAllowedFileFields)(files, ['media']);
-        const userId = (0, requestValidation_1.readIdParam)(req.user?.id, 'userId');
-        if (fields.userId && Number(fields.userId) !== userId) {
-            throw (0, http_errors_1.default)(403, 'Unauthorized user');
-        }
-        const payload = (0, requestValidation_1.pickDefined)({
-            title: (0, requestValidation_1.readString)(fields, 'title', { minLength: 2, maxLength: 160 }),
-            content: (0, requestValidation_1.readString)(fields, 'content', { minLength: 2, maxLength: 10000 }),
-            communityId: (0, requestValidation_1.readNumber)(fields, 'communityId', { integer: true, min: 1 }),
-            userId: fields.userId ? userId : undefined,
-            mediaType: (0, requestValidation_1.readString)(fields, 'mediaType', { maxLength: 50 }),
-            type: (0, requestValidation_1.readEnumString)(fields, 'type', communityPostTypes),
+        const payload = {
+            title: fields.title,
+            content: fields.content,
+            communityId: fields.communityId,
+            userId: fields.userId !== undefined ? userId : undefined,
+            mediaType: fields.mediaType,
+            type: fields.type,
             media: undefined
-        });
-        (0, requestValidation_1.assertAtLeastOneDefined)(Object.entries(payload), 'Nothing to update');
+        };
         if (files.media?.length) {
             payload.media = await app.saveFileBuffer(files.media[0], 'community_posts');
         }
@@ -189,37 +130,33 @@ async function communityPost(app) {
             data
         });
     });
-    // ================= GET BY TYPE =================
     app.get('/', {
         schema: {
             tags: ['Community Posts'],
             summary: 'List all community posts',
             response: { 200: successArrayResponse }
         }
-    }, async (req, reply) => {
+    }, async (_req, reply) => {
         const data = await communityService.getCommunityPost();
         return reply.send({
             success: true,
             data
         });
     });
-    // ================= GET BY TYPE =================
     app.get('/type/:type', {
         schema: {
             tags: ['Community Posts'],
             summary: 'List community posts by type',
-            params: postTypeParamsSchema,
             response: { 200: successArrayResponse }
         }
     }, async (req, reply) => {
-        const { type } = req.params;
+        const { type } = (0, validations_1.validateData)(validations_1.communityPostTypeParamsSchema, req.params);
         const data = await communityService.getPostByType(type);
         return reply.send({
             success: true,
             data
         });
     });
-    // ================= USER POSTS =================
     app.get('/user/posts', {
         schema: {
             tags: ['Community Posts'],
@@ -233,48 +170,42 @@ async function communityPost(app) {
             data
         });
     });
-    // ================= BY COMMUNITY =================
     app.get('/community/:id', {
         schema: {
             tags: ['Community Posts'],
             summary: 'List community posts by community ID',
-            params: postIdParamsSchema,
             response: { 200: successArrayResponse }
         }
     }, async (req, reply) => {
-        const { id } = req.params;
+        const { id } = (0, validations_1.validateData)(validations_1.communityPostIdParamsSchema, req.params);
         const data = await communityService.getPostByCommunityId(id);
         return reply.send({
             success: true,
             data
         });
     });
-    // ================= GET SINGLE =================
     app.get('/:id', {
         schema: {
             tags: ['Community Posts'],
             summary: 'Get a community post by ID',
-            params: postIdParamsSchema,
             response: { 200: successObjectResponse }
         }
     }, async (req, reply) => {
-        const { id } = req.params;
+        const { id } = (0, validations_1.validateData)(validations_1.communityPostIdParamsSchema, req.params);
         const data = await communityService.getCommunityPostById(id);
         return reply.send({
             success: true,
             data
         });
     });
-    // ================= STATUS =================
     app.patch('/:id/status', {
         schema: {
             tags: ['Community Posts'],
             summary: 'Toggle a community post status',
-            params: postIdParamsSchema,
             response: { 200: successObjectResponse }
         }
     }, async (req, reply) => {
-        const { id } = req.params;
+        const { id } = (0, validations_1.validateData)(validations_1.communityPostIdParamsSchema, req.params);
         const data = await communityService.communityPostStatus(id);
         return reply.send({
             success: true,

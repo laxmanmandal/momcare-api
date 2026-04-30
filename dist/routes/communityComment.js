@@ -36,22 +36,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = communityComment;
 const communityComments = __importStar(require("../services/communityComments"));
 const auth_1 = require("../middleware/auth");
-const idParamsSchema = {
-    type: 'object',
-    additionalProperties: false,
-    required: ['id'],
-    properties: {
-        id: { type: 'integer', minimum: 1 }
-    }
-};
-const postIdParamsSchema = {
-    type: 'object',
-    additionalProperties: false,
-    required: ['postId'],
-    properties: {
-        postId: { type: 'integer', minimum: 1 }
-    }
-};
+const zod_to_json_schema_1 = require("zod-to-json-schema");
+const validations_1 = require("../validations");
+const zodFormData_1 = require("../utils/zodFormData");
 const successObjectResponse = {
     type: 'object',
     properties: {
@@ -74,91 +61,65 @@ async function communityComment(app) {
         schema: {
             tags: ['Community Comments'],
             summary: 'Create a community comment',
-            body: {
-                type: 'object',
-                required: ['postId', 'userId', 'content'],
-                additionalProperties: false,
-                properties: {
-                    postId: { type: 'integer', minimum: 1 },
-                    userId: { type: 'integer', minimum: 1 },
-                    parentId: { type: 'integer', minimum: 1 },
-                    content: { type: 'string' }
-                }
-            },
+            body: (0, zod_to_json_schema_1.zodToJsonSchema)(validations_1.communityCommentCreateSchema, 'communityCommentCreateBody'),
             response: { 200: successObjectResponse }
         }
     }, async (req, reply) => {
-        const { postId, userId, parentId, content } = req.body;
+        const { postId, userId, parentId, content } = (0, validations_1.validateData)(validations_1.communityCommentCreateSchema, req.body ?? {});
         const comment = await communityComments.createComment({
-            postId: Number(postId),
-            userId: Number(userId),
-            parentId: parentId ? Number(parentId) : null,
-            content,
+            postId,
+            userId,
+            parentId: parentId ?? null,
+            content
         });
         reply.code(200).send({
             success: true,
             message: 'Comment posted successfully',
-            data: comment,
+            data: comment
         });
     });
     app.patch('/:id', {
         schema: {
             tags: ['Community Comments'],
             summary: 'Update a community comment',
-            params: idParamsSchema,
-            body: {
-                type: 'object',
-                additionalProperties: false,
-                properties: {
-                    postId: { type: 'integer', minimum: 1 },
-                    userId: { type: 'integer', minimum: 1 },
-                    parentId: { type: 'integer', minimum: 1 },
-                    content: { type: 'string' }
-                }
-            },
+            body: (0, zod_to_json_schema_1.zodToJsonSchema)(validations_1.communityCommentUpdateSchema, 'communityCommentUpdateBody'),
+            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.communityCommentUpdateSchema),
             response: { 200: successObjectResponse }
         }
     }, async (req, reply) => {
-        const { id } = req.params;
-        // Parse form data (multipart or json)
+        const { id } = (0, validations_1.validateData)(validations_1.communityCommentIdParamsSchema, req.params);
         const { fields } = await app.parseMultipartMemory(req);
-        if (!req.isMultipart() && req.body)
-            Object.assign(fields, req.body);
-        const comment = {
-            content: fields.content,
-        };
-        const response = await communityComments.updateComment(Number(id), comment);
+        const { content } = (0, validations_1.validateData)(validations_1.communityCommentUpdateSchema, req.isMultipart() ? fields : req.body ?? fields);
+        const response = await communityComments.updateComment(id, { content });
         reply.code(200).send({
             success: true,
             message: 'community post updated successfully',
-            data: response,
+            data: response
         });
     });
     app.get('/:postId', {
         schema: {
             tags: ['Community Comments'],
             summary: 'List nested comments for a post',
-            params: postIdParamsSchema,
             response: { 200: successArrayResponse }
-        },
+        }
     }, async (req, reply) => {
-        const { postId } = req.params;
+        const { postId } = (0, validations_1.validateData)(validations_1.communityCommentPostParamsSchema, req.params);
         const comment = await communityComments.getNestedComments(postId);
         reply.code(200).send({
             success: true,
             message: 'comment fetched successfully',
-            data: comment,
+            data: comment
         });
     });
     app.patch('/:id/status', {
         schema: {
             tags: ['Community Comments'],
             summary: 'Toggle a community comment status',
-            params: idParamsSchema,
             response: { 200: successObjectResponse }
         }
     }, async (req, reply) => {
-        const { id } = req.params;
+        const { id } = (0, validations_1.validateData)(validations_1.communityCommentIdParamsSchema, req.params);
         const comment = await communityComments.CommentStatus(id);
         return reply.send({ success: true, message: 'comment removed successfully', data: comment });
     });

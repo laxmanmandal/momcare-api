@@ -1,6 +1,13 @@
 import { FastifyInstance } from 'fastify'
 import * as communityReactions from '../services/communityReactions'
 import { authMiddleware } from '../middleware/auth';
+import { zodToJsonSchema } from 'zod-to-json-schema'
+import {
+    communityReactionBodySchema,
+    communityReactionQuerySchema,
+    positiveIntSchema,
+    validateData
+} from '../validations';
 
 export default async function communityReaction(app: FastifyInstance) {
 
@@ -13,32 +20,19 @@ export default async function communityReaction(app: FastifyInstance) {
             schema: {
                 tags: ['Community post and Comments Likes'],
                 description: 'Toggle a reaction for either a post or a comment. Provide postId or commentId.',
-                body: {
-                    type: 'object',
-                    additionalProperties: false,
-                    properties: {
-                        postId: { type: 'integer', minimum: 1 },
-                        commentId: { type: 'integer', minimum: 1 },
-                    }
-                },
+                body: zodToJsonSchema(communityReactionBodySchema as any, 'communityReactionBody')
             }
         },
+
         async (req: any, reply) => {
 
-            const { postId, commentId } = req.body as any;
-
-            // Manual validation: require either postId or commentId
-            if (!postId && !commentId) {
-                return reply.code(400).send({
-                    success: false,
-                    message: "PostId or commentId are required"
-                });
-            }
+            const { postId, commentId } = validateData(communityReactionBodySchema, req.body ?? {});
+            const userId = validateData(positiveIntSchema, req.user.id);
 
             const result = await communityReactions.handleReaction({
-                userId: Number(req.user.id),
-                postId: postId ? Number(postId) : null,
-                commentId: commentId ? Number(commentId) : null,
+                userId,
+                postId: postId ?? null,
+                commentId: commentId ?? null,
             });
 
             return reply.code(200).send({
@@ -54,25 +48,10 @@ export default async function communityReaction(app: FastifyInstance) {
         {
             schema: {
                 tags: ['Community post and Comments Likes'],
-                querystring: {
-                    type: 'object',
-                    additionalProperties: false,
-                    properties: {
-                        postId: { type: 'integer', minimum: 1 },
-                        commentId: { type: 'integer', minimum: 1 }
-                    },
-                    anyOf: [
-                        { required: ['postId'] },
-                        { required: ['commentId'] }
-                    ]
-                }
             }
         },
         async (req, reply) => {
-            const { postId, commentId } = req.query as {
-                postId?: number;
-                commentId?: number;
-            };
+            const { postId, commentId } = validateData(communityReactionQuerySchema, req.query ?? {});
 
             const result = await communityReactions.getReaction(postId, commentId);
 

@@ -1,6 +1,5 @@
 import { FastifyInstance } from 'fastify';
 import * as authService from '../services/authService';
-import { Role } from '@prisma/client';
 import { authMiddleware } from '../middleware/auth';
 import { canCreateRole } from '../utils/roles';
 import { createAndSendOtpForPhone, verifyOtpForPhone } from '../services/otpsms.service.ts/otpService';
@@ -9,70 +8,54 @@ import bcrypt from 'bcryptjs';
 import { loginRateLimiter, recordFailedAttempt, resetAttempts } from '../middleware/loginratelimiter';
 import { normalizePhone, otpRateLimiter, recordFailedVerification, recordSendSuccess, resetOtpAttempts } from '../middleware/otpratelimiter';
 import createHttpError from 'http-errors';
-import { z } from 'zod';
-import { parseWithZod } from '../utils/zodValidation';
-
-type LoginBody = { email: string; password: string };
-type RefreshBody = { refreshToken: string };
-const phonePattern = /^[0-9+() -]{10,20}$/;
-const otpPattern = /^[0-9]{4,8}$/;
-
-
-const requestOtpSchema = z.object({
-  phone: z.string().trim().regex(phonePattern, 'phone must be a valid mobile number')
-}).strict();
-
-const verifyOtpSchema = z.object({
-  phone: z.string().trim().regex(phonePattern, 'phone must be a valid mobile number'),
-  otp: z.string().trim().regex(otpPattern, 'otp must be 4-8 numeric digits')
-}).strict();
-
-const loginSchema = z.object({
-  email: z.string().trim().email(),
-  password: z.string().min(8).max(128)
-}).strict();
+import { validateRequest } from '../validations';
+import {
+  requestOtpSchema,
+  verifyOtpSchema,
+  loginSchema,
+  refreshTokenSchema,
+  changePasswordSchema,
+  signupSchema,
+  type RequestOtpBody,
+  type VerifyOtpBody,
+  type LoginBody,
+  type RefreshTokenBody,
+  type ChangePasswordBody,
+  type SignupBody
+} from '../validations';
 
 export default async function authRoutes(app: FastifyInstance) {
-  const roleEnum = Object.keys(Role).filter(k => isNaN(Number(k)));
-
-  app.post<{ Body: { phone: string } }>('/request-otp', {
-    config: {
-      swaggerPublic: true,
-      rateLimit: {
-        max: 3,
-        timeWindow: 10 * 60 * 1000
+  app.post(
+    '/request-otp',
+    {
+      config: {
+        swaggerPublic: true,
+        rateLimit: {
+          max: 3,
+          timeWindow: 10 * 60 * 1000
+        }
+      },
+      preHandler: [validateRequest(requestOtpSchema)],
+      schema: {
+        tags: ['Auth']
       }
     },
-    schema: {
-      tags: ['Auth'],
-      body: {
-        type: 'object',
-        required: ['phone'],
-        additionalProperties: false,
-        properties: {
-          phone: { type: 'string', minLength: 10, maxLength: 20, pattern: phonePattern.source }
-        }
-      }
+    async (req, reply) => {
+      const body = req.validated?.body as RequestOtpBody;
+      const key = otpRateLimiter(body.phone, req, reply);
+      if (!key) return;
+
+      const phone = normalizePhone(body.phone);
+
+      await createAndSendOtpForPhone(phone);
+      recordSendSuccess(key);
+
+      return reply.send({ ok: true, message: 'OTP sent' });
     }
-  }, async (req, reply) => {
-    const key = otpRateLimiter(req, reply);
-    if (!key) return; // blocked or invalid
+  );
 
-    const body = parseWithZod(requestOtpSchema, req.body);
-    const phone = normalizePhone(body.phone);
-
-
-    await createAndSendOtpForPhone(phone);
-
-    recordSendSuccess(key);
-
-    return reply.send({ ok: true, message: 'OTP sent' });
-
-  });
-
-
-  app.post<{ Body: { phone: string; otp: string } }>(
-    "/verify-otp",
+  app.post(
+    '/verify-otp',
     {
       config: {
         swaggerPublic: true,
@@ -81,27 +64,15 @@ export default async function authRoutes(app: FastifyInstance) {
           timeWindow: 10 * 60 * 1000
         }
       },
+      preHandler: [validateRequest(verifyOtpSchema)],
       schema: {
-        tags: ['Auth'],
-        body: {
-          type: 'object',
-          required: ['phone', 'otp'],
-          additionalProperties: false,
-          properties: {
-            phone: { type: 'string', minLength: 10, maxLength: 20, pattern: phonePattern.source },
-            otp: { type: 'string', minLength: 4, maxLength: 8, pattern: otpPattern.source }
-          }
-        }
+        tags: ['Auth']
       }
     },
     async (req, reply) => {
-      const key = otpRateLimiter(req, reply);
+      const { phone: rawPhone, otp } = req.validated?.body as VerifyOtpBody;
+      const key = otpRateLimiter(rawPhone, req, reply);
       if (!key) return;
-
-      const { phone: rawPhone, otp } = parseWithZod(verifyOtpSchema, req.body);
-      if (!rawPhone || !otp) {
-        return reply.code(400).send({ success: false, error: "phone and otp required" });
-      }
 
       const phone = normalizePhone(rawPhone);
       const ip =
@@ -110,6 +81,7 @@ export default async function authRoutes(app: FastifyInstance) {
           : req.headers['x-forwarded-for']
         )?.split(',')[0]?.trim()
         || req.ip;
+
       try {
         const result = await verifyOtpForPhone(phone, otp, ip);
 
@@ -117,7 +89,7 @@ export default async function authRoutes(app: FastifyInstance) {
           recordFailedVerification(key);
           return reply
             .code(result.code || 400)
-            .send({ success: false, message: result.error || "Invalid OTP" });
+            .send({ success: false, message: result.error || 'Invalid OTP' });
         }
 
         resetOtpAttempts(key);
@@ -126,50 +98,34 @@ export default async function authRoutes(app: FastifyInstance) {
           success: true,
           accessToken: result.accessToken,
           refreshToken: result.refreshToken,
-          user: result.user,
+          user: result.user
         });
       } catch (err: any) {
         recordFailedVerification(key);
         return reply
           .code(500)
-          .send({ success: false, message: "Internal Server Error" });
+          .send({ success: false, message: 'Internal Server Error' });
       }
     }
   );
 
-
   app.post(
     '/signup',
     {
-      preHandler: [authMiddleware, app.accessControl.check('CREATE_USER')],
+      preHandler: [
+        authMiddleware,
+        app.accessControl.check('CREATE_USER'),
+        validateRequest(signupSchema)
+      ],
       schema: {
-        tags: ['Auth'],
-        body: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['role', 'phone', 'name'],
-          properties: {
-            name: { type: 'string', minLength: 2, maxLength: 120 },
-            type: { type: 'string', maxLength: 50 },
-            location: { type: 'string', minLength: 2, maxLength: 255 },
-            email: { type: 'string', format: 'email', maxLength: 254 },
-            phone: { type: 'string', minLength: 10, maxLength: 20, pattern: phonePattern.source },
-            password: { type: 'string', minLength: 8, maxLength: 128 },
-            role: { type: 'string', enum: roleEnum },
-            belongsToId: { type: 'integer' },
-            createdBy: { type: 'integer' },
-            planId: { type: ['integer', 'null'], minimum: 1 }
-          }
-        }
+        tags: ['Auth']
       }
     },
     async (req: any, reply) => {
-      console.log(req.body);
-
       const actorRole = req.user?.role;
-      const targetRole = req.body.role;
+      const body = req.validated?.body as SignupBody;
+      const targetRole = body.role;
 
-      // Permission check
       if (!canCreateRole(actorRole, targetRole)) {
         return reply.code(403).send({
           success: false,
@@ -177,86 +133,71 @@ export default async function authRoutes(app: FastifyInstance) {
         });
       }
 
-      // Normalize meta fields
       const payload = {
-        ...req.body,
-        belongsToId: req.body.belongsToId
-          ? Number(req.body.belongsToId)
+        ...body,
+        belongsToId: body.belongsToId
+          ? Number(body.belongsToId)
           : req.user?.belongsToId
             ? Number(req.user.belongsToId)
             : undefined,
         createdBy: req.user?.id ? Number(req.user.id) : undefined
       };
-      console.log(payload);
-      const created = await authService.signup(payload);
 
+      const created = await authService.signup(payload);
 
       return reply.code(201).send({
         success: true,
         message: 'User created successfully',
         data: created
       });
-
-
     }
   );
 
-  // login route (keeps schema simple)
-
-  app.post<{ Body: LoginBody }>('/login', {
-    config: {
-      swaggerPublic: true,
-      rateLimit: {
-        max: 5,
-        timeWindow: 15 * 60 * 1000
+  app.post(
+    '/login',
+    {
+      config: {
+        swaggerPublic: true,
+        rateLimit: {
+          max: 5,
+          timeWindow: 15 * 60 * 1000
+        }
+      },
+      preHandler: [validateRequest(loginSchema)],
+      schema: {
+        tags: ['Auth']
       }
     },
-    schema: {
-      tags: ['Auth'],
-      body: {
-        type: 'object',
-        required: ['email', 'password'],
-        additionalProperties: false,
-        properties: {
-          email: { type: 'string', format: 'email', maxLength: 254 },
-          password: { type: 'string', minLength: 8, maxLength: 128 }
-        }
+    async (req, reply) => {
+      const ip =
+        (Array.isArray(req.headers['x-forwarded-for'])
+          ? req.headers['x-forwarded-for'][0]
+          : req.headers['x-forwarded-for']
+        )?.split(',')[0]?.trim()
+        || req.ip;
+
+      const body = req.validated?.body as LoginBody;
+      const key = loginRateLimiter(body.email, ip, reply);
+      if (!key) return;
+
+      try {
+        const { accessToken, refreshToken } = await authService.login(body, ip);
+
+        resetAttempts(key);
+
+        return reply.code(200).send({ accessToken, refreshToken });
+      } catch (err: any) {
+        recordFailedAttempt(key);
+
+        return reply.status(401).send({
+          success: false,
+          message: err?.message || 'Invalid credentials'
+        });
       }
     }
-  }, async (req, reply) => {
-    const key = loginRateLimiter(req, reply);
-    if (!key) return;
+  );
 
-    const ip =
-      (Array.isArray(req.headers['x-forwarded-for'])
-        ? req.headers['x-forwarded-for'][0]
-        : req.headers['x-forwarded-for']
-      )?.split(',')[0]?.trim()
-      || req.ip;
-
-    const body = parseWithZod(loginSchema, req.body);
-
-    try {
-      const { accessToken, refreshToken } =
-        await authService.login(body, ip);
-
-      resetAttempts(key);
-
-      return reply.code(200).send({ accessToken, refreshToken });
-    } catch (err: any) {
-      recordFailedAttempt(key);
-
-      return reply.status(401).send({
-        success: false,
-        message: err?.message || 'Invalid credentials'
-      });
-    }
-  });
-
-
-
-  // refresh route
-  app.post<{ Body: RefreshBody }>(
+  app.post(
     '/refresh',
     {
       config: {
@@ -266,85 +207,60 @@ export default async function authRoutes(app: FastifyInstance) {
           timeWindow: 15 * 60 * 1000
         }
       },
+      preHandler: [validateRequest(refreshTokenSchema)],
       schema: {
-        tags: ['Auth'],
-        body: {
-          type: 'object',
-          required: ['refreshToken'],
-          additionalProperties: false,
-          properties: {
-            refreshToken: { type: 'string', minLength: 1 }
-          }
-        }
-      },
-
+        tags: ['Auth']
+      }
     },
     async (req, reply) => {
-
-      const tokens = await authService.refreshTokenService(req.body.refreshToken,);
+      const { refreshToken } = req.validated?.body as RefreshTokenBody;
+      const tokens = await authService.refreshTokenService(refreshToken);
       return reply.send(tokens);
     }
   );
 
-  app.post<any>(
+  app.post(
     '/change-password',
     {
+      preHandler: [
+        authMiddleware,
+        app.accessControl.check('CHANGE_PASSWORD'),
+        validateRequest(changePasswordSchema)
+      ],
       schema: {
-        tags: ['Auth'],
-        body: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['userId', 'old_password', 'new_password'],
-          properties: {
-            userId: { type: 'integer', minimum: 1 },
-            old_password: { type: 'string', minLength: 8, maxLength: 128 },
-            new_password: { type: 'string', minLength: 8, maxLength: 128 }
-          }
-        }
-      },
-      preHandler: [authMiddleware, app.accessControl.check('CHANGE_PASSWORD')],
-
+        tags: ['Auth']
+      }
     },
     async (req: any, res) => {
-
-      const authUserId = Number(req.user.id); // assuming user is authenticated
-      const userId = Number(req.body.userId);
-      const { old_password, new_password } = req.body;
+      const authUserId = Number(req.user.id);
+      const { userId, old_password, new_password } = req.validated?.body as ChangePasswordBody;
 
       if (authUserId !== userId) {
-        throw createHttpError(403, 'Unauthorized')
+        throw createHttpError(403, 'Unauthorized');
       }
-      // 1. Fetch user
+
       const user = await prisma.user.findUnique({
-        where: { id: userId },
+        where: { id: userId }
       });
 
       if (!user) {
-        return res.status(404).send({ success: false, message: "User not found." });
+        return res.status(404).send({ success: false, message: 'User not found.' });
       }
 
-      // 2. Compare old password
       const isMatch = await bcrypt.compare(old_password, user.password!);
-      console.log(isMatch);
 
       if (!isMatch) {
-        return res.status(400).send({ success: false, message: "Old password is incorrect." });
+        return res.status(400).send({ success: false, message: 'Old password is incorrect.' });
       }
 
-      // 3. Hash new password
       const hashedPassword = await bcrypt.hash(new_password, 10);
-      console.log(hashedPassword);
 
-
-      // 4. Update password
       await prisma.user.update({
         where: { id: userId },
-        data: { password: hashedPassword },
+        data: { password: hashedPassword }
       });
 
-      return res.status(200).send({ success: true, message: "Password updated successfully." });
-
+      return res.status(200).send({ success: true, message: 'Password updated successfully.' });
     }
   );
-
 }

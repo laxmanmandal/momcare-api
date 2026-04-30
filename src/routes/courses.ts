@@ -1,33 +1,19 @@
 import { FastifyInstance } from 'fastify'
 import * as courseService from '../services/courseService'
 import { authMiddleware, onlyOrg } from '../middleware/auth'
-
-const uuidParamsSchema = {
-  type: 'object',
-  additionalProperties: false,
-  required: ['uuid'],
-  properties: {
-    uuid: { type: 'string', minLength: 2, maxLength: 64 }
-  }
-} as const
-
-const idParamsSchema = {
-  type: 'object',
-  additionalProperties: false,
-  required: ['id'],
-  properties: {
-    id: { type: 'integer', minimum: 1 }
-  }
-} as const
-
-const idsParamsSchema = {
-  type: 'object',
-  additionalProperties: false,
-  required: ['ids'],
-  properties: {
-    ids: { type: 'string', minLength: 1 }
-  }
-} as const
+import { zodToJsonSchema } from 'zod-to-json-schema'
+import {
+  courseCreateBodySchema,
+  courseIdsParamsSchema,
+  courseIdParamsSchema,
+  courseLessonBodySchema,
+  courseLessonMediaBodySchema,
+  courseLessonQuerySchema,
+  courseLessonUuidParamsSchema,
+  courseUpdateBodySchema,
+  courseUuidParamsSchema,
+  validateData
+} from '../validations';
 
 const successArrayResponse = {
   type: 'object',
@@ -67,21 +53,11 @@ export default async function courseRoutes(app: FastifyInstance) {
       tags: ['Lessons-courses'],
       summary: 'List all lessons',
       description: 'Retrieve a paginated/filtered list of lessons.',
-      querystring: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          page: { type: 'string', default: '1' },
-          limit: { type: 'string', default: '10' },
-          search: { type: 'string' },
-          sortField: { type: 'string' },
-          sortOrder: { type: 'string', enum: ['asc', 'desc'] }
-        }
-      },
       response: { 200: successArrayResponse }
     }
   }, async (req, reply) => {
-    const lessons = await courseService.getLessons(req.query);
+    const query = validateData(courseLessonQuerySchema, req.query ?? {});
+    const lessons = await courseService.getLessons(query);
     return { success: true, message: 'Lessons fetched successfully', data: lessons };
   });
 
@@ -89,11 +65,10 @@ export default async function courseRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Lessons-courses'],
       summary: 'Get lesson by UUID',
-      params: uuidParamsSchema,
       response: { 200: successObjectResponse }
     }
   }, async (req, reply) => {
-    const { uuid } = req.params as { uuid: string };
+    const { uuid } = validateData(courseUuidParamsSchema, req.params);
     const lesson = await courseService.getLesson(uuid);
     return { success: true, message: 'Lesson fetched successfully', data: lesson };
   });
@@ -102,21 +77,14 @@ export default async function courseRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Lessons-courses'],
       summary: 'Create a lesson',
-      body: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          title: { type: 'string', minLength: 1, maxLength: 255 },
-          description: { type: 'string' },
-          mediaResourceId: { type: 'integer', minimum: 1 }
-        }
-      },
-      response: { 201: successObjectResponse }
+      response: { 201: successObjectResponse },
+      body: zodToJsonSchema(courseLessonBodySchema as any, { target: 'openApi3' })
     },
     preHandler: [onlyOrg]
   }, async (req, reply) => {
     let uuid = await app.uid('LS', 'lesson');
-    let data = { ...(req.body as any), uuid };
+    const body = validateData(courseLessonBodySchema, req.body ?? {});
+    let data = { ...body, uuid };
     const newLesson = await courseService.addLesson(data);
     return reply.code(201).send({ success: true, message: 'Lesson created successfully', data: newLesson });
   });
@@ -125,22 +93,13 @@ export default async function courseRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Lessons-courses'],
       summary: 'Update a lesson',
-      params: uuidParamsSchema,
-      body: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          title: { type: 'string', minLength: 1, maxLength: 255 },
-          description: { type: 'string' },
-          mediaResourceId: { type: 'integer', minimum: 1 }
-        }
-      },
-      response: { 200: successObjectResponse }
+      response: { 200: successObjectResponse },
+      body: zodToJsonSchema(courseLessonBodySchema as any, { target: 'openApi3' })
     },
     preHandler: [onlyOrg]
   }, async (req, reply) => {
-    const { uuid } = req.params as { uuid: string };
-    const updatedLesson = await courseService.updateLesson(uuid, req.body as any);
+    const { uuid } = validateData(courseUuidParamsSchema, req.params);
+    const updatedLesson = await courseService.updateLesson(uuid, validateData(courseLessonBodySchema, req.body ?? {}));
     return reply.send({ success: true, message: 'Lesson updated successfully', data: updatedLesson });
   });
 
@@ -148,12 +107,11 @@ export default async function courseRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Lessons-courses'],
       summary: 'Toggle lesson status',
-      params: uuidParamsSchema,
       response: { 200: successObjectResponse }
     },
     preHandler: [onlyOrg]
   }, async (req, reply) => {
-    const { uuid } = req.params as { uuid: string };
+    const { uuid } = validateData(courseUuidParamsSchema, req.params);
     const updatedLesson = await courseService.changeLessonStatus(uuid);
     const msg = updatedLesson.is_active ? "Lesson Activated successfully" : "Lesson Disabled Successfully";
     return reply.send({ success: true, message: msg, data: updatedLesson });
@@ -167,18 +125,10 @@ export default async function courseRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Lessons-courses'],
       summary: 'Get lesson medias by lesson UUID',
-      params: {
-        type: 'object',
-        additionalProperties: false,
-        required: ['lessonUuid'],
-        properties: {
-          lessonUuid: { type: 'string', minLength: 2, maxLength: 64 }
-        }
-      },
       response: { 200: successArrayResponse }
     }
   }, async (req, reply) => {
-    const { lessonUuid } = req.params as { lessonUuid: string };
+    const { lessonUuid } = validateData(courseLessonUuidParamsSchema, req.params);
     const medias = await courseService.getLessonMedias(lessonUuid);
     return { success: true, message: 'Lesson medias fetched successfully', data: medias };
   });
@@ -187,11 +137,10 @@ export default async function courseRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Lessons-courses'],
       summary: 'Get lesson media by ID',
-      params: idParamsSchema,
       response: { 200: successObjectResponse }
     }
   }, async (req, reply) => {
-    const { id } = req.params as { id: number };
+    const { id } = validateData(courseIdParamsSchema, req.params);
     const media = await courseService.getLessonMedia(id);
     return { success: true, message: 'Lesson media fetched successfully', data: media };
   });
@@ -200,22 +149,13 @@ export default async function courseRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Lesson-media'],
       summary: 'Create or update lesson medias',
-      body: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          lessonId: { type: 'integer', minimum: 1 },
-          title: { type: 'string', minLength: 1, maxLength: 255 },
-          mediaResourceId: { type: 'integer', minimum: 1 },
-          description: { type: 'string' },
-          is_active: { type: 'boolean' }
-        }
-      },
-      response: { 201: successObjectResponse }
+      response: { 201: successObjectResponse },
+      body: zodToJsonSchema(courseLessonMediaBodySchema as any, { target: 'openApi3' })
     },
     preHandler: [onlyOrg]
   }, async (req: any, reply) => {
-    const result = await courseService.createUpdateMany(req.body);
+    const item = validateData(courseLessonMediaBodySchema, req.body ?? {});
+    const result = await courseService.createUpdateMany([item]);
     reply.code(201).send({ success: true, message: 'Lesson medias saved', data: result });
   });
 
@@ -223,12 +163,11 @@ export default async function courseRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Lesson-media'],
       summary: 'Toggle lesson media status',
-      params: idParamsSchema,
       response: { 200: successObjectResponse }
     },
     preHandler: [onlyOrg]
   }, async (req, reply) => {
-    const { id } = req.params as { id: number };
+    const { id } = validateData(courseIdParamsSchema, req.params);
     const updatedMedia = await courseService.LessonMediaStatus(id);
     const msg = updatedMedia.is_active ? "Lesson Media Activated successfully" : "Lesson Media Disabled Successfully";
     return reply.send({ success: true, message: msg, data: updatedMedia });
@@ -253,11 +192,10 @@ export default async function courseRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Lessons-courses'],
       summary: 'Get course by UUID',
-      params: uuidParamsSchema,
       response: { 200: successObjectResponse, 404: errorResponse }
     }
   }, async (req, reply) => {
-    const { uuid } = req.params as { uuid: string };
+    const { uuid } = validateData(courseUuidParamsSchema, req.params);
     const course = await courseService.getCourse(uuid);
     if (!course)
       return reply.code(404).send({ success: false, message: 'Course not found' });
@@ -268,11 +206,10 @@ export default async function courseRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Lessons-courses'],
       summary: 'Get many courses by IDs',
-      params: idsParamsSchema,
       response: { 200: successArrayResponse }
     }
   }, async (req, reply) => {
-    const { ids } = req.params as { ids: string };
+    const { ids } = validateData(courseIdsParamsSchema, req.params);
     const idArray = ids.split(',').map(Number);
     const courses = await courseService.getManyCourses(idArray);
     return reply.code(200).send({ success: true, message: 'Courses fetched successfully', data: courses });
@@ -282,22 +219,14 @@ export default async function courseRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Lessons-courses'],
       summary: 'Create a course',
-      body: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          title: { type: 'string', minLength: 1, maxLength: 255 },
-          description: { type: 'string' },
-          category: { type: 'string' },
-          mediaResourceId: { type: 'integer', minimum: 1 }
-        }
-      },
-      response: { 201: successObjectResponse }
+      response: { 201: successObjectResponse },
+      body: zodToJsonSchema(courseCreateBodySchema as any, { target: 'openApi3' })
     },
     preHandler: [onlyOrg]
   }, async (req, reply) => {
     let uuid: string = await app.uid('CRS', 'course');
-    let data = { ...(req.body as any), uuid };
+    const body = validateData(courseCreateBodySchema, req.body ?? {});
+    let data = { ...body, uuid };
     const newCourse = await courseService.createCourse(data);
     return reply.code(201).send({ success: true, message: 'Course created successfully', data: newCourse });
   });
@@ -306,23 +235,13 @@ export default async function courseRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Lessons-courses'],
       summary: 'Update a course',
-      params: uuidParamsSchema,
-      body: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          title: { type: 'string', minLength: 1, maxLength: 255 },
-          description: { type: 'string' },
-          category: { type: 'string' },
-          mediaResourceId: { type: 'integer', minimum: 1 }
-        }
-      },
-      response: { 200: successObjectResponse }
+      response: { 200: successObjectResponse },
+      body: zodToJsonSchema(courseUpdateBodySchema as any, { target: 'openApi3' })
     },
     preHandler: [onlyOrg]
   }, async (req, reply) => {
-    const { uuid } = req.params as { uuid: string };
-    const updatedCourse = await courseService.updateCourse(uuid, req.body as any);
+    const { uuid } = validateData(courseUuidParamsSchema, req.params);
+    const updatedCourse = await courseService.updateCourse(uuid, validateData(courseUpdateBodySchema, req.body ?? {}));
     return reply.send({ success: true, message: 'Course updated successfully', data: updatedCourse });
   });
 
@@ -330,12 +249,11 @@ export default async function courseRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Lessons-courses'],
       summary: 'Toggle course status',
-      params: uuidParamsSchema,
       response: { 200: successObjectResponse }
     },
     preHandler: [onlyOrg]
   }, async (req, reply) => {
-    const { uuid } = req.params as { uuid: string };
+    const { uuid } = validateData(courseUuidParamsSchema, req.params);
     const updatedCourse = await courseService.changeCourseStatus(uuid);
     return reply.send({ success: true, message: 'Course status updated successfully', data: updatedCourse });
   });
@@ -344,11 +262,10 @@ export default async function courseRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Lessons-courses'],
       summary: 'Get lessons for a course',
-      params: uuidParamsSchema,
       response: { 200: successArrayResponse }
     }
   }, async (req, reply) => {
-    const { courseUuid } = req.params as { courseUuid: string };
+    const { uuid: courseUuid } = validateData(courseUuidParamsSchema, req.params);
     const lessons = await courseService.getLessonsByCourseUuid(courseUuid);
     return { success: true, message: 'Lessons fetched successfully', data: lessons };
   });

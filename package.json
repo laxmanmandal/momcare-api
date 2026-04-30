@@ -27,7 +27,6 @@
     "@fastify/swagger-ui": "^5.2.3",
     "@prisma/adapter-mariadb": "^6.16.1",
     "@prisma/client": "^6.19.0",
-    "ajv-errors": "^3.0.0",
     "axios": "^1.13.2",
     "bcryptjs": "^3.0.2",
     "cloudinary": "^1.40.0",
@@ -45,7 +44,8 @@
     "razorpay": "^2.9.6",
     "rotating-file-stream": "^3.2.7",
     "xlsx": "^0.18.5",
-    "zod": "^4.3.6"
+    "zod": "^4.3.6",
+    "zod-to-json-schema": "^3.25.2"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

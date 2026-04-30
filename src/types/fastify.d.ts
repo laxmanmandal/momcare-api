@@ -18,6 +18,12 @@ declare module 'fastify' {
             refreshToken?: string;
             token?: string
         };
+        validated?: {
+            body?: unknown;
+            query?: unknown;
+            params?: unknown;
+            [key: string]: unknown;
+        };
     }
     interface FastifyContextConfig {
         swaggerPublic?: boolean;
@@ -105,4 +111,3 @@ declare module 'fastify' {
         email?: string;
     }
 }
-

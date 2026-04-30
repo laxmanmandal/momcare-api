@@ -425,7 +425,7 @@ export async function appAllotment(
         message: "Plan allocated successfully"
     };
 }
-export async function createPaymentOrder(userId: number, amount: number, planId: number, coupon_code: string) {
+export async function createPaymentOrder(userId: number, amount: number, planId: number, coupon_code?: string) {
     // Razorpay order
     const razorpayOrder = await razorpay.orders.create({
         amount: Math.round(amount * 100), // INR → paise
@@ -574,4 +574,3 @@ export async function confirmPayment(
         };
     });
 }
-

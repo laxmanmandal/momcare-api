@@ -36,22 +36,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = subscriptionRoutes;
 const subscriptionService = __importStar(require("../services/subscriptionService"));
 const auth_1 = require("../middleware/auth");
-const uuidParamsSchema = {
-    type: 'object',
-    additionalProperties: false,
-    required: ['uuid'],
-    properties: {
-        uuid: { type: 'string', minLength: 2, maxLength: 64 }
-    }
-};
-const idsParamsSchema = {
-    type: 'object',
-    additionalProperties: false,
-    required: ['ids'],
-    properties: {
-        ids: { type: 'string', minLength: 1 }
-    }
-};
+const validations_1 = require("../validations");
+const zod_to_json_schema_1 = require("zod-to-json-schema");
+const zodFormData_1 = require("../utils/zodFormData");
 const successObjectResponse = {
     type: 'object',
     properties: {
@@ -103,12 +90,11 @@ async function subscriptionRoutes(app) {
         schema: {
             tags: ['Subscription Plans'],
             summary: 'Get subscription plan by UUID',
-            params: uuidParamsSchema,
             response: { 200: successObjectResponse, 404: successObjectResponse }
         }
     }, async (req, reply) => {
         try {
-            const { uuid } = req.params;
+            const { uuid } = (0, validations_1.validateData)(validations_1.subscriptionUuidParamsSchema, req.params);
             const plan = await subscriptionService.getPlan(uuid);
             return reply.code(200).send({
                 success: true,
@@ -127,12 +113,11 @@ async function subscriptionRoutes(app) {
         schema: {
             tags: ['Subscription Plans'],
             summary: 'Get many plans by IDs',
-            params: idsParamsSchema,
             response: { 200: successArrayResponse, 500: successObjectResponse }
         }
     }, async (req, reply) => {
         try {
-            const { ids } = req.params;
+            const { ids } = (0, validations_1.validateData)(validations_1.subscriptionIdsParamsSchema, req.params);
             const idArray = ids.split(',').map(Number);
             const courses = await subscriptionService.getPlansByManyIds(idArray);
             return reply.code(200).send({
@@ -156,42 +141,19 @@ async function subscriptionRoutes(app) {
             summary: 'Create a subscription plan',
             description: 'Creates a new subscription plan. Supports multipart for thumbnail upload.',
             consumes: ['multipart/form-data'],
-            body: {
-                type: 'object',
-                additionalProperties: false,
-                properties: {
-                    name: { type: 'string', minLength: 1 },
-                    price: { type: 'number', minimum: 0 },
-                    courseIds: {
-                        oneOf: [
-                            { type: 'string' },
-                            { type: 'array', items: { type: 'integer', minimum: 1 } }
-                        ]
-                    },
-                    thumbnail: { type: 'string', contentEncoding: 'binary' }
-                }
-            },
+            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.subscriptionPlanCreateSchema),
             response: { 201: successObjectResponse, 400: successObjectResponse }
         },
         preHandler: [auth_1.onlyOrg]
     }, async (req, reply) => {
-        const { files, fields } = await app.parseMultipartMemory(req);
+        const { fields, files } = (0, validations_1.validateData)(validations_1.subscriptionPlanCreateSchema, await app.parseMultipartMemory(req));
         try {
             let uuid = await app.uid('plan', 'subscriptionPlan');
-            let courseIds = fields.courseIds;
-            if (typeof courseIds === 'string') {
-                if (courseIds.trim().startsWith('[')) {
-                    courseIds = JSON.parse(courseIds).map(Number);
-                }
-                else {
-                    courseIds = courseIds.split(',').map(Number);
-                }
-            }
             const planData = {
                 name: fields.name,
                 price: fields.price,
                 uuid: uuid,
-                courseIds: courseIds,
+                courseIds: fields.courseIds
             };
             const result = await subscriptionService.createPlan(planData);
             if (files.thumbnail?.length && result) {
@@ -218,28 +180,14 @@ async function subscriptionRoutes(app) {
         schema: {
             tags: ['Subscription Plans'],
             summary: 'Update a subscription plan',
-            params: uuidParamsSchema,
-            body: {
-                type: 'object',
-                additionalProperties: false,
-                properties: {
-                    name: { type: 'string', minLength: 1 },
-                    price: { type: 'number', minimum: 0 },
-                    courseIds: {
-                        oneOf: [
-                            { type: 'string' },
-                            { type: 'array', items: { type: 'integer', minimum: 1 } }
-                        ]
-                    }
-                }
-            },
-            response: { 200: successObjectResponse, 400: successObjectResponse }
+            response: { 200: successObjectResponse, 400: successObjectResponse },
+            body: (0, zod_to_json_schema_1.zodToJsonSchema)(validations_1.subscriptionPlanUpdateSchema, 'subscriptionPlanUpdateBody')
         },
         preHandler: [auth_1.onlyOrg]
     }, async (req, reply) => {
         try {
-            const { uuid } = req.params;
-            const updated = await subscriptionService.updatePlan(uuid, req.body);
+            const { uuid } = (0, validations_1.validateData)(validations_1.subscriptionUuidParamsSchema, req.params);
+            const updated = await subscriptionService.updatePlan(uuid, (0, validations_1.validateData)(validations_1.subscriptionPlanUpdateSchema, req.body ?? {}));
             return reply.code(200).send({
                 success: true,
                 message: 'Subscription plan updated successfully',
@@ -258,13 +206,12 @@ async function subscriptionRoutes(app) {
         schema: {
             tags: ['Subscription Plans'],
             summary: 'Toggle plan active status',
-            params: uuidParamsSchema,
             response: { 200: successObjectResponse, 400: successObjectResponse }
         },
         preHandler: [auth_1.onlyOrg]
     }, async (req, reply) => {
         try {
-            const { uuid } = req.params;
+            const { uuid } = (0, validations_1.validateData)(validations_1.subscriptionUuidParamsSchema, req.params);
             const status = await subscriptionService.SubscriptionStatus(uuid);
             const msg = status.isActive
                 ? 'Subscription plan activated successfully'
@@ -283,13 +230,12 @@ async function subscriptionRoutes(app) {
         schema: {
             tags: ['Subscription Plans'],
             summary: 'Toggle plan visibility',
-            params: uuidParamsSchema,
             response: { 200: successObjectResponse, 400: successObjectResponse }
         },
         preHandler: [auth_1.onlyOrg]
     }, async (req, reply) => {
         try {
-            const { uuid } = req.params;
+            const { uuid } = (0, validations_1.validateData)(validations_1.subscriptionUuidParamsSchema, req.params);
             const status = await subscriptionService.SubscriptionVisible(uuid);
             const msg = status.isActive
                 ? 'Subscription plan Visible successfully'

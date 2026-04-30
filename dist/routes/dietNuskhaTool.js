@@ -36,14 +36,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = dietNuskhaRoute;
 const dietNuskhaToolervice = __importStar(require("../services/dietNuskhaToolService"));
 const auth_1 = require("../middleware/auth");
-const idParamsSchema = {
-    type: 'object',
-    additionalProperties: false,
-    required: ['id'],
-    properties: {
-        id: { type: 'string', minLength: 1 }
-    }
-};
+const validations_1 = require("../validations");
+const zod_to_json_schema_1 = require("zod-to-json-schema");
+const zodFormData_1 = require("../utils/zodFormData");
 const successObjectResponse = {
     type: 'object',
     properties: {
@@ -100,16 +95,16 @@ async function dietNuskhaRoute(app) {
             tags: ['diet-chart'],
             summary: 'Create a diet chart entry',
             consumes: ['multipart/form-data'],
-            body: dietChartBody,
+            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.dietChartMultipartSchema),
             response: { 200: successObjectResponse, 500: successObjectResponse }
         },
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
     }, async (req, reply) => {
-        const { files, fields } = await app.parseMultipartMemory(req);
+        const { fields, files } = (0, validations_1.validateData)(validations_1.dietChartMultipartSchema, await app.parseMultipartMemory(req));
         const dietData = {
             creator: req.user.name,
             heading: fields.heading,
-            weekId: Number(fields.weekId),
+            weekId: fields.weekId,
             category: fields.category,
             subheading: fields.subheading,
             content: fields.content,
@@ -132,20 +127,17 @@ async function dietNuskhaRoute(app) {
             tags: ['diet-chart'],
             summary: 'Update a diet chart entry',
             consumes: ['application/json', 'multipart/form-data'],
-            params: idParamsSchema,
-            body: dietChartBody,
+            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.dietChartMultipartSchema),
             response: { 200: successObjectResponse, 500: successObjectResponse }
         },
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
     }, async (req, reply) => {
-        const { id } = req.params;
-        const { files, fields } = await app.parseMultipartMemory(req);
-        if (!req.isMultipart() && req.body)
-            Object.assign(fields, req.body);
+        const { id } = (0, validations_1.validateData)(validations_1.dietToolIdParamsSchema, req.params);
+        const { fields, files } = (0, validations_1.validateData)(validations_1.dietChartMultipartSchema, await app.parseMultipartMemory(req));
         const updateData = {
             creator: fields.creator,
             heading: fields.heading,
-            weekId: Number(fields.weekId),
+            weekId: fields.weekId,
             category: fields.category,
             subheading: fields.subheading,
             content: fields.content,
@@ -180,14 +172,12 @@ async function dietNuskhaRoute(app) {
         schema: {
             tags: ['diet-chart'],
             summary: 'Get diet chart by week ID',
-            params: idParamsSchema,
             response: { 200: successArrayResponse }
         },
         preHandler: [auth_1.authMiddleware]
     }, async (req, reply) => {
-        const { id } = req.params;
-        const numericId = Number(id);
-        const dietNuskhaTool = await dietNuskhaToolervice.getDietChartByWeekId(numericId);
+        const { id } = (0, validations_1.validateData)(validations_1.dietToolIdParamsSchema, req.params);
+        const dietNuskhaTool = await dietNuskhaToolervice.getDietChartByWeekId(id);
         reply.send({
             success: true,
             message: 'Diet Chart fetched successfully',
@@ -198,17 +188,12 @@ async function dietNuskhaRoute(app) {
         schema: {
             tags: ['diet-chart'],
             summary: 'Get diet chart by ID',
-            params: idParamsSchema,
             response: { 200: successObjectResponse, 404: successObjectResponse }
         },
         preHandler: [auth_1.authMiddleware]
     }, async (req, reply) => {
-        const { id } = req.params;
-        const numericId = Number(id);
-        if (isNaN(numericId)) {
-            return reply.code(404).send({ success: false, message: 'Invalid ID' });
-        }
-        const dietNuskhaTool = await dietNuskhaToolervice.getDietChartById(numericId);
+        const { id } = (0, validations_1.validateData)(validations_1.dietToolIdParamsSchema, req.params);
+        const dietNuskhaTool = await dietNuskhaToolervice.getDietChartById(id);
         reply.code(200).send({
             success: true,
             message: 'Diet Chart fetched successfully',
@@ -219,12 +204,11 @@ async function dietNuskhaRoute(app) {
         schema: {
             tags: ['diet-chart'],
             summary: 'Toggle diet chart status',
-            params: idParamsSchema,
             response: { 200: successObjectResponse, 500: successObjectResponse }
         },
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
     }, async (req, reply) => {
-        const { id } = req.params;
+        const { id } = (0, validations_1.validateData)(validations_1.dietToolIdParamsSchema, req.params);
         const dietNuskhaTool = await dietNuskhaToolervice.DietchartStatus(id);
         return reply.send({ success: true, message: 'Diet Chart status updated successfully', data: dietNuskhaTool });
     });
@@ -233,12 +217,12 @@ async function dietNuskhaRoute(app) {
             tags: ['Dadi-nani-Nuskhe'],
             summary: 'Create a Dadi-Nani Nuskhe entry',
             consumes: ['multipart/form-data'],
-            body: nuskheBody,
+            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.dietNuskheMultipartSchema),
             response: { 200: successObjectResponse, 500: successObjectResponse }
         },
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
     }, async (req, reply) => {
-        const { files, fields } = await app.parseMultipartMemory(req);
+        const { fields, files } = (0, validations_1.validateData)(validations_1.dietNuskheMultipartSchema, await app.parseMultipartMemory(req));
         const dadinaniData = {
             creator: req.user.name,
             category: fields.category,
@@ -263,16 +247,13 @@ async function dietNuskhaRoute(app) {
             tags: ['Dadi-nani-Nuskhe'],
             summary: 'Update a Dadi-Nani Nuskhe entry',
             consumes: ['application/json', 'multipart/form-data'],
-            params: idParamsSchema,
-            body: nuskheBody,
+            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.dietNuskheMultipartSchema),
             response: { 200: successObjectResponse, 500: successObjectResponse }
         },
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
     }, async (req, reply) => {
-        const { id } = req.params;
-        const { files, fields } = await app.parseMultipartMemory(req);
-        if (!req.isMultipart() && req.body)
-            Object.assign(fields, req.body);
+        const { id } = (0, validations_1.validateData)(validations_1.dietToolIdParamsSchema, req.params);
+        const { fields, files } = (0, validations_1.validateData)(validations_1.dietNuskheMultipartSchema, await app.parseMultipartMemory(req));
         const updateData = {
             creator: fields.creator,
             heading: fields.heading,
@@ -308,17 +289,12 @@ async function dietNuskhaRoute(app) {
         schema: {
             tags: ['Dadi-nani-Nuskhe'],
             summary: 'Get Dadi-Nani Nuskhe by ID',
-            params: idParamsSchema,
             response: { 200: successObjectResponse, 500: successObjectResponse }
         },
         preHandler: [auth_1.authMiddleware]
     }, async (req, reply) => {
-        const { id } = req.params;
-        const numericId = Number(id);
-        if (isNaN(numericId)) {
-            return reply.code(500).send({ success: false, message: 'Invalid ID' });
-        }
-        const dietNuskhaTool = await dietNuskhaToolervice.getNuskheById(numericId);
+        const { id } = (0, validations_1.validateData)(validations_1.dietToolIdParamsSchema, req.params);
+        const dietNuskhaTool = await dietNuskhaToolervice.getNuskheById(id);
         reply.send({
             success: true,
             message: 'Dani Nani k Nuskhe fetched successfully',
@@ -329,12 +305,11 @@ async function dietNuskhaRoute(app) {
         schema: {
             tags: ['Dadi-nani-Nuskhe'],
             summary: 'Toggle Dadi-Nani Nuskhe status',
-            params: idParamsSchema,
             response: { 200: successObjectResponse, 500: successObjectResponse }
         },
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
     }, async (req, reply) => {
-        const { id } = req.params;
+        const { id } = (0, validations_1.validateData)(validations_1.dietToolIdParamsSchema, req.params);
         const dietNuskhaTool = await dietNuskhaToolervice.NuskheStatus(id);
         return reply.send({ success: true, message: 'Dani Nani k Nuskhe status updated successfully', data: dietNuskhaTool });
     });
@@ -342,12 +317,12 @@ async function dietNuskhaRoute(app) {
         schema: {
             tags: ['diet-chart-weeks'],
             summary: 'Create a week entry',
-            body: weekBody,
+            body: (0, zod_to_json_schema_1.zodToJsonSchema)(validations_1.weekBodySchema, 'weekBody'),
             response: { 200: successObjectResponse, 500: successObjectResponse }
         },
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
     }, async (req, reply) => {
-        const response = await dietNuskhaToolervice.createWeek(req.body);
+        const response = await dietNuskhaToolervice.createWeek((0, validations_1.validateData)(validations_1.weekBodySchema, req.body ?? {}));
         reply.send({
             success: true,
             message: 'Week created successfully',
@@ -358,17 +333,12 @@ async function dietNuskhaRoute(app) {
         schema: {
             tags: ['diet-chart-weeks'],
             summary: 'Get week by ID',
-            params: idParamsSchema,
             response: { 200: successObjectResponse, 500: successObjectResponse }
         },
         preHandler: [auth_1.authMiddleware]
     }, async (req, reply) => {
-        const { id } = req.params;
-        const numericId = Number(id);
-        if (isNaN(numericId)) {
-            return reply.code(500).send({ success: false, message: 'Invalid ID' });
-        }
-        const week = await dietNuskhaToolervice.getWeekById(numericId);
+        const { id } = (0, validations_1.validateData)(validations_1.dietToolIdParamsSchema, req.params);
+        const week = await dietNuskhaToolervice.getWeekById(id);
         reply.send({
             success: true,
             message: 'week fetched successfully',
@@ -379,21 +349,14 @@ async function dietNuskhaRoute(app) {
         schema: {
             tags: ['diet-chart-weeks'],
             summary: 'Update a week entry',
-            params: idParamsSchema,
-            body: {
-                type: 'object',
-                additionalProperties: false,
-                properties: {
-                    name: { type: 'string' }
-                }
-            },
+            body: (0, zod_to_json_schema_1.zodToJsonSchema)(validations_1.weekBodySchema.pick({ name: true }), 'weekUpdateBody'),
             response: { 200: successObjectResponse, 500: successObjectResponse }
         },
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
     }, async (req, reply) => {
-        const { id } = req.params;
-        const updateData = { name: req.body.name };
-        const weeks = await dietNuskhaToolervice.updateWeek(Number(id), updateData);
+        const { id } = (0, validations_1.validateData)(validations_1.dietToolIdParamsSchema, req.params);
+        const updateData = (0, validations_1.validateData)(validations_1.weekBodySchema.pick({ name: true }), req.body ?? {});
+        const weeks = await dietNuskhaToolervice.updateWeek(id, updateData);
         reply.send({
             success: true,
             message: 'Week updated successfully',

@@ -41,6 +41,9 @@ const auth_1 = require("../middleware/auth");
 const client_1 = __importDefault(require("../prisma/client"));
 const userService = __importStar(require("../services/userService"));
 const jwt_1 = require("../utils/jwt");
+const validations_1 = require("../validations");
+const zod_to_json_schema_1 = require("zod-to-json-schema");
+const zodFormData_1 = require("../utils/zodFormData");
 const errorResponse = {
     type: 'object',
     properties: {
@@ -108,29 +111,14 @@ async function userRoutes(app) {
     });
     // GET /get user list
     app.get('/list/:entityId', {
-        preHandler: [auth_1.authMiddleware, app.accessControl.check('LIST_USER')],
+        preHandler: [
+            auth_1.authMiddleware,
+            app.accessControl.check('LIST_USER'),
+            (0, validations_1.validateRequest)(validations_1.usersListParamsSchema, 'params'),
+            (0, validations_1.validateRequest)(validations_1.usersListQuerySchema, 'query')
+        ],
         schema: {
             tags: ['Users'],
-            params: {
-                type: 'object',
-                properties: {
-                    entityId: { type: 'string' }
-                },
-                required: ['entityId']
-            },
-            querystring: {
-                type: 'object',
-                properties: {
-                    page: { type: 'string', default: '1' },
-                    limit: { type: 'string', default: '10' },
-                    search: { type: 'string' },
-                    role: { type: 'string' },
-                    type: { type: 'string' },
-                    isActive: { type: 'string' },
-                    sortField: { type: 'string' },
-                    sortOrder: { type: 'string', enum: ['asc', 'desc'] }
-                }
-            },
             response: {
                 200: {
                     type: 'object',
@@ -156,9 +144,9 @@ async function userRoutes(app) {
             }
         }
     }, async (req) => {
-        const { entityId } = req.params;
-        const query = req.query;
-        const result = await userService.getUsers(Number(entityId), req.user, query);
+        const { entityId } = req.validated?.params;
+        const query = req.validated?.query;
+        const result = await userService.getUsers(entityId, req.user, query);
         return {
             success: true,
             message: 'Users fetched successfully',
@@ -235,17 +223,13 @@ async function userRoutes(app) {
     // );
     // GET /:uuid/:role/child  (returns users created by uuid filtered by role)
     app.get('/list/:entityId/:role', {
-        preHandler: [auth_1.authMiddleware, app.accessControl.check('LIST_USER')],
+        preHandler: [
+            auth_1.authMiddleware,
+            app.accessControl.check('LIST_USER'),
+            (0, validations_1.validateRequest)(validations_1.usersListByRoleParamsSchema, 'params')
+        ],
         schema: {
             tags: ['Users'],
-            params: {
-                type: 'object',
-                required: ['entityId', 'role'],
-                properties: {
-                    entityId: { type: 'string' },
-                    role: { type: 'string' }
-                }
-            },
             response: {
                 200: {
                     type: 'object',
@@ -304,36 +288,30 @@ async function userRoutes(app) {
             }
         }
     }, async (req) => {
-        const { entityId, role } = req.params;
-        return userService.getRoleWise(Number(entityId), role, req.user);
+        const { entityId, role } = req.validated?.params;
+        return userService.getRoleWise(entityId, role, req.user);
     });
     app.get('/entity/:entityId', {
         schema: {
-            tags: ['Users'],
-            params: {
-                type: 'object',
-                required: ['entityId'],
-                properties: {
-                    entityId: { type: 'string' }
-                }
-            }
-        }
+            tags: ['Users']
+        },
+        preHandler: [
+            auth_1.authMiddleware,
+            (0, validations_1.validateRequest)(validations_1.usersByEntityParamsSchema, 'params')
+        ]
     }, async (req) => {
-        const { entityId } = req.params;
-        return userService.getBelongsUser(Number(entityId));
+        const { entityId } = req.validated?.params;
+        return userService.getBelongsUser(entityId);
     });
     // PATCH /:uuid/status  (toggle active/inactive)
     app.patch('/:uuid/status', {
-        preHandler: [auth_1.authMiddleware, app.accessControl.check('UPDATE_USER_STATUS')],
+        preHandler: [
+            auth_1.authMiddleware,
+            app.accessControl.check('UPDATE_USER_STATUS'),
+            (0, validations_1.validateRequest)(validations_1.userStatusParamsSchema, 'params')
+        ],
         schema: {
             tags: ['Users'],
-            params: {
-                type: 'object',
-                required: ['uuid'],
-                properties: {
-                    uuid: { type: 'string' }
-                }
-            },
             response: {
                 200: {
                     type: 'object',
@@ -348,7 +326,7 @@ async function userRoutes(app) {
             }
         }
     }, async (req, reply) => {
-        const { uuid } = req.params;
+        const { uuid } = req.validated?.params;
         const updated = await userService.activeInactive(uuid);
         return reply.send({
             success: true,
@@ -365,22 +343,8 @@ async function userRoutes(app) {
         schema: {
             tags: ['Users'],
             consumes: ['application/json', 'multipart/form-data'],
-            body: {
-                type: 'object',
-                additionalProperties: false,
-                properties: {
-                    name: { type: 'string', minLength: 2, maxLength: 120 },
-                    email: { type: 'string', format: 'email', nullable: true },
-                    phone: { type: 'string', minLength: 10, maxLength: 20 },
-                    child_gender: { type: 'string' },
-                    location: { type: 'string' },
-                    type: { type: 'string' },
-                    expectedDate: { type: 'string', format: 'date' },
-                    dob: { type: 'string', format: 'date' },
-                    dom: { type: 'string', format: 'date' },
-                    imageUrl: { type: 'string', contentEncoding: 'binary' }
-                }
-            },
+            body: (0, zod_to_json_schema_1.zodToJsonSchema)(validations_1.userUpdateBodySchema, 'userUpdateBody'),
+            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.userUpdateBodySchema),
             response: {
                 200: {
                     type: 'object',
@@ -408,12 +372,12 @@ async function userRoutes(app) {
         // CASE 1: Multipart/form-data request
         if (req.isMultipart()) {
             const mp = await app.parseMultipartMemory(req);
-            fields = mp.fields || {};
+            fields = (0, validations_1.validateData)(validations_1.userUpdateBodySchema, mp.fields || {});
             files = mp.files || {};
         }
         // CASE 2: JSON request
         else {
-            fields = req.body || {};
+            fields = (0, validations_1.validateData)(validations_1.userUpdateBodySchema, req.body || {});
         }
         // Build only allowed update fields
         const updateData = {};

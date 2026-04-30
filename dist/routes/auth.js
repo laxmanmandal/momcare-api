@@ -38,19 +38,17 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = authRoutes;
 const authService = __importStar(require("../services/authService"));
-const client_1 = require("@prisma/client");
 const auth_1 = require("../middleware/auth");
 const roles_1 = require("../utils/roles");
 const otpService_1 = require("../services/otpsms.service.ts/otpService");
-const client_2 = __importDefault(require("../prisma/client"));
+const client_1 = __importDefault(require("../prisma/client"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const loginratelimiter_1 = require("../middleware/loginratelimiter");
 const otpratelimiter_1 = require("../middleware/otpratelimiter");
 const http_errors_1 = __importDefault(require("http-errors"));
-const phonePattern = /^[0-9+() -]{10,20}$/;
-const otpPattern = /^[0-9]{4,8}$/;
+const validations_1 = require("../validations");
+const validations_2 = require("../validations");
 async function authRoutes(app) {
-    const roleEnum = Object.keys(client_1.Role).filter(k => isNaN(Number(k)));
     app.post('/request-otp', {
         config: {
             swaggerPublic: true,
@@ -59,27 +57,21 @@ async function authRoutes(app) {
                 timeWindow: 10 * 60 * 1000
             }
         },
+        preHandler: [(0, validations_1.validateRequest)(validations_2.requestOtpSchema)],
         schema: {
-            tags: ['Auth'],
-            body: {
-                type: 'object',
-                required: ['phone'],
-                additionalProperties: false,
-                properties: {
-                    phone: { type: 'string', minLength: 10, maxLength: 20, pattern: phonePattern.source }
-                }
-            }
+            tags: ['Auth']
         }
     }, async (req, reply) => {
-        const key = (0, otpratelimiter_1.otpRateLimiter)(req, reply);
+        const body = req.validated?.body;
+        const key = (0, otpratelimiter_1.otpRateLimiter)(body.phone, req, reply);
         if (!key)
-            return; // blocked or invalid
-        const phone = (0, otpratelimiter_1.normalizePhone)(req.body.phone);
+            return;
+        const phone = (0, otpratelimiter_1.normalizePhone)(body.phone);
         await (0, otpService_1.createAndSendOtpForPhone)(phone);
         (0, otpratelimiter_1.recordSendSuccess)(key);
         return reply.send({ ok: true, message: 'OTP sent' });
     });
-    app.post("/verify-otp", {
+    app.post('/verify-otp', {
         config: {
             swaggerPublic: true,
             rateLimit: {
@@ -87,26 +79,15 @@ async function authRoutes(app) {
                 timeWindow: 10 * 60 * 1000
             }
         },
+        preHandler: [(0, validations_1.validateRequest)(validations_2.verifyOtpSchema)],
         schema: {
-            tags: ['Auth'],
-            body: {
-                type: 'object',
-                required: ['phone', 'otp'],
-                additionalProperties: false,
-                properties: {
-                    phone: { type: 'string', minLength: 10, maxLength: 20, pattern: phonePattern.source },
-                    otp: { type: 'string', minLength: 4, maxLength: 8, pattern: otpPattern.source }
-                }
-            }
+            tags: ['Auth']
         }
     }, async (req, reply) => {
-        const key = (0, otpratelimiter_1.otpRateLimiter)(req, reply);
+        const { phone: rawPhone, otp } = req.validated?.body;
+        const key = (0, otpratelimiter_1.otpRateLimiter)(rawPhone, req, reply);
         if (!key)
             return;
-        const { phone: rawPhone, otp } = req.body;
-        if (!rawPhone || !otp) {
-            return reply.code(400).send({ success: false, error: "phone and otp required" });
-        }
         const phone = (0, otpratelimiter_1.normalizePhone)(rawPhone);
         const ip = (Array.isArray(req.headers['x-forwarded-for'])
             ? req.headers['x-forwarded-for'][0]
@@ -118,67 +99,51 @@ async function authRoutes(app) {
                 (0, otpratelimiter_1.recordFailedVerification)(key);
                 return reply
                     .code(result.code || 400)
-                    .send({ success: false, message: result.error || "Invalid OTP" });
+                    .send({ success: false, message: result.error || 'Invalid OTP' });
             }
             (0, otpratelimiter_1.resetOtpAttempts)(key);
             return reply.send({
                 success: true,
                 accessToken: result.accessToken,
                 refreshToken: result.refreshToken,
-                user: result.user,
+                user: result.user
             });
         }
         catch (err) {
             (0, otpratelimiter_1.recordFailedVerification)(key);
             return reply
                 .code(500)
-                .send({ success: false, message: "Internal Server Error" });
+                .send({ success: false, message: 'Internal Server Error' });
         }
     });
     app.post('/signup', {
-        preHandler: [auth_1.authMiddleware, app.accessControl.check('CREATE_USER')],
+        preHandler: [
+            auth_1.authMiddleware,
+            app.accessControl.check('CREATE_USER'),
+            (0, validations_1.validateRequest)(validations_2.signupSchema)
+        ],
         schema: {
-            tags: ['Auth'],
-            body: {
-                type: 'object',
-                additionalProperties: false,
-                required: ['role', 'phone', 'name'],
-                properties: {
-                    name: { type: 'string', minLength: 2, maxLength: 120 },
-                    type: { type: 'string', maxLength: 50 },
-                    location: { type: 'string', minLength: 2, maxLength: 255 },
-                    email: { type: 'string', format: 'email', maxLength: 254 },
-                    phone: { type: 'string', minLength: 10, maxLength: 20, pattern: phonePattern.source },
-                    password: { type: 'string', minLength: 8, maxLength: 128 },
-                    role: { type: 'string', enum: roleEnum },
-                    belongsToId: { type: 'integer' },
-                    createdBy: { type: 'integer' },
-                    planId: { type: ['integer', 'null'], minimum: 1 }
-                }
-            }
+            tags: ['Auth']
         }
     }, async (req, reply) => {
-        console.log(req.body);
         const actorRole = req.user?.role;
-        const targetRole = req.body.role;
-        // Permission check
+        const body = req.validated?.body;
+        const targetRole = body.role;
         if (!(0, roles_1.canCreateRole)(actorRole, targetRole)) {
             return reply.code(403).send({
                 success: false,
                 message: `Insufficient privilege to create role: ${targetRole}`
             });
         }
-        // Normalize meta fields
         const payload = {
-            ...req.body,
-            belongsToId: req.body.belongsToId
-                ? Number(req.body.belongsToId)
+            ...body,
+            belongsToId: body.belongsToId
+                ? Number(body.belongsToId)
                 : req.user?.belongsToId
                     ? Number(req.user.belongsToId)
                     : undefined,
             createdBy: req.user?.id ? Number(req.user.id) : undefined
         };
-        console.log(payload);
         const created = await authService.signup(payload);
         return reply.code(201).send({
             success: true,
@@ -186,7 +151,6 @@ async function authRoutes(app) {
             data: created
         });
     });
-    // login route (keeps schema simple)
     app.post('/login', {
         config: {
             swaggerPublic: true,
@@ -195,28 +159,21 @@ async function authRoutes(app) {
                 timeWindow: 15 * 60 * 1000
             }
         },
+        preHandler: [(0, validations_1.validateRequest)(validations_2.loginSchema)],
         schema: {
-            tags: ['Auth'],
-            body: {
-                type: 'object',
-                required: ['email', 'password'],
-                additionalProperties: false,
-                properties: {
-                    email: { type: 'string', format: 'email', maxLength: 254 },
-                    password: { type: 'string', minLength: 8, maxLength: 128 }
-                }
-            }
+            tags: ['Auth']
         }
     }, async (req, reply) => {
-        const key = (0, loginratelimiter_1.loginRateLimiter)(req, reply);
-        if (!key)
-            return;
         const ip = (Array.isArray(req.headers['x-forwarded-for'])
             ? req.headers['x-forwarded-for'][0]
             : req.headers['x-forwarded-for'])?.split(',')[0]?.trim()
             || req.ip;
+        const body = req.validated?.body;
+        const key = (0, loginratelimiter_1.loginRateLimiter)(body.email, ip, reply);
+        if (!key)
+            return;
         try {
-            const { accessToken, refreshToken } = await authService.login(req.body, ip);
+            const { accessToken, refreshToken } = await authService.login(body, ip);
             (0, loginratelimiter_1.resetAttempts)(key);
             return reply.code(200).send({ accessToken, refreshToken });
         }
@@ -228,7 +185,6 @@ async function authRoutes(app) {
             });
         }
     });
-    // refresh route
     app.post('/refresh', {
         config: {
             swaggerPublic: true,
@@ -237,65 +193,46 @@ async function authRoutes(app) {
                 timeWindow: 15 * 60 * 1000
             }
         },
+        preHandler: [(0, validations_1.validateRequest)(validations_2.refreshTokenSchema)],
         schema: {
-            tags: ['Auth'],
-            body: {
-                type: 'object',
-                required: ['refreshToken'],
-                additionalProperties: false,
-                properties: {
-                    refreshToken: { type: 'string', minLength: 1 }
-                }
-            }
-        },
+            tags: ['Auth']
+        }
     }, async (req, reply) => {
-        const tokens = await authService.refreshTokenService(req.body.refreshToken);
+        const { refreshToken } = req.validated?.body;
+        const tokens = await authService.refreshTokenService(refreshToken);
         return reply.send(tokens);
     });
     app.post('/change-password', {
+        preHandler: [
+            auth_1.authMiddleware,
+            app.accessControl.check('CHANGE_PASSWORD'),
+            (0, validations_1.validateRequest)(validations_2.changePasswordSchema)
+        ],
         schema: {
-            tags: ['Auth'],
-            body: {
-                type: 'object',
-                additionalProperties: false,
-                required: ['userId', 'old_password', 'new_password'],
-                properties: {
-                    userId: { type: 'integer', minimum: 1 },
-                    old_password: { type: 'string', minLength: 8, maxLength: 128 },
-                    new_password: { type: 'string', minLength: 8, maxLength: 128 }
-                }
-            }
-        },
-        preHandler: [auth_1.authMiddleware, app.accessControl.check('CHANGE_PASSWORD')],
+            tags: ['Auth']
+        }
     }, async (req, res) => {
-        const authUserId = Number(req.user.id); // assuming user is authenticated
-        const userId = Number(req.body.userId);
-        const { old_password, new_password } = req.body;
+        const authUserId = Number(req.user.id);
+        const { userId, old_password, new_password } = req.validated?.body;
         if (authUserId !== userId) {
             throw (0, http_errors_1.default)(403, 'Unauthorized');
         }
-        // 1. Fetch user
-        const user = await client_2.default.user.findUnique({
-            where: { id: userId },
+        const user = await client_1.default.user.findUnique({
+            where: { id: userId }
         });
         if (!user) {
-            return res.status(404).send({ success: false, message: "User not found." });
+            return res.status(404).send({ success: false, message: 'User not found.' });
         }
-        // 2. Compare old password
         const isMatch = await bcryptjs_1.default.compare(old_password, user.password);
-        console.log(isMatch);
         if (!isMatch) {
-            return res.status(400).send({ success: false, message: "Old password is incorrect." });
+            return res.status(400).send({ success: false, message: 'Old password is incorrect.' });
         }
-        // 3. Hash new password
         const hashedPassword = await bcryptjs_1.default.hash(new_password, 10);
-        console.log(hashedPassword);
-        // 4. Update password
-        await client_2.default.user.update({
+        await client_1.default.user.update({
             where: { id: userId },
-            data: { password: hashedPassword },
+            data: { password: hashedPassword }
         });
-        return res.status(200).send({ success: true, message: "Password updated successfully." });
+        return res.status(200).send({ success: true, message: 'Password updated successfully.' });
     });
 }
 //# sourceMappingURL=auth.js.map

@@ -18,18 +18,8 @@ function normalizePhone(raw) {
  * Check block state and return key (phone) or reply+false.
  * Call this inside handler after body parsed.
  */
-function otpRateLimiter(req, reply) {
-    const rawPhone = req.body?.phone;
-    if (!rawPhone) {
-        reply.status(400).send({ success: false, message: 'Phone is required' });
-        return false;
-    }
-    const phone = normalizePhone(rawPhone);
-    if (!phone) {
-        reply.status(400).send({ success: false, message: 'Invalid phone' });
-        return false;
-    }
-    const key = phone;
+function otpRateLimiter(phone, req, reply) {
+    const key = normalizePhone(phone);
     const now = Date.now();
     const rec = exports.otpAttempts[key];
     // if currently blocked

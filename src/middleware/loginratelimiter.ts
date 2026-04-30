@@ -1,5 +1,4 @@
-import type { FastifyRequest, FastifyReply } from 'fastify';
-import type { LoginBody } from '../types/auth';
+import type { FastifyReply } from 'fastify';
 
 type AttemptRecord = { count: number; blockedUntil?: number };
 type AttemptStore = Record<string, AttemptRecord>;
@@ -9,21 +8,10 @@ const loginAttempts: AttemptStore = {};
 
 // Middleware to check if user is blocked
 export function loginRateLimiter(
-    req: FastifyRequest<{ Body: LoginBody }>,
+    email: string,
+    ip: string,
     reply: FastifyReply
 ): string | false {
-    const ip = req.ip;
-    const email = req.body?.email;
-    if (!email) {
-        reply.status(400).send({
-            success: false,
-            statusCode: 400,
-            message: 'Email is required',
-            error: 'Bad Request'
-        });
-        return false;
-    }
-
     const key = `${ip}:${email}`;
     const now = Date.now();
     const record = loginAttempts[key];

@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify'
 import * as loginActivity from '../services/loginActivity';
 import { authMiddleware, onlyOrg } from '../middleware/auth';
+import { loginLogParamsSchema, loginLogQuerySchema, validateData } from '../validations';
 export default async function LoginLogsRoutes(app: FastifyInstance) {
 
     const loginHistoryResponseSchema = {
@@ -64,19 +65,11 @@ export default async function LoginLogsRoutes(app: FastifyInstance) {
             preHandler: [authMiddleware, onlyOrg],
             schema: {
                 tags: ['auth'],
-                querystring: paginationQuerySchema,
                 response: loginHistoryResponseSchema
             }
         },
         async (req, reply) => {
-            // Now these are already numbers!
-            const { search, page, limit } = req.query as any;
-
-            console.log('Query params:', {
-                search,
-                page,  // Already a number
-                limit  // Already a number
-            });
+            const { search, page, limit } = validateData(loginLogQuerySchema, req.query ?? {});
 
             const result = await loginActivity.getAllLoginHistory({
                 search,
@@ -97,25 +90,17 @@ export default async function LoginLogsRoutes(app: FastifyInstance) {
             preHandler: [authMiddleware, onlyOrg],
             schema: {
                 tags: ['auth'],
-                params: {
-                    type: "object",
-                    required: ["userId"],
-                    properties: {
-                        userId: { type: "number" }
-                    }
-                },
-                querystring: paginationQuerySchema,
                 response: loginHistoryResponseSchema
             }
         },
         async (req, reply) => {
-            const { userId } = req.params as { userId: number };
-            const { search, page = 1, limit = 10 } = req.query as any;
+            const { userId } = validateData(loginLogParamsSchema, req.params);
+            const { search, page, limit } = validateData(loginLogQuerySchema, req.query ?? {});
 
             const result = await loginActivity.getUserLogin(userId, {
                 search,
-                page: Number(page),
-                limit: Number(limit)
+                page,
+                limit
             });
 
             return reply.code(200).send({

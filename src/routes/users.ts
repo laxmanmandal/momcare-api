@@ -4,50 +4,25 @@ import prisma from '../prisma/client';
 import * as userService from '../services/userService';
 import { verifyToken } from '../utils/jwt';
 import { handlePrismaDuplicate } from '../utils/prisma-error';
-import { z } from 'zod';
-import { parseWithZod } from '../utils/zodValidation';
-
-
-const usersListParamsSchema = z.object({
-  entityId: z.coerce.number().int().positive()
-}).strict();
-
-const usersListQuerySchema = z.object({
-  page: z.coerce.number().int().positive().optional(),
-  limit: z.coerce.number().int().positive().max(100).optional(),
-  search: z.string().trim().optional(),
-  role: z.string().trim().optional(),
-  type: z.string().trim().optional(),
-  isActive: z.union([z.boolean(), z.enum(['true', 'false'])]).optional(),
-  sortField: z.string().trim().optional(),
-  sortOrder: z.enum(['asc', 'desc']).optional()
-}).strict();
-
-
-const usersListByRoleParamsSchema = z.object({
-  entityId: z.coerce.number().int().positive(),
-  role: z.string().trim().min(1)
-}).strict();
-
-const usersByEntityParamsSchema = z.object({
-  entityId: z.coerce.number().int().positive()
-}).strict();
-
-const userStatusParamsSchema = z.object({
-  uuid: z.string().trim().min(1)
-}).strict();
-
-const userUpdateBodySchema = z.object({
-  name: z.string().trim().min(2).max(120).optional(),
-  email: z.union([z.string().trim().email(), z.literal(''), z.null()]).optional(),
-  phone: z.string().trim().min(10).max(20).optional(),
-  child_gender: z.string().trim().optional(),
-  location: z.string().trim().optional(),
-  type: z.string().trim().optional(),
-  expectedDate: z.string().trim().optional(),
-  dob: z.string().trim().optional(),
-  dom: z.string().trim().optional()
-}).strict();
+import {
+  validateRequest,
+  validateData,
+  usersListParamsSchema,
+  usersListQuerySchema,
+  usersListByRoleParamsSchema,
+  usersByEntityParamsSchema,
+  userStatusParamsSchema,
+  userUpdateBodySchema
+} from '../validations';
+import { zodToJsonSchema } from 'zod-to-json-schema'
+import type {
+  UsersListParams,
+  UsersListQuery,
+  UsersListByRoleParams,
+  UsersByEntityParams,
+  UserStatusParams,
+  UserUpdateBody
+} from '../validations';
 
 const errorResponse = {
   type: 'object',
@@ -131,29 +106,14 @@ export default async function userRoutes(app: FastifyInstance) {
   app.get(
     '/list/:entityId',
     {
-      preHandler: [authMiddleware, app.accessControl.check('LIST_USER')],
+      preHandler: [
+        authMiddleware,
+        app.accessControl.check('LIST_USER'),
+        validateRequest(usersListParamsSchema, 'params'),
+        validateRequest(usersListQuerySchema, 'query')
+      ],
       schema: {
         tags: ['Users'],
-        params: {
-          type: 'object',
-          properties: {
-            entityId: { type: 'string' }
-          },
-          required: ['entityId']
-        },
-        querystring: {
-          type: 'object',
-          properties: {
-            page: { type: 'string', default: '1' },
-            limit: { type: 'string', default: '10' },
-            search: { type: 'string' },
-            role: { type: 'string' },
-            type: { type: 'string' },
-            isActive: { type: 'string' },
-            sortField: { type: 'string' },
-            sortOrder: { type: 'string', enum: ['asc', 'desc'] }
-          }
-        },
         response: {
           200: {
             type: 'object',
@@ -171,7 +131,7 @@ export default async function userRoutes(app: FastifyInstance) {
                   search: { type: 'string' },
                   role: { type: 'string' },
                   type: { type: 'string' },
-                  isActive: { type: ['string', 'boolean'] }
+                  isActive: { oneOf: [{ type: 'string' }, { type: 'boolean' }] }
                 }
               }
             }
@@ -181,8 +141,8 @@ export default async function userRoutes(app: FastifyInstance) {
     },
 
     async (req: any) => {
-      const { entityId } = parseWithZod(usersListParamsSchema, req.params);
-      const query = parseWithZod(usersListQuerySchema, req.query);
+      const { entityId } = req.validated?.params as UsersListParams;
+      const query = req.validated?.query as UsersListQuery;
 
       const result = await userService.getUsers(
         entityId,
@@ -273,17 +233,13 @@ export default async function userRoutes(app: FastifyInstance) {
   app.get(
     '/list/:entityId/:role',
     {
-      preHandler: [authMiddleware, app.accessControl.check('LIST_USER')],
+      preHandler: [
+        authMiddleware,
+        app.accessControl.check('LIST_USER'),
+        validateRequest(usersListByRoleParamsSchema, 'params')
+      ],
       schema: {
         tags: ['Users'],
-        params: {
-          type: 'object',
-          required: ['entityId', 'role'],
-          properties: {
-            entityId: { type: 'string' },
-            role: { type: 'string' }
-          }
-        },
         response: {
           200: {
             type: 'object',
@@ -344,7 +300,7 @@ export default async function userRoutes(app: FastifyInstance) {
     },
 
     async (req: any) => {
-      const { entityId, role } = parseWithZod(usersListByRoleParamsSchema, req.params);
+      const { entityId, role } = req.validated?.params as UsersListByRoleParams;
       return userService.getRoleWise(entityId, role, req.user);
     }
   );
@@ -352,18 +308,15 @@ export default async function userRoutes(app: FastifyInstance) {
     '/entity/:entityId',
     {
       schema: {
-        tags: ['Users'],
-        params: {
-          type: 'object',
-          required: ['entityId'],
-          properties: {
-            entityId: { type: 'string' }
-          }
-        }
-      }
+        tags: ['Users']
+      },
+      preHandler: [
+        authMiddleware,
+        validateRequest(usersByEntityParamsSchema, 'params')
+      ]
     },
     async (req: FastifyRequest) => {
-      const { entityId } = parseWithZod(usersByEntityParamsSchema, req.params);
+      const { entityId } = req.validated?.params as UsersByEntityParams;
       return userService.getBelongsUser(entityId);
     }
   );
@@ -372,16 +325,13 @@ export default async function userRoutes(app: FastifyInstance) {
   app.patch(
     '/:uuid/status',
     {
-      preHandler: [authMiddleware, app.accessControl.check('UPDATE_USER_STATUS')],
+      preHandler: [
+        authMiddleware,
+        app.accessControl.check('UPDATE_USER_STATUS'),
+        validateRequest(userStatusParamsSchema, 'params')
+      ],
       schema: {
         tags: ['Users'],
-        params: {
-          type: 'object',
-          required: ['uuid'],
-          properties: {
-            uuid: { type: 'string' }
-          }
-        },
         response: {
           200: {
             type: 'object',
@@ -397,7 +347,7 @@ export default async function userRoutes(app: FastifyInstance) {
       }
     },
     async (req: FastifyRequest, reply: FastifyReply) => {
-      const { uuid } = parseWithZod(userStatusParamsSchema, req.params);
+      const { uuid } = req.validated?.params as UserStatusParams;
       const updated = await userService.activeInactive(uuid);
       return reply.send({
         success: true,
@@ -418,22 +368,7 @@ export default async function userRoutes(app: FastifyInstance) {
       schema: {
         tags: ['Users'],
         consumes: ['application/json', 'multipart/form-data'],
-        body: {
-          type: 'object',
-          additionalProperties: false,
-          properties: {
-            name: { type: 'string', minLength: 2, maxLength: 120 },
-            email: { type: 'string', format: 'email', nullable: true },
-            phone: { type: 'string', minLength: 10, maxLength: 20 },
-            child_gender: { type: 'string' },
-            location: { type: 'string' },
-            type: { type: 'string' },
-            expectedDate: { type: 'string', format: 'date' },
-            dob: { type: 'string', format: 'date' },
-            dom: { type: 'string', format: 'date' },
-            imageUrl: { type: 'string', contentEncoding: 'binary' }
-          }
-        },
+        body: zodToJsonSchema(userUpdateBodySchema as any, { target: 'openApi3' }),
         response: {
           200: {
             type: 'object',
@@ -465,13 +400,13 @@ export default async function userRoutes(app: FastifyInstance) {
       // CASE 1: Multipart/form-data request
       if (req.isMultipart()) {
         const mp = await app.parseMultipartMemory(req);
-        fields = mp.fields || {};
+        fields = validateData(userUpdateBodySchema, mp.fields || {});
         files = mp.files || {};
       }
 
       // CASE 2: JSON request
       else {
-        fields = parseWithZod(userUpdateBodySchema, req.body || {});
+        fields = validateData(userUpdateBodySchema, req.body || {});
       }
 
       // Build only allowed update fields

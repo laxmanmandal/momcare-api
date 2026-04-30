@@ -6,18 +6,7 @@ exports.resetAttempts = resetAttempts;
 // In-memory store for login attempts
 const loginAttempts = {};
 // Middleware to check if user is blocked
-function loginRateLimiter(req, reply) {
-    const ip = req.ip;
-    const email = req.body?.email;
-    if (!email) {
-        reply.status(400).send({
-            success: false,
-            statusCode: 400,
-            message: 'Email is required',
-            error: 'Bad Request'
-        });
-        return false;
-    }
+function loginRateLimiter(email, ip, reply) {
     const key = `${ip}:${email}`;
     const now = Date.now();
     const record = loginAttempts[key];

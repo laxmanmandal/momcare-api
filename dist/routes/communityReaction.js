@@ -36,6 +36,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = communityReaction;
 const communityReactions = __importStar(require("../services/communityReactions"));
 const auth_1 = require("../middleware/auth");
+const zod_to_json_schema_1 = require("zod-to-json-schema");
+const validations_1 = require("../validations");
 async function communityReaction(app) {
     app.addHook('preHandler', auth_1.authMiddleware);
     // ✅ Create / Update / Delete Reaction
@@ -43,28 +45,15 @@ async function communityReaction(app) {
         schema: {
             tags: ['Community post and Comments Likes'],
             description: 'Toggle a reaction for either a post or a comment. Provide postId or commentId.',
-            body: {
-                type: 'object',
-                additionalProperties: false,
-                properties: {
-                    postId: { type: 'integer', minimum: 1 },
-                    commentId: { type: 'integer', minimum: 1 },
-                }
-            },
+            body: (0, zod_to_json_schema_1.zodToJsonSchema)(validations_1.communityReactionBodySchema, 'communityReactionBody')
         }
     }, async (req, reply) => {
-        const { postId, commentId } = req.body;
-        // Manual validation: require either postId or commentId
-        if (!postId && !commentId) {
-            return reply.code(400).send({
-                success: false,
-                message: "PostId or commentId are required"
-            });
-        }
+        const { postId, commentId } = (0, validations_1.validateData)(validations_1.communityReactionBodySchema, req.body ?? {});
+        const userId = (0, validations_1.validateData)(validations_1.positiveIntSchema, req.user.id);
         const result = await communityReactions.handleReaction({
-            userId: Number(req.user.id),
-            postId: postId ? Number(postId) : null,
-            commentId: commentId ? Number(commentId) : null,
+            userId,
+            postId: postId ?? null,
+            commentId: commentId ?? null,
         });
         return reply.code(200).send({
             success: true,
@@ -75,21 +64,9 @@ async function communityReaction(app) {
     app.get('/', {
         schema: {
             tags: ['Community post and Comments Likes'],
-            querystring: {
-                type: 'object',
-                additionalProperties: false,
-                properties: {
-                    postId: { type: 'integer', minimum: 1 },
-                    commentId: { type: 'integer', minimum: 1 }
-                },
-                anyOf: [
-                    { required: ['postId'] },
-                    { required: ['commentId'] }
-                ]
-            }
         }
     }, async (req, reply) => {
-        const { postId, commentId } = req.query;
+        const { postId, commentId } = (0, validations_1.validateData)(validations_1.communityReactionQuerySchema, req.query ?? {});
         const result = await communityReactions.getReaction(postId, commentId);
         return reply.code(200).send({
             success: true,

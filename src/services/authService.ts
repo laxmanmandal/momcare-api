@@ -29,37 +29,15 @@ function generateCustomId(role: Role | string): string {
 
 // user registration 
 export async function signup(data: any) {
-
-  /* ─────────────── 1️⃣ Resolve & validate role ─────────────── */
-  const rawRole = data?.role;
-  if (!rawRole) throw new BadRequest('Role is required');
-
-  const canonicalRole = resolveRoleName(rawRole);
+  const canonicalRole = resolveRoleName(data.role);
   const roleForDb = canonicalRole as Role;
 
-  /* ─────────────── 2️⃣ Required fields ─────────────── */
-  if (!data?.name) {
-    throw new BadRequest('Name is required');
-  }
-
-  // 🔥 ONLY USER gets email exception
-  if (roleForDb !== 'USER') {
-    if (!data?.email) {
-      throw new BadRequest('Email is required');
-    }
-    if (!data?.password) {
-      throw new BadRequest('Password is required');
-    }
-  }
-
-  /* ─────────────── 3️⃣ Normalize numbers ─────────────── */
   const toNumber = (v: any): number | undefined =>
     v === null || v === undefined || isNaN(Number(v)) ? undefined : Number(v);
 
   const belongsToId = toNumber(data.belongsToId);
   const createdBy = toNumber(data.createdBy);
 
-  /* ─────────────── 4️⃣ Prepare auth fields ─────────────── */
   const email = typeof data.email === 'string' ? data.email.trim().toLowerCase() : undefined;
   const phone = typeof data.phone === 'string' ? data.phone.trim() : data.phone;
   const name = typeof data.name === 'string' ? data.name.trim() : data.name;
@@ -70,7 +48,6 @@ export async function signup(data: any) {
 
   const uuid = await generateCustomId(roleForDb);
 
-  /* ─────────────── 5️⃣ DB transaction ─────────────── */
   const user = await prisma.$transaction(async (tx) => {
 
     const createdUser = await tx.user.create({
@@ -90,7 +67,6 @@ export async function signup(data: any) {
     return createdUser;
   });
 
-  /* ─────────────── 6️⃣ Safe response ─────────────── */
   return {
     id: user.id,
     uuid: user.uuid,
@@ -279,5 +255,4 @@ export async function getUserFromPayload(uuid: string) {
   if (!user) throw new BadRequest('User not found');
   return user;
 }
-
 

@@ -36,49 +36,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = expertPost;
 const expertPostService = __importStar(require("../services/expertPostService"));
 const auth_1 = require("../middleware/auth");
-const expertPostIdParamsSchema = {
-    type: 'object',
-    additionalProperties: false,
-    required: ['id'],
-    properties: {
-        id: { type: 'integer', minimum: 1 }
-    }
-};
-const postIdParamsSchema = {
-    type: 'object',
-    additionalProperties: false,
-    required: ['postId'],
-    properties: {
-        postId: { type: 'integer', minimum: 1 }
-    }
-};
-const professionIdParamsSchema = {
-    type: 'object',
-    additionalProperties: false,
-    required: ['professionId'],
-    properties: {
-        professionId: { type: 'integer', minimum: 1 }
-    }
-};
-const expertPostBody = {
-    type: 'object',
-    additionalProperties: false,
-    properties: {
-        title: { type: 'string' },
-        content: { type: 'string' },
-        expert_id: { type: 'integer', minimum: 1 },
-        mediaType: { type: 'string' },
-        media: { type: 'string', contentEncoding: 'binary' }
-    }
-};
-const professionBody = {
-    type: 'object',
-    additionalProperties: false,
-    required: ['name'],
-    properties: {
-        name: { type: 'string', minLength: 1 }
-    }
-};
+const validations_1 = require("../validations");
+const zodFormData_1 = require("../utils/zodFormData");
 const successObjectResponse = {
     type: 'object',
     properties: {
@@ -102,17 +61,16 @@ async function expertPost(app) {
             tags: ['Expert Posts'],
             consumes: ['multipart/form-data'],
             summary: 'Create an expert post',
-            body: expertPostBody,
+            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.expertPostCreateMultipartSchema),
             response: { 200: successObjectResponse }
         }
     }, async (req, reply) => {
-        const { files, fields } = await app.parseMultipartMemory(req);
-        console.log(files, fields);
+        const { fields, files } = (0, validations_1.validateData)(validations_1.expertPostCreateMultipartSchema, await app.parseMultipartMemory(req));
         const post = {
             title: fields.title,
             content: fields.content,
-            expert_id: Number(fields.expert_id),
-            mediaType: fields.mediaType,
+            expert_id: fields.expert_id,
+            mediaType: fields.mediaType
         };
         const postData = await expertPostService.createExpertPost(post);
         if (files.media?.length) {
@@ -131,17 +89,14 @@ async function expertPost(app) {
             tags: ['Expert Posts'],
             consumes: ['application/json', 'multipart/form-data'],
             summary: 'Update an expert post',
-            params: expertPostIdParamsSchema,
-            body: expertPostBody,
+            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.expertPostUpdateMultipartSchema),
             response: { 200: successObjectResponse }
         }
     }, async (req, reply) => {
-        const { id } = req.params;
-        // Parse form data (multipart or json)
+        const { id } = (0, validations_1.validateData)(validations_1.expertPostIdParamsSchema, req.params);
         const { files, fields } = await app.parseMultipartMemory(req);
         if (!req.isMultipart() && req.body)
             Object.assign(fields, req.body);
-        // Prepare update payload
         const payload = {
             title: fields.title,
             content: fields.content,
@@ -149,11 +104,9 @@ async function expertPost(app) {
             mediaType: fields.mediaType,
             media: undefined
         };
-        // Handle thumbnail upload (if provided)
         if (files.media?.length) {
             payload.media = await app.saveFileBuffer(files.media[0], `_expert_posts`);
         }
-        // Update database record
         const expertPostData = await expertPostService.updateExpertPost(Number(id), payload);
         reply.code(200).send({
             success: true,
@@ -165,13 +118,11 @@ async function expertPost(app) {
         schema: {
             tags: ['Expert Posts'],
             summary: 'Increment expert post share count',
-            params: postIdParamsSchema,
             response: { 200: successObjectResponse }
         }
     }, async (req, reply) => {
-        const { postId } = req.params;
-        // Update database record
-        const communityData = await expertPostService.incrementShareCount(Number(postId));
+        const { postId } = (0, validations_1.validateData)(validations_1.expertPostShareParamsSchema, req.params);
+        const communityData = await expertPostService.incrementShareCount(postId);
         reply.code(200).send({
             success: true,
             message: 'Expert Post updated successfully',
@@ -182,13 +133,11 @@ async function expertPost(app) {
         schema: {
             tags: ['Expert Posts'],
             summary: 'Increment expert post view count',
-            params: postIdParamsSchema,
             response: { 200: successObjectResponse }
         }
     }, async (req, reply) => {
-        const { postId } = req.params;
-        // Update database record
-        const communityData = await expertPostService.incrementViewCount(Number(postId));
+        const { postId } = (0, validations_1.validateData)(validations_1.expertPostShareParamsSchema, req.params);
+        const communityData = await expertPostService.incrementViewCount(postId);
         reply.code(200).send({
             success: true,
             message: 'Expert Post updated successfully',
@@ -201,23 +150,22 @@ async function expertPost(app) {
             summary: 'List expert posts',
             response: { 200: successArrayResponse }
         }
-    }, async (req, reply) => {
+    }, async () => {
         const communities = await expertPostService.getExpertPost();
-        reply.code(200).send({
+        return {
             success: true,
             message: 'Expert Posts fetched successfully',
             data: communities,
-        });
+        };
     });
     app.get('/profession/:professionId', {
         schema: {
             tags: ['Expert Posts'],
             summary: 'List expert posts by profession ID',
-            params: professionIdParamsSchema,
             response: { 200: successArrayResponse }
         }
     }, async (req, reply) => {
-        const { professionId } = req.params;
+        const { professionId } = (0, validations_1.validateData)(validations_1.expertProfessionParamsSchema, req.params);
         const posts = await expertPostService.getExpertPostByProfessionId(professionId);
         reply.code(200).send({
             success: true,
@@ -229,11 +177,10 @@ async function expertPost(app) {
         schema: {
             tags: ['Expert Posts'],
             summary: 'Get expert post by ID',
-            params: expertPostIdParamsSchema,
             response: { 200: successObjectResponse }
         }
     }, async (req, reply) => {
-        const { id } = req.params;
+        const { id } = (0, validations_1.validateData)(validations_1.expertPostIdParamsSchema, req.params);
         const community = await expertPostService.getExpertPostById(id);
         reply.code(200).send({
             success: true,
@@ -245,11 +192,10 @@ async function expertPost(app) {
         schema: {
             tags: ['Expert Posts'],
             summary: 'Toggle expert post status',
-            params: expertPostIdParamsSchema,
             response: { 200: successObjectResponse }
         }
     }, async (req, reply) => {
-        const { id } = req.params;
+        const { id } = (0, validations_1.validateData)(validations_1.expertPostIdParamsSchema, req.params);
         const community = await expertPostService.expertPostStatus(id);
         return reply.send({ success: true, message: 'Expert Post status updated successfully', data: community });
     });
@@ -259,17 +205,14 @@ async function expertPost(app) {
             tags: ['Expert Posts'],
             consumes: ['application/json', 'multipart/form-data'],
             summary: 'Create a profession',
-            body: professionBody,
             response: { 200: successObjectResponse }
         }
     }, async (req, reply) => {
         const { fields } = req.isMultipart()
             ? await app.parseMultipartMemory(req)
             : { fields: req.body ?? {} };
-        const prData = {
-            name: fields.name,
-        };
-        const PData = await expertPostService.createProfessions(prData);
+        const { name } = (0, validations_1.validateData)(validations_1.professionCreateSchema, fields);
+        const PData = await expertPostService.createProfessions({ name });
         reply.code(200).send({
             success: true,
             message: 'Profession created successfully',
@@ -282,13 +225,13 @@ async function expertPost(app) {
             summary: 'List professions',
             response: { 200: successArrayResponse }
         }
-    }, async (req, reply) => {
+    }, async () => {
         const professons = await expertPostService.getProfessions();
-        reply.code(200).send({
+        return {
             success: true,
             message: 'Expert Posts fetched successfully',
             data: professons,
-        });
+        };
     });
 }
 //# sourceMappingURL=expertPost.js.map

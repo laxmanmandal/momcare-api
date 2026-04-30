@@ -1,31 +1,14 @@
 import { FastifyInstance } from 'fastify'
 import * as resourceService from '../services/resourceService'
 import { authMiddleware, onlyOrg } from '../middleware/auth';
-
-const conceiveBody = {
-  type: 'object',
-  additionalProperties: false,
-  properties: {
-    week: { type: 'integer', minimum: 1 },
-    title: { type: 'string' },
-    subtitle: { type: 'string' },
-    type: { type: 'string' },
-    description: { type: 'string' },
-    height: { type: 'string' },
-    weight: { type: 'string' },
-    thumbnail: { type: 'string', contentEncoding: 'binary' },
-    image: { type: 'string', contentEncoding: 'binary' }
-  }
-} as const
-
-const conceiveIdParamsSchema = {
-  type: 'object',
-  additionalProperties: false,
-  required: ['id'],
-  properties: {
-    id: { type: 'integer', minimum: 1 }
-  }
-} as const
+import {
+  conceiveCreateMultipartSchema,
+  conceiveIdParamsSchema,
+  conceiveTypeParamsSchema,
+  conceiveUpdateMultipartSchema,
+  validateData
+} from '../validations';
+import { zodToFormDataParams } from '../utils/zodFormData'
 
 const successObjectResponse = {
     type: 'object',
@@ -45,25 +28,27 @@ export default async function resourceRoutes(app: FastifyInstance) {
       schema: {
         tags: ['Resources'],
         consumes: ['multipart/form-data'],
+        parameters: zodToFormDataParams(conceiveCreateMultipartSchema as any),
+        body: {
+          properties: {
+            week: { type: 'number' },
+            title: { type: 'string' },
+            description: { type: 'string' },
+            thumbnail: { type: 'string', format: 'binary' },
+            image: { type: 'string', format: 'binary' }
+          }
+        },
         summary: 'Create a conceive resource',
-        body: conceiveBody,
         response: { 200: successObjectResponse }
       }
     },
     async (req, reply) => {
 
-      const { files, fields } = await app.parseMultipartMemory(req);
-      // console.log(files);
-      // return
-      const conceiveData = {
-        week: parseInt(fields.week),
-        title: fields.title,
-        subtitle: fields.subtitle,
-        type: fields.type,
-        description: fields.description,
-        height: fields.height,
-        weight: fields.weight
-      };
+      const { fields, files } = validateData(
+        conceiveCreateMultipartSchema,
+        await app.parseMultipartMemory(req)
+      );
+      const conceiveData = fields;
 
       const conceive = await resourceService.createConceive(conceiveData);
 
@@ -91,32 +76,35 @@ export default async function resourceRoutes(app: FastifyInstance) {
       schema: {
         tags: ['Resources'],
         consumes: ['application/json', 'multipart/form-data'],
+        parameters: zodToFormDataParams(conceiveUpdateMultipartSchema as any),
+        params: {
+          type: 'object',
+          properties: { id: { type: 'integer' } },
+          required: ['id']
+        },
+        body: {
+          properties: {
+            week: { type: 'number' },
+            title: { type: 'string' },
+            description: { type: 'string' },
+            thumbnail: { type: 'string', format: 'binary' },
+            image: { type: 'string', format: 'binary' }
+          }
+        },
         summary: 'Update a conceive resource',
-        params: conceiveIdParamsSchema,
-        body: conceiveBody,
         response: { 200: successObjectResponse }
       },
       preHandler: [authMiddleware, onlyOrg]
     },
     async (req, reply) => {
 
-      const { id } = req.params as { id: string };
-      console.log('concive-update', id);
+      const { id } = validateData(conceiveIdParamsSchema, req.params);
+      const { fields, files } = validateData(
+        conceiveUpdateMultipartSchema,
+        await app.parseMultipartMemory(req)
+      );
 
-      // Parse form data (multipart or json)
-      const { files, fields } = await app.parseMultipartMemory(req);
-      if (!req.isMultipart() && req.body) Object.assign(fields, req.body);
-
-      // Prepare update payload
-      const updateData: any = {
-        week: fields.week ? parseInt(fields.week) : undefined,
-        title: fields.title || undefined,
-        subtitle: fields.subtitle || undefined,
-        type: fields.type || undefined,
-        description: fields.description || undefined,
-        height: fields.height || undefined,
-        weight: fields.weight || undefined,
-      };
+      const updateData: any = fields;
 
       // Handle thumbnail upload (if provided)
       if (files.thumbnail?.length) {
@@ -149,7 +137,11 @@ export default async function resourceRoutes(app: FastifyInstance) {
     preHandler: [authMiddleware],
     schema: {
       tags: ['Resources'],
-
+      params: {
+        type: 'object',
+        properties: { type: { type: 'string' } },
+        required: ['type']
+      },
       response: {
         200: {
           type: 'object',
@@ -189,9 +181,7 @@ export default async function resourceRoutes(app: FastifyInstance) {
     },
   }, async (req, reply) => {
     try {
-      const { type } = req.params as { type: string };
-
-
+      const { type } = validateData(conceiveTypeParamsSchema, req.params);
       const conceive = await resourceService.getConceive(type);
       reply.code(200).send({
         success: true,
@@ -211,7 +201,11 @@ export default async function resourceRoutes(app: FastifyInstance) {
     preHandler: [authMiddleware],
     schema: {
       tags: ['Resources'],
-
+      params: {
+        type: 'object',
+        properties: { id: { type: 'integer' } },
+        required: ['id']
+      },
       response: {
         200: {
           type: 'object',
@@ -249,17 +243,8 @@ export default async function resourceRoutes(app: FastifyInstance) {
     },
   }, async (req, reply) => {
     try {
-      const { id } = req.params as { id: string };
-      const numericId = Number(id);
-
-      if (isNaN(numericId)) {
-        return reply.code(500).send({
-          success: false,
-          message: 'Invalid ID',
-        });
-      }
-
-      const conceive = await resourceService.getConceiveById(numericId);
+      const { id } = validateData(conceiveIdParamsSchema, req.params);
+      const conceive = await resourceService.getConceiveById(id);
 
       reply.code(200).send({
         success: true,

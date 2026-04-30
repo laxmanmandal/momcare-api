@@ -1,24 +1,15 @@
 import { FastifyInstance } from 'fastify';
 import * as subscriptionService from '../services/subscriptionService';
 import { authMiddleware, onlyOrg } from '../middleware/auth';
-
-const uuidParamsSchema = {
-  type: 'object',
-  additionalProperties: false,
-  required: ['uuid'],
-  properties: {
-    uuid: { type: 'string', minLength: 2, maxLength: 64 }
-  }
-} as const
-
-const idsParamsSchema = {
-  type: 'object',
-  additionalProperties: false,
-  required: ['ids'],
-  properties: {
-    ids: { type: 'string', minLength: 1 }
-  }
-} as const
+import {
+  subscriptionIdsParamsSchema,
+  subscriptionPlanCreateSchema,
+  subscriptionPlanUpdateSchema,
+  subscriptionUuidParamsSchema,
+  validateData
+} from '../validations';
+import { zodToJsonSchema } from 'zod-to-json-schema'
+import { zodToFormDataParams } from '../utils/zodFormData'
 
 const successObjectResponse = {
   type: 'object',
@@ -74,12 +65,11 @@ export default async function subscriptionRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Subscription Plans'],
       summary: 'Get subscription plan by UUID',
-      params: uuidParamsSchema,
       response: { 200: successObjectResponse, 404: successObjectResponse }
     }
   }, async (req, reply) => {
     try {
-      const { uuid } = req.params as { uuid: string };
+      const { uuid } = validateData(subscriptionUuidParamsSchema, req.params);
       const plan = await subscriptionService.getPlan(uuid);
       return reply.code(200).send({
         success: true,
@@ -98,12 +88,11 @@ export default async function subscriptionRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Subscription Plans'],
       summary: 'Get many plans by IDs',
-      params: idsParamsSchema,
       response: { 200: successArrayResponse, 500: successObjectResponse }
     }
   }, async (req, reply) => {
     try {
-      const { ids } = req.params as { ids: string };
+      const { ids } = validateData(subscriptionIdsParamsSchema, req.params);
       const idArray = ids.split(',').map(Number);
       const courses = await subscriptionService.getPlansByManyIds(idArray);
       return reply.code(200).send({
@@ -122,46 +111,27 @@ export default async function subscriptionRoutes(app: FastifyInstance) {
   });
 
   app.post('/plans', {
-    schema: {
-      tags: ['Subscription Plans'],
-      summary: 'Create a subscription plan',
-      description: 'Creates a new subscription plan. Supports multipart for thumbnail upload.',
-      consumes: ['multipart/form-data'],
-      body: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          name: { type: 'string', minLength: 1 },
-          price: { type: 'number', minimum: 0 },
-          courseIds: {
-            oneOf: [
-              { type: 'string' },
-              { type: 'array', items: { type: 'integer', minimum: 1 } }
-            ]
-          },
-          thumbnail: { type: 'string', contentEncoding: 'binary' }
-        }
+      schema: {
+        tags: ['Subscription Plans'],
+        summary: 'Create a subscription plan',
+        description: 'Creates a new subscription plan. Supports multipart for thumbnail upload.',
+        consumes: ['multipart/form-data'],
+        parameters: zodToFormDataParams(subscriptionPlanCreateSchema as any),
+        response: { 201: successObjectResponse, 400: successObjectResponse }
       },
-      response: { 201: successObjectResponse, 400: successObjectResponse }
-    },
     preHandler: [onlyOrg]
   }, async (req, reply) => {
-    const { files, fields } = await app.parseMultipartMemory(req);
+    const { fields, files } = validateData(
+      subscriptionPlanCreateSchema,
+      await app.parseMultipartMemory(req)
+    );
     try {
       let uuid = await app.uid('plan', 'subscriptionPlan');
-      let courseIds = fields.courseIds;
-      if (typeof courseIds === 'string') {
-        if (courseIds.trim().startsWith('[')) {
-          courseIds = JSON.parse(courseIds).map(Number);
-        } else {
-          courseIds = courseIds.split(',').map(Number);
-        }
-      }
       const planData = {
         name: fields.name,
         price: fields.price,
         uuid: uuid,
-        courseIds: courseIds,
+        courseIds: fields.courseIds
       };
       const result = await subscriptionService.createPlan(planData);
       if (files.thumbnail?.length && result) {
@@ -188,28 +158,14 @@ export default async function subscriptionRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Subscription Plans'],
       summary: 'Update a subscription plan',
-      params: uuidParamsSchema,
-      body: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          name: { type: 'string', minLength: 1 },
-          price: { type: 'number', minimum: 0 },
-          courseIds: {
-            oneOf: [
-              { type: 'string' },
-              { type: 'array', items: { type: 'integer', minimum: 1 } }
-            ]
-          }
-        }
-      },
-      response: { 200: successObjectResponse, 400: successObjectResponse }
+      response: { 200: successObjectResponse, 400: successObjectResponse },
+      body: zodToJsonSchema(subscriptionPlanUpdateSchema as any, 'subscriptionPlanUpdateBody')
     },
     preHandler: [onlyOrg]
   }, async (req, reply) => {
     try {
-      const { uuid } = req.params as { uuid: string };
-      const updated = await subscriptionService.updatePlan(uuid, req.body as any);
+      const { uuid } = validateData(subscriptionUuidParamsSchema, req.params);
+      const updated = await subscriptionService.updatePlan(uuid, validateData(subscriptionPlanUpdateSchema, req.body ?? {}));
       return reply.code(200).send({
         success: true,
         message: 'Subscription plan updated successfully',
@@ -228,13 +184,12 @@ export default async function subscriptionRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Subscription Plans'],
       summary: 'Toggle plan active status',
-      params: uuidParamsSchema,
       response: { 200: successObjectResponse, 400: successObjectResponse }
     },
     preHandler: [onlyOrg]
   }, async (req, reply) => {
     try {
-      const { uuid } = req.params as { uuid: string };
+      const { uuid } = validateData(subscriptionUuidParamsSchema, req.params);
       const status = await subscriptionService.SubscriptionStatus(uuid);
       const msg = status.isActive
         ? 'Subscription plan activated successfully'
@@ -253,13 +208,12 @@ export default async function subscriptionRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Subscription Plans'],
       summary: 'Toggle plan visibility',
-      params: uuidParamsSchema,
       response: { 200: successObjectResponse, 400: successObjectResponse }
     },
     preHandler: [onlyOrg]
   }, async (req, reply) => {
     try {
-      const { uuid } = req.params as { uuid: string };
+      const { uuid } = validateData(subscriptionUuidParamsSchema, req.params);
       const status = await subscriptionService.SubscriptionVisible(uuid);
       const msg = status.isActive
         ? 'Subscription plan Visible successfully'

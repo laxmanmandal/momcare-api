@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = LoginLogsRoutes;
 const loginActivity = __importStar(require("../services/loginActivity"));
 const auth_1 = require("../middleware/auth");
+const validations_1 = require("../validations");
 async function LoginLogsRoutes(app) {
     const loginHistoryResponseSchema = {
         200: {
@@ -95,17 +96,10 @@ async function LoginLogsRoutes(app) {
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg],
         schema: {
             tags: ['auth'],
-            querystring: paginationQuerySchema,
             response: loginHistoryResponseSchema
         }
     }, async (req, reply) => {
-        // Now these are already numbers!
-        const { search, page, limit } = req.query;
-        console.log('Query params:', {
-            search,
-            page, // Already a number
-            limit // Already a number
-        });
+        const { search, page, limit } = (0, validations_1.validateData)(validations_1.loginLogQuerySchema, req.query ?? {});
         const result = await loginActivity.getAllLoginHistory({
             search,
             page,
@@ -120,23 +114,15 @@ async function LoginLogsRoutes(app) {
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg],
         schema: {
             tags: ['auth'],
-            params: {
-                type: "object",
-                required: ["userId"],
-                properties: {
-                    userId: { type: "number" }
-                }
-            },
-            querystring: paginationQuerySchema,
             response: loginHistoryResponseSchema
         }
     }, async (req, reply) => {
-        const { userId } = req.params;
-        const { search, page = 1, limit = 10 } = req.query;
+        const { userId } = (0, validations_1.validateData)(validations_1.loginLogParamsSchema, req.params);
+        const { search, page, limit } = (0, validations_1.validateData)(validations_1.loginLogQuerySchema, req.query ?? {});
         const result = await loginActivity.getUserLogin(userId, {
             search,
-            page: Number(page),
-            limit: Number(limit)
+            page,
+            limit
         });
         return reply.code(200).send({
             success: true,

@@ -67,30 +67,11 @@ function generateCustomId(role) {
 }
 // user registration 
 async function signup(data) {
-    /* ─────────────── 1️⃣ Resolve & validate role ─────────────── */
-    const rawRole = data?.role;
-    if (!rawRole)
-        throw new http_errors_1.BadRequest('Role is required');
-    const canonicalRole = (0, roles_1.resolveRoleName)(rawRole);
+    const canonicalRole = (0, roles_1.resolveRoleName)(data.role);
     const roleForDb = canonicalRole;
-    /* ─────────────── 2️⃣ Required fields ─────────────── */
-    if (!data?.name) {
-        throw new http_errors_1.BadRequest('Name is required');
-    }
-    // 🔥 ONLY USER gets email exception
-    if (roleForDb !== 'USER') {
-        if (!data?.email) {
-            throw new http_errors_1.BadRequest('Email is required');
-        }
-        if (!data?.password) {
-            throw new http_errors_1.BadRequest('Password is required');
-        }
-    }
-    /* ─────────────── 3️⃣ Normalize numbers ─────────────── */
     const toNumber = (v) => v === null || v === undefined || isNaN(Number(v)) ? undefined : Number(v);
     const belongsToId = toNumber(data.belongsToId);
     const createdBy = toNumber(data.createdBy);
-    /* ─────────────── 4️⃣ Prepare auth fields ─────────────── */
     const email = typeof data.email === 'string' ? data.email.trim().toLowerCase() : undefined;
     const phone = typeof data.phone === 'string' ? data.phone.trim() : data.phone;
     const name = typeof data.name === 'string' ? data.name.trim() : data.name;
@@ -98,7 +79,6 @@ async function signup(data) {
     const type = typeof data.type === 'string' ? data.type.trim() : data.type;
     const hashedPassword = data.password ? await bcryptjs_1.default.hash(String(data.password), 10) : undefined;
     const uuid = await generateCustomId(roleForDb);
-    /* ─────────────── 5️⃣ DB transaction ─────────────── */
     const user = await client_1.default.$transaction(async (tx) => {
         const createdUser = await tx.user.create({
             data: {
@@ -116,7 +96,6 @@ async function signup(data) {
         });
         return createdUser;
     });
-    /* ─────────────── 6️⃣ Safe response ─────────────── */
     return {
         id: user.id,
         uuid: user.uuid,

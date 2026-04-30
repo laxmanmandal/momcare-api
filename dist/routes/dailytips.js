@@ -36,14 +36,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = dailytipsRoute;
 const dailytipService = __importStar(require("../services/dailytipService"));
 const auth_1 = require("../middleware/auth");
-const idParamsSchema = {
-    type: 'object',
-    additionalProperties: false,
-    required: ['id'],
-    properties: {
-        id: { type: 'integer', minimum: 1 }
-    }
-};
+const validations_1 = require("../validations");
+const zodFormData_1 = require("../utils/zodFormData");
 const successObjectResponse = {
     type: 'object',
     properties: {
@@ -60,30 +54,18 @@ const successArrayResponse = {
         data: { type: 'array', items: { type: 'object', additionalProperties: true } }
     }
 };
-const dailyTipsBody = {
-    type: 'object',
-    additionalProperties: false,
-    properties: {
-        title: { type: 'string' },
-        heading: { type: 'string' },
-        subheading: { type: 'string' },
-        content: { type: 'string' },
-        category: { type: 'string' },
-        icon: { type: 'string', contentEncoding: 'binary' }
-    }
-};
 async function dailytipsRoute(app) {
     app.post('/', {
         schema: {
             tags: ['Dailytips'],
             summary: 'Create a daily tip',
             consumes: ['multipart/form-data'],
-            body: dailyTipsBody,
+            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.dailyTipCreateMultipartSchema),
             response: { 200: successObjectResponse }
         },
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
     }, async (req, reply) => {
-        const { files, fields } = await app.parseMultipartMemory(req);
+        const { fields, files } = (0, validations_1.validateData)(validations_1.dailyTipCreateMultipartSchema, await app.parseMultipartMemory(req));
         const dailytipsData = {
             title: fields.title,
             heading: fields.heading,
@@ -109,26 +91,18 @@ async function dailytipsRoute(app) {
             tags: ['Dailytips'],
             summary: 'Update a daily tip',
             consumes: ['application/json', 'multipart/form-data'],
-            params: idParamsSchema,
-            body: dailyTipsBody,
             response: { 200: successObjectResponse }
-        }, preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
+        },
+        preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
     }, async (req, reply) => {
-        const { id } = req.params;
-        let fields = {};
-        let files = {};
-        if (req.isMultipart()) {
-            ({ files, fields } = await app.parseMultipartMemory(req));
-        }
-        else {
-            fields = req.body || {};
-        }
+        const { id } = (0, validations_1.validateData)(validations_1.dailyTipIdParamsSchema, req.params);
+        const { fields, files } = (0, validations_1.validateData)(validations_1.dailyTipUpdateMultipartSchema, await app.parseMultipartMemory(req));
         const updateData = {
             title: fields.title,
             heading: fields.heading,
             subheading: fields.subheading,
             content: fields.content,
-            category: fields.category,
+            category: fields.category
         };
         if (files.icon?.length) {
             updateData.icon = await app.saveFileBuffer(files.icon[0], `daily-tips`);
@@ -147,41 +121,39 @@ async function dailytipsRoute(app) {
             response: { 200: successArrayResponse }
         },
         preHandler: [auth_1.authMiddleware]
-    }, async (req, reply) => {
+    }, async () => {
         const dailytips = await dailytipService.getdailyTips();
-        reply.code(200).send({
+        return {
             success: true,
             message: 'dailytips fetched successfully',
             data: dailytips,
-        });
+        };
     });
     app.get('/:id', {
         schema: {
             tags: ['Dailytips'],
             summary: 'Get daily tip by ID',
-            params: idParamsSchema,
             response: { 200: successObjectResponse }
         },
         preHandler: [auth_1.authMiddleware]
-    }, async (req, reply) => {
-        const { id } = req.params;
+    }, async (req) => {
+        const { id } = (0, validations_1.validateData)(validations_1.dailyTipIdParamsSchema, req.params);
         const dailytips = await dailytipService.getdailyTipsById(id);
-        reply.code(200).send({
+        return {
             success: true,
             message: 'dailytips fetched successfully',
             data: dailytips,
-        });
+        };
     });
     app.patch('/:id/status', {
         schema: {
             tags: ['Dailytips'],
             summary: 'Toggle daily tip status',
-            params: idParamsSchema,
             response: { 200: successObjectResponse }
         },
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
     }, async (req, reply) => {
-        const { id } = req.params;
+        const { id } = (0, validations_1.validateData)(validations_1.dailyTipIdParamsSchema, req.params);
         const dailytips = await dailytipService.dailyTipsStatus(id);
         return reply.send({ success: true, message: 'Dailytips status updated successfully', data: dailytips });
     });

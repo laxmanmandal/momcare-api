@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.errorHandler = errorHandler;
 const client_1 = require("@prisma/client");
+const error_1 = require("../validations/error");
 function normalizeTarget(target) {
     if (!target)
         return 'record';
@@ -26,9 +27,18 @@ function errorHandler(error, request, reply) {
             message,
             error: options?.error,
             code: options?.code,
-            details: options?.details
+            details: options?.details,
+            errors: options?.errors
         });
     };
+    if (error instanceof error_1.ValidationError) {
+        reply.status(422).send({
+            success: false,
+            message: 'Validation Error',
+            errors: error.errors
+        });
+        return;
+    }
     /* ───────── Prisma Errors ───────── */
     if (error instanceof client_1.Prisma.PrismaClientKnownRequestError) {
         switch (error.code) {
@@ -95,15 +105,9 @@ function errorHandler(error, request, reply) {
         const e = error;
         send(e.statusCode, e.message, {
             error: e.code || e.name,
-            code: e.code
-        });
-        return;
-    }
-    /* ───────── AJV Validation ───────── */
-    if (error && error.validation) {
-        send(422, 'Request validation failed', {
-            error: 'VALIDATION_ERROR',
-            details: error.validation
+            code: e.code,
+            details: e.details,
+            errors: e.errors
         });
         return;
     }

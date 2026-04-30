@@ -4,38 +4,19 @@ const client_1 = require("@prisma/client");
 const excelparsarconfig_1 = require("../config/excelparsarconfig");
 const excelParsar_1 = require("../utils/excelParsar");
 const auth_1 = require("../middleware/auth");
+const validations_1 = require("../validations");
 const prisma = new client_1.PrismaClient();
-const uploadBodySchema = {
-    type: 'object',
-    additionalProperties: false,
-    properties: {
-        file: { type: 'string', contentEncoding: 'binary' }
-    }
-};
-const tableQuerySchema = {
-    type: 'object',
-    additionalProperties: false,
-    properties: {
-        table: { type: 'string' }
-    },
-    required: ['table']
-};
 const universalUploadRoutes = async (fastify) => {
-    // -----------------------------------------------------
-    // UPLOAD EXCEL FILE
-    // -----------------------------------------------------
     fastify.post('/upload', {
         preHandler: [auth_1.authMiddleware, fastify.accessControl.check('UPLOAD_EXCEL')],
         schema: {
             tags: ['Upload from excel'],
             consumes: ['multipart/form-data'],
-            summary: 'Upload an Excel file for a target table',
-            querystring: tableQuerySchema,
-            body: uploadBodySchema
+            summary: 'Upload an Excel file for a target table'
         }
     }, async (request, reply) => {
         try {
-            const { table } = request.query;
+            const { table } = (0, validations_1.validateData)(validations_1.uploadTableQuerySchema, request.query ?? {});
             const file = await request.file();
             if (!file) {
                 return reply.status(400).send({
@@ -46,7 +27,6 @@ const universalUploadRoutes = async (fastify) => {
                     stats: { totalRows: 0, validRows: 0, errorRows: 0 }
                 });
             }
-            // load parser config
             const config = (0, excelparsarconfig_1.getParserConfig)(table);
             const buffer = await file.toBuffer();
             const { records, errors, stats } = await excelParsar_1.UniversalExcelParser.parseExcel(buffer, config);
@@ -60,7 +40,7 @@ const universalUploadRoutes = async (fastify) => {
                     model = prisma.user;
                     break;
                 case 'entitytable':
-                    model = prisma.entityTable; // <-- THIS is the correct Prisma model
+                    model = prisma.entityTable;
                     break;
                 default:
                     return reply.status(400).send({
@@ -96,9 +76,6 @@ const universalUploadRoutes = async (fastify) => {
             });
         }
     });
-    // -----------------------------------------------------
-    // GET ALL UPLOAD CONFIGS
-    // -----------------------------------------------------
     fastify.get('/upload-configs', {
         schema: {
             tags: ['Upload from excel'],
@@ -117,17 +94,13 @@ const universalUploadRoutes = async (fastify) => {
             data: configs
         };
     });
-    // -----------------------------------------------------
-    // GET SINGLE UPLOAD CONFIG
-    // -----------------------------------------------------
     fastify.get('/upload-config', {
         schema: {
             tags: ['Upload from excel'],
-            summary: 'Get a single upload parser config',
-            querystring: tableQuerySchema
+            summary: 'Get a single upload parser config'
         }
     }, async (request, reply) => {
-        const { table } = request.query;
+        const { table } = (0, validations_1.validateData)(validations_1.uploadTableQuerySchema, request.query ?? {});
         try {
             const config = (0, excelparsarconfig_1.getParserConfig)(table);
             const sampleData = excelParsar_1.UniversalExcelParser.generateTemplate(config);

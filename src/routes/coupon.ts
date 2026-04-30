@@ -1,40 +1,17 @@
-import { FastifyInstance } from 'fastify'
-import * as couponService from '../services/couponService'
-import { authMiddleware, onlyOrg } from '../middleware/auth';
 import { Role } from '@prisma/client';
-import createHttpError from 'http-errors';
+import { FastifyInstance } from 'fastify';
+import * as couponService from '../services/couponService';
+import { authMiddleware, onlyOrg } from '../middleware/auth';
 import {
-    assertAllowedFileFields,
-    assertAllowedKeys,
-    pickDefined,
-    readDateValue,
-    readNullableNumber,
-    readNumber,
-    readString
-} from '../utils/requestValidation';
-
-const couponIdParamsSchema = {
-    type: 'object',
-    additionalProperties: false,
-    required: ['id'],
-    properties: {
-        id: { type: 'integer', minimum: 1 }
-    }
-} as const
-
-const couponBodySchema = {
-    type: 'object',
-    additionalProperties: false,
-    properties: {
-        code: { type: 'string', minLength: 3, maxLength: 50 },
-        percent: { type: 'number', minimum: 0, maximum: 100, nullable: true },
-        fixed_amount: { type: 'number', minimum: 0, nullable: true },
-        assigned_user_id: { type: 'integer', minimum: 1, nullable: true },
-        effective_at: { type: 'string', format: 'date-time' },
-        expires_at: { type: 'string', format: 'date-time' },
-        image: { type: 'string', contentEncoding: 'binary' }
-    }
-} as const
+    couponCodeParamsSchema,
+    couponCreateMultipartSchema,
+    couponIdParamsSchema,
+    couponProcessSchema,
+    couponUpdateMultipartSchema,
+    validateData
+} from '../validations';
+import { zodToFormDataParams } from '../utils/zodFormData'
+import { zodToJsonSchema } from 'zod-to-json-schema'
 
 const successObjectResponse = {
     type: 'object',
@@ -43,7 +20,7 @@ const successObjectResponse = {
         message: { type: 'string' },
         data: { type: 'object', additionalProperties: true }
     }
-} as const
+} as const;
 
 const successArrayResponse = {
     type: 'object',
@@ -52,58 +29,9 @@ const successArrayResponse = {
         message: { type: 'string' },
         data: { type: 'array', items: { type: 'object', additionalProperties: true } }
     }
-} as const
+} as const;
 
 export default async function CouponRoute(app: FastifyInstance) {
-    function buildCouponPayload(fields: Record<string, unknown>, isCreate: boolean) {
-        assertAllowedKeys(fields, [
-            'code',
-            'percent',
-            'fixed_amount',
-            'assigned_user_id',
-            'effective_at',
-            'expires_at'
-        ])
-
-        const code = readString(fields, 'code', { required: isCreate, minLength: 3, maxLength: 50, pattern: /^[A-Za-z0-9_-]+$/ })
-        const percent = readNullableNumber(fields, 'percent', { min: 0, max: 100 })
-        const fixedAmount = readNullableNumber(fields, 'fixed_amount', { min: 0 })
-        const assignedUserId = readNullableNumber(fields, 'assigned_user_id', { min: 1, integer: true })
-        const effectiveAt = readDateValue(fields, 'effective_at', isCreate)
-        const expiresAt = readDateValue(fields, 'expires_at', isCreate)
-
-        if (isCreate) {
-            if (percent === null && fixedAmount === null) {
-                throw createHttpError(400, 'Either percent or fixed_amount is required')
-            }
-
-            if (percent !== null && percent !== undefined && fixedAmount !== null && fixedAmount !== undefined) {
-                throw createHttpError(400, 'Percent and fixed_amount cannot both be provided')
-            }
-        } else if (percent !== undefined || fixedAmount !== undefined) {
-            if (percent !== null && percent !== undefined && fixedAmount !== null && fixedAmount !== undefined) {
-                throw createHttpError(400, 'Percent and fixed_amount cannot both be provided')
-            }
-
-            if (percent === null && fixedAmount === null) {
-                throw createHttpError(400, 'At least one discount value must remain set')
-            }
-        }
-
-        if (effectiveAt && expiresAt && effectiveAt > expiresAt) {
-            throw createHttpError(400, 'effective_at must be before or equal to expires_at')
-        }
-
-        return pickDefined({
-            code,
-            percent,
-            fixed_amount: fixedAmount,
-            assigned_user_id: assignedUserId,
-            effective_at: effectiveAt,
-            expires_at: expiresAt
-        })
-    }
-
     app.post(
         '/create',
         {
@@ -111,17 +39,18 @@ export default async function CouponRoute(app: FastifyInstance) {
             schema: {
                 tags: ['Coupon'],
                 consumes: ['multipart/form-data'],
+                parameters: zodToFormDataParams(couponCreateMultipartSchema as any),
                 summary: 'Create a coupon',
-                body: couponBodySchema,
                 response: { 201: successObjectResponse }
-            },
+            }
         },
         async (req, reply) => {
+            const { fields, files } = validateData(
+                couponCreateMultipartSchema,
+                await app.parseMultipartMemory(req)
+            );
 
-            const { files, fields } = await app.parseMultipartMemory(req);
-            assertAllowedFileFields(files, ['image'])
-
-            const coupon = await couponService.createCoupon(buildCouponPayload(fields, true));
+            const coupon = await couponService.createCoupon(fields);
 
             if (coupon && files.image?.length) {
                 const image = await app.saveFileBuffer(files.image[0], '_coupons');
@@ -132,49 +61,39 @@ export default async function CouponRoute(app: FastifyInstance) {
             return reply.code(201).send({
                 success: true,
                 message: 'Coupon created successfully',
-                data: coupon,
+                data: coupon
             });
-
         }
     );
 
-
     app.post(
-        "/process",
+        '/process',
         {
             preHandler: [authMiddleware],
             schema: {
-                tags: ["Coupon"],
-                summary: "Validate coupon and calculate final price",
-                body: {
-                    type: "object",
-                    required: ["planId"],
-                    additionalProperties: false,
-                    properties: {
-                        couponCode: { type: "string", minLength: 3, maxLength: 50 },
-                        planId: { type: "integer", minimum: 1 }
-                    }
-                },
+                tags: ['Coupon'],
+                summary: 'Validate coupon and calculate final price',
+                body: zodToJsonSchema(couponProcessSchema as any, 'couponProcessBody'),
                 response: {
                     200: {
-                        type: "object",
+                        type: 'object',
                         properties: {
-                            success: { type: "boolean" },
+                            success: { type: 'boolean' },
                             data: {
-                                type: "object",
+                                type: 'object',
                                 properties: {
-                                    isValid: { type: "boolean" },
-                                    message: { type: "string" },
-                                    originalAmount: { type: "number", nullable: true },
-                                    discountAmount: { type: "number", nullable: true },
-                                    finalAmount: { type: "number", nullable: true },
+                                    isValid: { type: 'boolean' },
+                                    message: { type: 'string' },
+                                    originalAmount: { type: 'number', nullable: true },
+                                    discountAmount: { type: 'number', nullable: true },
+                                    finalAmount: { type: 'number', nullable: true },
                                     coupon: {
-                                        type: "object",
+                                        type: 'object',
                                         nullable: true,
                                         properties: {
-                                            code: { type: "string" },
-                                            percent: { type: "number", nullable: true },
-                                            fixed_amount: { type: "number", nullable: true }
+                                            code: { type: 'string' },
+                                            percent: { type: 'number', nullable: true },
+                                            fixed_amount: { type: 'number', nullable: true }
                                         }
                                     }
                                 }
@@ -182,22 +101,17 @@ export default async function CouponRoute(app: FastifyInstance) {
                         }
                     },
                     500: {
-                        type: "object",
+                        type: 'object',
                         properties: {
-                            success: { type: "boolean" },
-                            message: { type: "string" }
+                            success: { type: 'boolean' },
+                            message: { type: 'string' }
                         }
                     }
                 }
             }
         },
-
         async (req, reply) => {
-
-            const { couponCode, planId } = req.body as {
-                couponCode: string;
-                planId: number;
-            };
+            const { couponCode, planId } = validateData(couponProcessSchema, req.body ?? {});
             const user = (req as any).user;
             const userId = user.id;
 
@@ -211,7 +125,6 @@ export default async function CouponRoute(app: FastifyInstance) {
                 success: true,
                 data: result
             });
-
         }
     );
 
@@ -276,69 +189,68 @@ export default async function CouponRoute(app: FastifyInstance) {
                 success: true,
                 data: coupons
             });
-
         }
     );
 
-    app.get('/', {
-        schema: {
-            tags: ['Coupon'],
-            summary: 'List coupons',
-            response: { 200: successArrayResponse }
+    app.get(
+        '/',
+        {
+            schema: {
+                tags: ['Coupon'],
+                summary: 'List coupons',
+                response: { 200: successArrayResponse }
+            }
         },
-    },
-        async (req, reply) => {
-
-            const dailytips = await couponService.getCoupons();
+        async (_req, reply) => {
+            const coupons = await couponService.getCoupons();
             reply.code(200).send({
                 success: true,
                 message: 'coupons fetched successfully',
-                data: dailytips,
+                data: coupons
             });
-        });
-    app.get('/:coupon_code', {
-        schema: {
-            tags: ['Coupon'],
-            params: {
-                type: 'object',
-                properties: {
-                    coupon_code: { type: 'string' }
-                },
-                required: ['coupon_code']
-            }
         }
-    },
+    );
 
+    app.get(
+        '/:coupon_code',
+        {
+            schema: {
+                tags: ['Coupon'],
+                response: { 200: successObjectResponse }
+            }
+        },
         async (req, reply) => {
-            const { coupon_code } = req.params as { coupon_code: string };
-            const dailytips = await couponService.getCouponByCode(coupon_code);
+            const { coupon_code } = validateData(couponCodeParamsSchema, req.params);
+            const coupon = await couponService.getCouponByCode(coupon_code);
 
             reply.code(200).send({
                 success: true,
                 message: 'Coupon fetched successfully',
-                data: dailytips,
+                data: coupon
             });
-        });
+        }
+    );
+
     app.patch(
         '/:id',
         {
             preHandler: [authMiddleware, onlyOrg],
             schema: {
                 tags: ['Coupon'],
-                consumes: ['application/json', 'multipart/form-data'],
+                consumes: ['multipart/form-data', 'application/json'],
+                parameters: zodToFormDataParams(couponUpdateMultipartSchema as any),
                 summary: 'Update a coupon',
-                params: couponIdParamsSchema,
-                body: couponBodySchema,
                 response: { 200: successObjectResponse }
-            },
+            }
         },
         async (req, reply) => {
+            const { id } = validateData(couponIdParamsSchema, req.params);
+            const { fields, files } = validateData(
+                couponUpdateMultipartSchema,
+                await app.parseMultipartMemory(req)
+            );
 
-            const { files, fields } = await app.parseMultipartMemory(req);
-            const { id } = req.params as { id: number };
-            assertAllowedFileFields(files, ['image'])
-
-            const coupon = await couponService.updateCoupon(id, buildCouponPayload(fields, false));
+            const coupon = await couponService.updateCoupon(id, fields);
 
             if (files.image?.length) {
                 coupon.image = await app.saveFileBuffer(files.image[0], '_coupons');
@@ -348,36 +260,42 @@ export default async function CouponRoute(app: FastifyInstance) {
             return reply.code(200).send({
                 success: true,
                 message: 'Coupon Updated successfully',
-                data: coupon,
+                data: coupon
             });
         }
-
-
     );
-    app.patch('/:id/status', {
-        schema: {
-            tags: ['Coupon'],
-            summary: 'Toggle coupon status',
-            params: couponIdParamsSchema,
-            response: { 200: successObjectResponse }
-        },
-        preHandler: [authMiddleware, onlyOrg]
-    }, async (req, reply) => {
-        const { id } = req.params as { id: number };
 
-        const coupon = await couponService.CouponStatus(Number(id), reply);
-        return reply.send({ success: true, message: 'Coupon status updated successfully', data: coupon });
-    });
-    app.delete('/delete/:id', {
-        schema: {
-            tags: ['Coupon'],
-            summary: 'Delete a coupon',
-            params: couponIdParamsSchema,
-            response: { 200: successObjectResponse }
-        }, preHandler: [authMiddleware, onlyOrg]
-    }, async (req, reply) => {
-        const { id } = req.params as { id: number };
-        await couponService.deleteCoupon(Number(id));
-        return reply.send({ success: true, message: 'Coupon deleted successfully' });
-    });
+    app.patch(
+        '/:id/status',
+        {
+            schema: {
+                tags: ['Coupon'],
+                summary: 'Toggle coupon status',
+                response: { 200: successObjectResponse }
+            },
+            preHandler: [authMiddleware, onlyOrg]
+        },
+        async (req, reply) => {
+            const { id } = validateData(couponIdParamsSchema, req.params);
+            const coupon = await couponService.CouponStatus(Number(id), reply);
+            return reply.send({ success: true, message: 'Coupon status updated successfully', data: coupon });
+        }
+    );
+
+    app.delete(
+        '/delete/:id',
+        {
+            schema: {
+                tags: ['Coupon'],
+                summary: 'Delete a coupon',
+                response: { 200: successObjectResponse }
+            },
+            preHandler: [authMiddleware, onlyOrg]
+        },
+        async (req, reply) => {
+            const { id } = validateData(couponIdParamsSchema, req.params);
+            await couponService.deleteCoupon(Number(id));
+            return reply.send({ success: true, message: 'Coupon deleted successfully' });
+        }
+    );
 }

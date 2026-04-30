@@ -2,6 +2,7 @@
 import Fastify from 'fastify'
 import fastifySwagger from '@fastify/swagger'
 import fastifySwaggerUi from '@fastify/swagger-ui'
+import { zodToJsonSchema } from 'zod-to-json-schema'
 import { fastifyMultipart } from '@fastify/multipart'
 import fastifyStatic from '@fastify/static'
 import fastifyCors from '@fastify/cors'
@@ -11,7 +12,6 @@ import formbody from '@fastify/formbody'
 import dotenv from 'dotenv'
 import uidPlugin from './plugins/uuidPlugin'
 dotenv.config()
-import ajvErrors from 'ajv-errors';
 import fastifyRawBody from 'fastify-raw-body';
 import { storageService } from './services/storageService'
 import authRoutes from './routes/auth'
@@ -51,17 +51,6 @@ const maxMultipartFileSize =
 //error handler
 const app = Fastify({
     trustProxy: true,
-    ajv: {
-        customOptions: {
-            coerceTypes: "array",
-            allErrors: true,
-            $data: true,
-            strict: false,
-            removeAdditional: true, // remove unknown fields from request
-        },
-        plugins: [ajvErrors],
-
-    },
     logger: {
         level: 'warn', // ✅ Logs both warnings and errors
         transport: {
@@ -72,7 +61,12 @@ const app = Fastify({
             },
         },
     },
-    bodyLimit: 1048576
+    bodyLimit: 1048576,
+    ajv: {
+        customOptions: {
+            strictTypes: false
+        }
+    }
 });
 app.register(fastifyRateLimit, {
     global: false   // important — prevents whole server from being limited
@@ -100,16 +94,20 @@ app.register(fastifyCors, {
 
 app.register(fastifySwagger, {
     hideUntagged: true,
-    swagger: {
+    openapi: {
+        openapi: '3.0.0',
         info: {
             title: 'LMS API',
             description: 'Learning Management System API with RBAC & Swagger',
             version: '1.0.0'
         },
-        schemes: ['http', 'https'],
-        produces: ['application/json'],
-        securityDefinitions: {
-            BearerAuth: { type: 'apiKey', name: 'Authorization', in: 'header' }
+        servers: [
+            { url: 'http://0.0.0.0:8080', description: 'Local server' }
+        ],
+        components: {
+            securitySchemes: {
+                BearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }
+            }
         }
     },
     transform: ({ schema, url, route }) => {
@@ -118,6 +116,23 @@ app.register(fastifySwagger, {
 
         if (!routeConfig.swaggerPublic && !transformedSchema.security) {
             transformedSchema.security = [{ BearerAuth: [] }]
+        }
+
+        // Convert Zod schemas attached to preHandler into JSON Schema for Swagger
+        try {
+            const preHandlers = Array.isArray(route.preHandler) ? route.preHandler : route.preHandler ? [route.preHandler] : []
+            for (const ph of preHandlers) {
+                if (ph && (ph as any)._zodSchema) {
+                    const { source, schema: zschema } = (ph as any)._zodSchema
+                    const json = zodToJsonSchema(zschema, { target: 'openApi3' })
+                    const key = source === 'query' ? 'querystring' : source
+                    ;(transformedSchema as any)[key] = json
+                }
+            }
+        } catch (err) {
+            if ((app as any).log && typeof (app as any).log.warn === 'function') {
+                (app as any).log.warn('Zod->JSON schema conversion failed for route', url, err)
+            }
         }
 
         const transformedUrl =

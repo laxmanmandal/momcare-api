@@ -3,6 +3,8 @@ import * as healthService from '../services/healthService'
 import { authMiddleware } from '../middleware/auth'
 import { Prisma } from '@prisma/client';
 import prisma from '../prisma/client';
+import { healthSymptomsSchema, validateData } from '../validations';
+import { zodToJsonSchema } from 'zod-to-json-schema'
 
 const successArrayResponse = {
   type: 'object',
@@ -30,17 +32,7 @@ export default async function healthRoutes(app: FastifyInstance) {
       schema: {
         tags: ['Health'],
         description: 'Create a symptom entry',
-        body: {
-          type: 'object',
-          required: ['symptoms'],
-          properties: {
-            symptoms: {
-              type: 'array',
-              items: { type: 'string' },
-              minItems: 1,
-            },
-          },
-        },
+        body: zodToJsonSchema(healthSymptomsSchema as any, 'healthSymptomsBody'),
         response: {
           201: {
             type: 'object',
@@ -55,13 +47,11 @@ export default async function healthRoutes(app: FastifyInstance) {
           500: { type: 'object', properties: { error: { type: 'string' } } }
         },
       },
+
     },
     async (req: any, reply: FastifyReply) => {
       try {
-        const { symptoms } = req.body;
-        if (!Array.isArray(symptoms) || symptoms.length === 0) {
-          return reply.status(400).send({ error: ' non-empty symptoms array are required' });
-        }
+        const { symptoms } = validateData(healthSymptomsSchema, req.body ?? {});
 
         const entry = await healthService.addSymptomEntry(req.user.id, symptoms);
         return reply.status(201).send('Symptom added successfully');

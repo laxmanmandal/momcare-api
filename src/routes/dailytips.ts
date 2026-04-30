@@ -1,15 +1,13 @@
 import { FastifyInstance } from 'fastify'
 import * as dailytipService from '../services/dailytipService'
 import { authMiddleware, onlyOrg } from '../middleware/auth';
-
-const idParamsSchema = {
-    type: 'object',
-    additionalProperties: false,
-    required: ['id'],
-    properties: {
-        id: { type: 'integer', minimum: 1 }
-    }
-} as const
+import {
+    dailyTipCreateMultipartSchema,
+    dailyTipIdParamsSchema,
+    dailyTipUpdateMultipartSchema,
+    validateData
+} from '../validations';
+import { zodToFormDataParams } from '../utils/zodFormData'
 
 const successObjectResponse = {
     type: 'object',
@@ -29,34 +27,25 @@ const successArrayResponse = {
     }
 } as const
 
-const dailyTipsBody = {
-    type: 'object',
-    additionalProperties: false,
-    properties: {
-        title: { type: 'string' },
-        heading: { type: 'string' },
-        subheading: { type: 'string' },
-        content: { type: 'string' },
-        category: { type: 'string' },
-        icon: { type: 'string', contentEncoding: 'binary' }
-    }
-} as const
-
 export default async function dailytipsRoute(app: FastifyInstance) {
-
-    app.post('/',
+    app.post(
+        '/',
         {
             schema: {
                 tags: ['Dailytips'],
                 summary: 'Create a daily tip',
                 consumes: ['multipart/form-data'],
-                body: dailyTipsBody,
+                parameters: zodToFormDataParams(dailyTipCreateMultipartSchema as any),
                 response: { 200: successObjectResponse }
             },
             preHandler: [authMiddleware, onlyOrg]
-        }, async (req: any, reply) => {
+        },
+        async (req: any, reply) => {
+            const { fields, files } = validateData(
+                dailyTipCreateMultipartSchema,
+                await app.parseMultipartMemory(req)
+            );
 
-            const { files, fields } = await app.parseMultipartMemory(req);
             const dailytipsData = {
                 title: fields.title,
                 heading: fields.heading,
@@ -79,46 +68,39 @@ export default async function dailytipsRoute(app: FastifyInstance) {
                 message: 'dailytips created successfully',
                 data: dailytips,
             });
-
-        });
+        }
+    );
 
     app.patch(
-        '/:id', {
-        schema: {
-            tags: ['Dailytips'],
-            summary: 'Update a daily tip',
-            consumes: ['application/json', 'multipart/form-data'],
-            params: idParamsSchema,
-            body: dailyTipsBody,
-            response: { 200: successObjectResponse }
-        }, preHandler: [authMiddleware, onlyOrg]
-    },
+        '/:id',
+        {
+            schema: {
+                tags: ['Dailytips'],
+                summary: 'Update a daily tip',
+                consumes: ['application/json', 'multipart/form-data'],
+                response: { 200: successObjectResponse }
+            },
+            preHandler: [authMiddleware, onlyOrg]
+        },
         async (req, reply) => {
-
-            const { id } = req.params as { id: number };
-            let fields: any = {};
-            let files: any = {};
-
-            if (req.isMultipart()) {
-                ({ files, fields } = await app.parseMultipartMemory(req));
-            } else {
-                fields = (req.body as any) || {};
-            }
+            const { id } = validateData(dailyTipIdParamsSchema, req.params);
+            const { fields, files } = validateData(
+                dailyTipUpdateMultipartSchema,
+                await app.parseMultipartMemory(req)
+            );
 
             const updateData: any = {
                 title: fields.title,
                 heading: fields.heading,
                 subheading: fields.subheading,
                 content: fields.content,
-                category: fields.category,
+                category: fields.category
             };
 
             if (files.icon?.length) {
-                updateData.icon = await app.saveFileBuffer(
-                    files.icon[0],
-                    `daily-tips`
-                );
+                updateData.icon = await app.saveFileBuffer(files.icon[0], `daily-tips`);
             }
+
             const updateddailytips = await dailytipService.updatedailyTips(id, updateData);
 
             reply.code(200).send({
@@ -126,64 +108,64 @@ export default async function dailytipsRoute(app: FastifyInstance) {
                 message: 'dailytips updated successfully',
                 data: updateddailytips,
             });
-
         }
     );
 
-    app.get('/', {
-        schema: {
-            tags: ['Dailytips'],
-            summary: 'List all daily tips',
-            response: { 200: successArrayResponse }
+    app.get(
+        '/',
+        {
+            schema: {
+                tags: ['Dailytips'],
+                summary: 'List all daily tips',
+                response: { 200: successArrayResponse }
+            },
+            preHandler: [authMiddleware]
         },
-        preHandler: [authMiddleware]
-    },
-        async (req, reply) => {
-
+        async () => {
             const dailytips = await dailytipService.getdailyTips();
-            reply.code(200).send({
+            return {
                 success: true,
                 message: 'dailytips fetched successfully',
                 data: dailytips,
-            });
+            };
+        }
+    );
 
-        });
-
-    app.get('/:id', {
-        schema: {
-            tags: ['Dailytips'],
-            summary: 'Get daily tip by ID',
-            params: idParamsSchema,
-            response: { 200: successObjectResponse }
+    app.get(
+        '/:id',
+        {
+            schema: {
+                tags: ['Dailytips'],
+                summary: 'Get daily tip by ID',
+                response: { 200: successObjectResponse }
+            },
+            preHandler: [authMiddleware]
         },
-        preHandler: [authMiddleware]
-    },
-        async (req, reply) => {
-
-            const { id } = req.params as { id: number };
+        async (req) => {
+            const { id } = validateData(dailyTipIdParamsSchema, req.params);
             const dailytips = await dailytipService.getdailyTipsById(id);
-
-            reply.code(200).send({
+            return {
                 success: true,
                 message: 'dailytips fetched successfully',
                 data: dailytips,
-            });
+            };
+        }
+    );
 
-        });
-
-    app.patch('/:id/status', {
-        schema: {
-            tags: ['Dailytips'],
-            summary: 'Toggle daily tip status',
-            params: idParamsSchema,
-            response: { 200: successObjectResponse }
+    app.patch(
+        '/:id/status',
+        {
+            schema: {
+                tags: ['Dailytips'],
+                summary: 'Toggle daily tip status',
+                response: { 200: successObjectResponse }
+            },
+            preHandler: [authMiddleware, onlyOrg]
         },
-        preHandler: [authMiddleware, onlyOrg]
-    }, async (req, reply) => {
-
-        const { id } = req.params as { id: number };
-        const dailytips = await dailytipService.dailyTipsStatus(id);
-        return reply.send({ success: true, message: 'Dailytips status updated successfully', data: dailytips });
-
-    });
+        async (req, reply) => {
+            const { id } = validateData(dailyTipIdParamsSchema, req.params);
+            const dailytips = await dailytipService.dailyTipsStatus(id);
+            return reply.send({ success: true, message: 'Dailytips status updated successfully', data: dailytips });
+        }
+    );
 }

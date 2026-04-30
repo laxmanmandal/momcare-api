@@ -1,15 +1,13 @@
 import { FastifyInstance, FastifyReply } from 'fastify';
 import * as entityService from '../services/entityService';
 import { authMiddleware } from '../middleware/auth';
-
-const idParamsSchema = {
-    type: 'object',
-    additionalProperties: false,
-    required: ['id'],
-    properties: {
-        id: { type: 'integer', minimum: 1 }
-    }
-} as const
+import {
+    entityBodySchema,
+    entityIdParamsSchema,
+    entityUpdateSchema,
+    validateData
+} from '../validations';
+import { zodToFormDataParams } from '../utils/zodFormData'
 
 const successObjectResponse = {
     type: 'object',
@@ -104,12 +102,11 @@ export default async function entityRoutes(app: FastifyInstance) {
             schema: {
                 tags: ['Entities'],
                 summary: 'Get entity by ID',
-                params: idParamsSchema,
                 response: { 200: successObjectResponse }
             }
         },
         async (req: any, reply) => {
-            const { id } = req.params as { id: number };
+            const { id } = validateData(entityIdParamsSchema, req.params);
             try {
                 const payload = await entityService.getentityTableById(id);
                 reply.code(200).send({
@@ -158,21 +155,7 @@ export default async function entityRoutes(app: FastifyInstance) {
     );
 
     const entityBody = {
-        type: 'object',
-        required: ['name', 'type', 'email'],
-        additionalProperties: false,
-        properties: {
-            type: { type: 'string' },
-            name: { type: 'string' },
-            phone: { type: 'string' },
-            email: { type: 'string', format: 'email' },
-            location: { type: 'string', nullable: true },
-            description: { type: 'string', nullable: true },
-            imageUrl: { type: 'string', nullable: true },
-            createdBy: { type: 'number', nullable: true },
-            belongsToId: { type: 'number', nullable: true },
-            isActive: { type: 'boolean', nullable: true }
-        }
+        type: 'object'
     } as const
 
     app.post(
@@ -182,13 +165,14 @@ export default async function entityRoutes(app: FastifyInstance) {
             schema: {
                 tags: ['Entities'],
                 summary: 'Create an entity',
-                body: entityBody,
+                parameters: zodToFormDataParams(entityBodySchema as any),
                 response: { 201: successObjectResponse }
             }
         },
         async (req: any, reply: FastifyReply) => {
-            const body = req.body as any;
-            const createdBy = (typeof req.body.id === 'number' ? req.body.id : null) ?? (req as any).user?.id;
+            const { fields, files } = await app.parseMultipartMemory(req);
+            const body = validateData(entityBodySchema, req.isMultipart() ? fields : req.body ?? fields);
+            const createdBy = (typeof req.body?.id === 'number' ? req.body.id : null) ?? (req as any).user?.id;
             const belongsToId =
                 req.user?.belongsToId !== undefined && req.user?.belongsToId !== null
                     ? Number(req.user.belongsToId)
@@ -208,7 +192,7 @@ export default async function entityRoutes(app: FastifyInstance) {
                 isActive
             };
 
-            const maybeFile = (req as any).files?.imageUrl ?? (req.body as any).imageUrl;
+            const maybeFile = files.imageUrl ?? (req.body as any).imageUrl;
             let channel = await entityService.creatEntityTable(createData);
 
             if (maybeFile) {
@@ -237,15 +221,16 @@ export default async function entityRoutes(app: FastifyInstance) {
             schema: {
                 tags: ['Entities'],
                 summary: 'Register a new entity (public)',
-                body: entityBody,
+                parameters: zodToFormDataParams(entityBodySchema as any),
                 response: { 201: successObjectResponse }
             }
         },
         async (req: any, reply: FastifyReply) => {
-            const body = req.body as any;
-            const createdBy = (typeof req.body.id === 'number' ? req.body.id : null) ?? (req as any).user?.id;
+            const { fields, files } = await app.parseMultipartMemory(req);
+            const body = validateData(entityBodySchema, req.isMultipart() ? fields : req.body ?? fields);
+            const createdBy = (typeof req.body?.id === 'number' ? req.body.id : null) ?? (req as any).user?.id;
             const belongsToId =
-                body.belongsToId !== undefined && body.belongsToId !== null && body.belongsToId !== ''
+                body.belongsToId !== undefined && body.belongsToId !== null
                     ? Number(body.belongsToId)
                     : null;
             const isActive = body.isActive === undefined ? false : Boolean(body.isActive === 'true' || body.isActive === true);
@@ -263,7 +248,7 @@ export default async function entityRoutes(app: FastifyInstance) {
                 isActive
             };
 
-            const maybeFile = (req as any).files?.imageUrl ?? (req.body as any).imageUrl;
+            const maybeFile = files.imageUrl ?? (req.body as any).imageUrl;
             let channel = await entityService.creatEntityTable(createData);
 
             if (maybeFile) {
@@ -296,42 +281,15 @@ export default async function entityRoutes(app: FastifyInstance) {
             schema: {
                 tags: ['Entities'],
                 summary: 'Update an entity',
-                params: idParamsSchema,
-                body: {
-                    type: 'object',
-                    additionalProperties: false,
-                    properties: {
-                        type: { type: 'string' },
-                        name: { type: 'string' },
-                        phone: { type: 'string' },
-                        email: { type: 'string', format: 'email' },
-                        location: { type: 'string', nullable: true },
-                        description: { type: 'string', nullable: true },
-                        imageUrl: { type: 'string', nullable: true },
-                        isActive: { type: 'boolean', nullable: true }
-                    }
-                },
                 response: { 200: successObjectResponse, 400: errorResponse }
             }
         },
         async (req, reply) => {
-            const id = (req.params as { id: number }).id;
-            let fields: any = {};
-            let files: any = {};
+            const { id } = validateData(entityIdParamsSchema, req.params);
+            const { fields, files } = await app.parseMultipartMemory(req);
+            const body = validateData(entityUpdateSchema, req.isMultipart() ? fields : req.body ?? fields);
 
-            if (req.isMultipart && req.isMultipart()) {
-                const result = await app.parseMultipartMemory(req);
-                fields = result.fields || {};
-                files = result.files || {};
-            } else {
-                fields = req.body as object;
-            }
-
-            if (!fields || typeof fields !== 'object') {
-                return reply.code(400).send({ message: 'Invalid body format' });
-            }
-
-            const updated = await entityService.updateEntityTable(id, fields);
+            const updated = await entityService.updateEntityTable(id, body);
 
             if (files.imageUrl?.length) {
                 updated.imageUrl = await app.saveFileBuffer(

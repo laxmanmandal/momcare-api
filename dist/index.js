@@ -7,6 +7,7 @@ exports.UPLOAD_ROOT = void 0;
 const fastify_1 = __importDefault(require("fastify"));
 const swagger_1 = __importDefault(require("@fastify/swagger"));
 const swagger_ui_1 = __importDefault(require("@fastify/swagger-ui"));
+const zod_to_json_schema_1 = require("zod-to-json-schema");
 const multipart_1 = require("@fastify/multipart");
 const static_1 = __importDefault(require("@fastify/static"));
 const cors_1 = __importDefault(require("@fastify/cors"));
@@ -16,7 +17,6 @@ const formbody_1 = __importDefault(require("@fastify/formbody"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const uuidPlugin_1 = __importDefault(require("./plugins/uuidPlugin"));
 dotenv_1.default.config();
-const ajv_errors_1 = __importDefault(require("ajv-errors"));
 const fastify_raw_body_1 = __importDefault(require("fastify-raw-body"));
 const storageService_1 = require("./services/storageService");
 const auth_1 = __importDefault(require("./routes/auth"));
@@ -52,16 +52,6 @@ const maxMultipartFileSize = Number.isFinite(multipartFileLimit) && multipartFil
 //error handler
 const app = (0, fastify_1.default)({
     trustProxy: true,
-    ajv: {
-        customOptions: {
-            coerceTypes: "array",
-            allErrors: true,
-            $data: true,
-            strict: false,
-            removeAdditional: true, // remove unknown fields from request
-        },
-        plugins: [ajv_errors_1.default],
-    },
     logger: {
         level: 'warn', // ✅ Logs both warnings and errors
         transport: {
@@ -113,6 +103,33 @@ app.register(swagger_1.default, {
         const routeConfig = (route.config ?? {});
         if (!routeConfig.swaggerPublic && !transformedSchema.security) {
             transformedSchema.security = [{ BearerAuth: [] }];
+        }
+        // Convert Zod schemas attached to preHandler into JSON Schema for Swagger
+        try {
+            const preHandlers = Array.isArray(route.preHandler) ? route.preHandler : route.preHandler ? [route.preHandler] : [];
+            for (const ph of preHandlers) {
+                if (ph && ph._zodSchema) {
+                    const { source, schema: zschema } = ph._zodSchema;
+                    const name = `auto_${(url || '').replace(/[^a-zA-Z0-9]/g, '_')}_${source}`;
+                    const json = (0, zod_to_json_schema_1.zodToJsonSchema)(zschema, name);
+                    const key = source === 'query' ? 'querystring' : source;
+                    const j = json;
+                    const tgtKey = key;
+                    if (j && j.definitions && j.$ref) {
+                        ;
+                        transformedSchema[tgtKey] = { $ref: j.$ref, definitions: j.definitions };
+                    }
+                    else if (j) {
+                        ;
+                        transformedSchema[tgtKey] = j;
+                    }
+                }
+            }
+        }
+        catch (err) {
+            if (app.log && typeof app.log.warn === 'function') {
+                app.log.warn('Zod->JSON schema conversion failed for route', url, err);
+            }
         }
         const transformedUrl = url !== '/' && url.endsWith('/') ? url.slice(0, -1) : url;
         return { schema: transformedSchema, url: transformedUrl };

@@ -1,5 +1,4 @@
-// src/middleware/otpratelimiter.ts
-import type { FastifyRequest, FastifyReply } from 'fastify';
+import type { FastifyReply } from 'fastify';
 
 type AttemptRecord = {
     sendCount: number;
@@ -23,22 +22,11 @@ export function normalizePhone(raw: string) {
  * Call this inside handler after body parsed.
  */
 export function otpRateLimiter(
-    req: FastifyRequest<{ Body: { phone?: string } }>,
+    phone: string,
+    req: { log: { debug: (payload: unknown, message: string) => void } },
     reply: FastifyReply
 ): string | false {
-    const rawPhone = req.body?.phone;
-    if (!rawPhone) {
-        reply.status(400).send({ success: false, message: 'Phone is required' });
-        return false;
-    }
-
-    const phone = normalizePhone(rawPhone);
-    if (!phone) {
-        reply.status(400).send({ success: false, message: 'Invalid phone' });
-        return false;
-    }
-
-    const key = phone;
+    const key = normalizePhone(phone);
     const now = Date.now();
     const rec = otpAttempts[key];
 

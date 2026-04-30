@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import type { FastifyReply, FastifyRequest } from 'fastify';
+import { ValidationError } from '../validations/error';
 
 function normalizeTarget(target: unknown): string {
     if (!target) return 'record';
@@ -32,6 +33,7 @@ export function errorHandler(
             error?: string;
             code?: string;
             details?: unknown;
+            errors?: unknown;
         }
     ) => {
         reply.status(statusCode).send({
@@ -40,9 +42,19 @@ export function errorHandler(
             message,
             error: options?.error,
             code: options?.code,
-            details: options?.details
+            details: options?.details,
+            errors: options?.errors
         });
     };
+
+    if (error instanceof ValidationError) {
+        reply.status(422).send({
+            success: false,
+            message: 'Validation Error',
+            errors: error.errors
+        });
+        return;
+    }
 
     /* ───────── Prisma Errors ───────── */
 
@@ -126,17 +138,8 @@ export function errorHandler(
         send(e.statusCode, e.message, {
             error: e.code || e.name,
             code: e.code,
-            details: e.details
-        });
-        return;
-    }
-
-    /* ───────── AJV Validation ───────── */
-
-    if (error && (error as any).validation) {
-        send(422, 'Request validation failed', {
-            error: 'VALIDATION_ERROR',
-            details: (error as any).validation
+            details: e.details,
+            errors: e.errors
         });
         return;
     }

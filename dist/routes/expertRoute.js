@@ -36,23 +36,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = ExpertRoutes;
 const expertService = __importStar(require("../services/expertService"));
 const auth_1 = require("../middleware/auth");
+const validations_1 = require("../validations");
 const expertBody = {
     type: 'object',
-    additionalProperties: false,
     properties: {
         name: { type: 'string' },
         profession_id: { type: 'integer', minimum: 1 },
         name_org: { type: 'string' },
         qualification: { type: 'string' },
         image: { type: 'string', contentEncoding: 'binary' }
-    }
-};
-const expertIdParamsSchema = {
-    type: 'object',
-    additionalProperties: false,
-    required: ['id'],
-    properties: {
-        id: { type: 'integer', minimum: 1 }
     }
 };
 const successObjectResponse = {
@@ -77,11 +69,18 @@ async function ExpertRoutes(app) {
             tags: ['Experts'],
             consumes: ['multipart/form-data'],
             summary: 'Create an expert',
-            body: expertBody,
+            parameters: [
+                { name: 'name', in: 'formData', type: 'string', required: true },
+                { name: 'profession_id', in: 'formData', type: 'integer', required: true },
+                { name: 'name_org', in: 'formData', type: 'string', required: false },
+                { name: 'qualification', in: 'formData', type: 'string', required: false },
+                { name: 'image', in: 'formData', type: 'file', required: false }
+            ],
             response: { 200: successObjectResponse }
-        }, preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
+        },
+        preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
     }, async (req, reply) => {
-        const { files, fields } = await app.parseMultipartMemory(req);
+        const { fields, files } = await app.parseMultipartMemory(req);
         const expertsData = {
             name: fields.name,
             profession_id: Number(fields.profession_id),
@@ -105,28 +104,30 @@ async function ExpertRoutes(app) {
             tags: ['Experts'],
             consumes: ['application/json', 'multipart/form-data'],
             summary: 'Update an expert',
-            params: expertIdParamsSchema,
-            body: expertBody,
+            parameters: [
+                { name: 'name', in: 'formData', type: 'string', required: false },
+                { name: 'profession_id', in: 'formData', type: 'integer', required: false },
+                { name: 'name_org', in: 'formData', type: 'string', required: false },
+                { name: 'qualification', in: 'formData', type: 'string', required: false },
+                { name: 'image', in: 'formData', type: 'file', required: false }
+            ],
             response: { 200: successObjectResponse }
-        }, preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
+        },
+        preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
     }, async (req, reply) => {
-        const { id } = req.params;
-        // Parse form data (multipart or json)
+        const { id } = (0, validations_1.validateData)(validations_1.expertIdParamsSchema, req.params);
         const { files, fields } = await app.parseMultipartMemory(req);
         if (!req.isMultipart() && req.body)
             Object.assign(fields, req.body);
-        // Prepare update payload
         const updateData = {
             name: fields.name,
             profession_id: Number(fields.profession_id),
             name_org: fields.name_org,
             qualification: fields.qualification,
         };
-        // Handle thumbnail upload (if provided)
         if (files.image?.length) {
             updateData.image = await app.saveFileBuffer(files.image[0], `_experts`);
         }
-        // Update database record
         const updatedExpert = await expertService.updateexperts(Number(id), updateData);
         reply.code(200).send({
             success: true,
@@ -139,30 +140,31 @@ async function ExpertRoutes(app) {
             tags: ['Experts'],
             summary: 'List experts',
             response: { 200: successArrayResponse }
-        }, preHandler: [auth_1.authMiddleware]
-    }, async (req, reply) => {
+        },
+        preHandler: [auth_1.authMiddleware]
+    }, async () => {
         const Expert = await expertService.getexperts();
-        reply.code(200).send({
+        return {
             success: true,
             message: 'Expert fetched successfully',
             data: Expert,
-        });
+        };
     });
     app.get('/:id', {
         schema: {
             tags: ['Experts'],
             summary: 'Get expert by ID',
-            params: expertIdParamsSchema,
             response: { 200: successObjectResponse }
-        }, preHandler: [auth_1.authMiddleware]
-    }, async (req, reply) => {
-        const { id } = req.params;
+        },
+        preHandler: [auth_1.authMiddleware]
+    }, async (req) => {
+        const { id } = (0, validations_1.validateData)(validations_1.expertIdParamsSchema, req.params);
         const Expert = await expertService.getexpertsById(id);
-        reply.code(200).send({
+        return {
             success: true,
             message: 'Expert fetched successfully',
             data: Expert,
-        });
+        };
     });
 }
 //# sourceMappingURL=expertRoute.js.map
