@@ -97,6 +97,7 @@ async function LogRoutes(app) {
         schema: {
             tags: ['Server-logs'],
             summary: 'Clear the server log file',
+            consumes: ['application/json', 'application/x-www-form-urlencoded'],
             response: { 200: successObjectResponse, 500: successObjectResponse }
         }
     }, async (req, reply) => {

@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import * as communityService from '../services/communityPosts';
 import { authMiddleware } from '../middleware/auth';
+import { zodToJsonSchema } from '../utils/zodOpenApi';
 import {
     communityPostCreateMultipartSchema,
     communityPostIdParamsSchema,
@@ -9,7 +10,6 @@ import {
     positiveIntSchema,
     validateData
 } from '../validations';
-import { zodToFormDataParams, zodToMultipartRequestBody } from '../utils/zodFormData'
 
 const successObjectResponse = {
     type: 'object',
@@ -38,9 +38,8 @@ export default async function communityPost(app: FastifyInstance) {
             schema: {
                 tags: ['Community Posts'],
                 summary: 'Create a community post',
-                consumes: ['multipart/form-data'],
-                parameters: zodToFormDataParams(communityPostCreateMultipartSchema as any),
-                requestBody: zodToMultipartRequestBody(communityPostCreateMultipartSchema as any),
+                consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+                body: zodToJsonSchema(communityPostCreateMultipartSchema as any, { target: 'openApi3' }),
                 response: { 201: successObjectResponse }
             }
         },
@@ -89,9 +88,9 @@ export default async function communityPost(app: FastifyInstance) {
             schema: {
                 tags: ['Community Posts'],
                 summary: 'Update a community post',
-                consumes: ['application/json', 'multipart/form-data'],
-                parameters: zodToFormDataParams(communityPostUpdateMultipartSchema as any),
-                requestBody: zodToMultipartRequestBody(communityPostUpdateMultipartSchema as any),
+                consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+                body: zodToJsonSchema(communityPostUpdateMultipartSchema as any, { target: 'openApi3' }),
+                params: zodToJsonSchema(communityPostIdParamsSchema as any, { target: 'openApi3' }),
                 response: { 200: successObjectResponse }
             }
         },
@@ -158,6 +157,7 @@ export default async function communityPost(app: FastifyInstance) {
         {
             schema: {
                 tags: ['Community Posts'],
+                params: zodToJsonSchema(communityPostTypeParamsSchema as any, { target: 'openApi3' }),
                 summary: 'List community posts by type',
                 response: { 200: successArrayResponse }
             }
@@ -197,6 +197,7 @@ export default async function communityPost(app: FastifyInstance) {
         {
             schema: {
                 tags: ['Community Posts'],
+                params: zodToJsonSchema(communityPostIdParamsSchema as any, { target: 'openApi3' }),
                 summary: 'List community posts by community ID',
                 response: { 200: successArrayResponse }
             }
@@ -217,6 +218,7 @@ export default async function communityPost(app: FastifyInstance) {
         {
             schema: {
                 tags: ['Community Posts'],
+                params: zodToJsonSchema(communityPostIdParamsSchema as any, { target: 'openApi3' }),
                 summary: 'Get a community post by ID',
                 response: { 200: successObjectResponse }
             }
@@ -237,6 +239,8 @@ export default async function communityPost(app: FastifyInstance) {
         {
             schema: {
                 tags: ['Community Posts'],
+                consumes: ['application/json', 'application/x-www-form-urlencoded'],
+                params: zodToJsonSchema(communityPostIdParamsSchema as any, { target: 'openApi3' }),
                 summary: 'Toggle a community post status',
                 response: { 200: successObjectResponse }
             }

@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.errorHandler = errorHandler;
 const client_1 = require("@prisma/client");
+const fastify_type_provider_zod_1 = require("fastify-type-provider-zod");
 const error_1 = require("../validations/error");
 function normalizeTarget(target) {
     if (!target)
@@ -36,6 +37,17 @@ function errorHandler(error, request, reply) {
             success: false,
             message: 'Validation Error',
             errors: error.errors
+        });
+        return;
+    }
+    if ((0, fastify_type_provider_zod_1.hasZodFastifySchemaValidationErrors)(error)) {
+        reply.status(422).send({
+            success: false,
+            message: 'Validation Error',
+            errors: error.validation.map((issue) => ({
+                field: issue.instancePath?.replace(/^\//, '').replace(/\//g, '.') || issue.params?.missingProperty || 'root',
+                message: issue.message
+            }))
         });
         return;
     }

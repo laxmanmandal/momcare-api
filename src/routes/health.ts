@@ -1,10 +1,9 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import * as healthService from '../services/healthService'
 import { authMiddleware } from '../middleware/auth'
-import { Prisma } from '@prisma/client';
 import prisma from '../prisma/client';
+import { zodToJsonSchema } from '../utils/zodOpenApi';
 import { healthSymptomsSchema, validateData } from '../validations';
-import { zodToJsonSchema } from 'zod-to-json-schema'
 
 const successArrayResponse = {
   type: 'object',
@@ -32,7 +31,8 @@ export default async function healthRoutes(app: FastifyInstance) {
       schema: {
         tags: ['Health'],
         description: 'Create a symptom entry',
-        body: zodToJsonSchema(healthSymptomsSchema as any, 'healthSymptomsBody'),
+        consumes: ['application/json', 'application/x-www-form-urlencoded'],
+        body: zodToJsonSchema(healthSymptomsSchema as any, { target: 'openApi3' }),
         response: {
           201: {
             type: 'object',
@@ -47,7 +47,6 @@ export default async function healthRoutes(app: FastifyInstance) {
           500: { type: 'object', properties: { error: { type: 'string' } } }
         },
       },
-
     },
     async (req: any, reply: FastifyReply) => {
       try {

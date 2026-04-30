@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify'
 import * as communityReactions from '../services/communityReactions'
 import { authMiddleware } from '../middleware/auth';
-import { zodToJsonSchema } from 'zod-to-json-schema'
+import { zodToJsonSchema } from '../utils/zodOpenApi';
 import {
     communityReactionBodySchema,
     communityReactionQuerySchema,
@@ -20,10 +20,10 @@ export default async function communityReaction(app: FastifyInstance) {
             schema: {
                 tags: ['Community post and Comments Likes'],
                 description: 'Toggle a reaction for either a post or a comment. Provide postId or commentId.',
-                body: zodToJsonSchema(communityReactionBodySchema as any, 'communityReactionBody')
+                consumes: ['application/json', 'application/x-www-form-urlencoded'],
+                body: zodToJsonSchema(communityReactionBodySchema as any, { target: 'openApi3' }),
             }
         },
-
         async (req: any, reply) => {
 
             const { postId, commentId } = validateData(communityReactionBodySchema, req.body ?? {});
@@ -48,6 +48,7 @@ export default async function communityReaction(app: FastifyInstance) {
         {
             schema: {
                 tags: ['Community post and Comments Likes'],
+                querystring: zodToJsonSchema(communityReactionQuerySchema as any, { target: 'openApi3' }),
             }
         },
         async (req, reply) => {

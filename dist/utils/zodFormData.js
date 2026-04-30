@@ -2,10 +2,10 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.zodToFormDataParams = zodToFormDataParams;
 exports.zodToMultipartRequestBody = zodToMultipartRequestBody;
-const zod_to_json_schema_1 = require("zod-to-json-schema");
+const zodOpenApi_1 = require("./zodOpenApi");
 function zodToFormDataParams(schema, name) {
     try {
-        const json = (0, zod_to_json_schema_1.zodToJsonSchema)(schema, name || 'schema');
+        const json = (0, zodOpenApi_1.zodToJsonSchema)(schema, name || 'schema');
         // Pick deepest definition if available
         let def = json;
         if (json && json.definitions) {
@@ -33,7 +33,7 @@ function zodToFormDataParams(schema, name) {
 }
 function zodToMultipartRequestBody(schema, name) {
     try {
-        const json = (0, zod_to_json_schema_1.zodToJsonSchema)(schema, name || 'schema');
+        const json = (0, zodOpenApi_1.zodToJsonSchema)(schema, name || 'schema');
         // Pick deepest definition if available
         let def = json;
         if (json && json.definitions) {

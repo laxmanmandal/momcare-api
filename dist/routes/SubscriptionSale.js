@@ -36,8 +36,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = subscriptionRoutes;
 const service = __importStar(require("../services/SubscriptionSaleService"));
 const auth_1 = require("../middleware/auth");
+const zodOpenApi_1 = require("../utils/zodOpenApi");
 const validations_1 = require("../validations");
-const zod_to_json_schema_1 = require("zod-to-json-schema");
 const successObjectResponse = {
     type: 'object',
     properties: {
@@ -121,7 +121,8 @@ async function subscriptionRoutes(app) {
         schema: {
             tags: ['AllocationPlan'],
             description: "Create user allotment",
-            body: (0, zod_to_json_schema_1.zodToJsonSchema)(validations_1.subscriptionAllocationCreateSchema, 'subscriptionAllocationCreateBody')
+            consumes: ['application/json', 'application/x-www-form-urlencoded'],
+            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.subscriptionAllocationCreateSchema, { target: 'openApi3' }),
         },
     }, async (req, reply) => {
         const body = (0, validations_1.validateData)(validations_1.subscriptionAllocationCreateSchema, req.body ?? {});
@@ -136,7 +137,8 @@ async function subscriptionRoutes(app) {
         schema: {
             description: "Create user allotment",
             tags: ["Payments"],
-            body: (0, zod_to_json_schema_1.zodToJsonSchema)(validations_1.subscriptionAllotmentSchema, 'subscriptionAllotmentBody'),
+            consumes: ['application/json', 'application/x-www-form-urlencoded'],
+            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.subscriptionAllotmentSchema, { target: 'openApi3' }),
             response: {
                 200: {
                     type: "object",
@@ -160,6 +162,8 @@ async function subscriptionRoutes(app) {
         schema: {
             description: "Create Razorpay order and payment intent",
             tags: ["Payments"],
+            consumes: ['application/json', 'application/x-www-form-urlencoded'],
+            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.subscriptionAllotmentSchema, { target: 'openApi3' }),
             response: {
                 200: {
                     type: "object",
@@ -183,7 +187,8 @@ async function subscriptionRoutes(app) {
         schema: {
             description: "Confirm Razorpay payment",
             tags: ["Payments"],
-            body: (0, zod_to_json_schema_1.zodToJsonSchema)(validations_1.subscriptionConfirmPaymentSchema, 'subscriptionConfirmPaymentBody')
+            consumes: ['application/json', 'application/x-www-form-urlencoded'],
+            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.subscriptionConfirmPaymentSchema, { target: 'openApi3' }),
         }
     }, async (req, reply) => {
         const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = (0, validations_1.validateData)(validations_1.subscriptionConfirmPaymentSchema, req.body ?? {});

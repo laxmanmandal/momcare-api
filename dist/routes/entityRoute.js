@@ -36,8 +36,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = entityRoutes;
 const entityService = __importStar(require("../services/entityService"));
 const auth_1 = require("../middleware/auth");
+const zodOpenApi_1 = require("../utils/zodOpenApi");
 const validations_1 = require("../validations");
-const zodFormData_1 = require("../utils/zodFormData");
 const successObjectResponse = {
     type: 'object',
     properties: {
@@ -117,6 +117,7 @@ async function entityRoutes(app) {
         schema: {
             tags: ['Entities'],
             summary: 'Get entity by ID',
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.entityIdParamsSchema, { target: 'openApi3' }),
             response: { 200: successObjectResponse }
         }
     }, async (req, reply) => {
@@ -163,16 +164,13 @@ async function entityRoutes(app) {
             });
         }
     });
-    const entityBody = {
-        type: 'object'
-    };
     app.post('/create', {
         preHandler: [auth_1.authMiddleware, app.accessControl.check('CREATE_ENTITY')],
         schema: {
             tags: ['Entities'],
             summary: 'Create an entity',
-            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.entityBodySchema),
-            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.entityBodySchema),
+            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.entityBodySchema, { target: 'openApi3' }),
             response: { 201: successObjectResponse }
         }
     }, async (req, reply) => {
@@ -219,8 +217,8 @@ async function entityRoutes(app) {
         schema: {
             tags: ['Entities'],
             summary: 'Register a new entity (public)',
-            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.entityBodySchema),
-            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.entityBodySchema),
+            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.entityBodySchema, { target: 'openApi3' }),
             response: { 201: successObjectResponse }
         }
     }, async (req, reply) => {
@@ -271,6 +269,9 @@ async function entityRoutes(app) {
         schema: {
             tags: ['Entities'],
             summary: 'Update an entity',
+            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.entityUpdateSchema, { target: 'openApi3' }),
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.entityIdParamsSchema, { target: 'openApi3' }),
             response: { 200: successObjectResponse, 400: errorResponse }
         }
     }, async (req, reply) => {

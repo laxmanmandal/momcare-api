@@ -3,6 +3,7 @@ import { UploadResponse } from '../types/excel';
 import { PrismaClient } from '@prisma/client';
 import { getParserConfig, PARSER_CONFIGS } from '../config/excelparsarconfig';
 import { UniversalExcelParser } from '../utils/excelParsar';
+import { zodToJsonSchema } from '../utils/zodOpenApi';
 import { authMiddleware } from '../middleware/auth';
 import { uploadTableQuerySchema, validateData } from '../validations';
 
@@ -19,8 +20,14 @@ const universalUploadRoutes: FastifyPluginAsync = async (fastify: FastifyInstanc
             preHandler: [authMiddleware, fastify.accessControl.check('UPLOAD_EXCEL')],
             schema: {
                 tags: ['Upload from excel'],
-                consumes: ['multipart/form-data'],
-                summary: 'Upload an Excel file for a target table'
+                consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+                summary: 'Upload an Excel file for a target table',
+                querystring: zodToJsonSchema(uploadTableQuerySchema as any, { target: 'openApi3' }),
+                body: {
+                    properties: {
+                        file: { type: 'string', format: 'binary' }
+                    }
+                }
             }
         },
         async (request, reply) => {
@@ -122,6 +129,7 @@ const universalUploadRoutes: FastifyPluginAsync = async (fastify: FastifyInstanc
         {
             schema: {
                 tags: ['Upload from excel'],
+                querystring: zodToJsonSchema(uploadTableQuerySchema as any, { target: 'openApi3' }),
                 summary: 'Get a single upload parser config'
             }
         },

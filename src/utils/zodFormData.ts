@@ -1,4 +1,4 @@
-import { zodToJsonSchema } from 'zod-to-json-schema';
+import { zodToJsonSchema } from './zodOpenApi';
 
 export function zodToFormDataParams(schema: any, name?: string) {
   try {

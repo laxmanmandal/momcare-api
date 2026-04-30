@@ -36,8 +36,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = community;
 const communityService = __importStar(require("../services/communityService"));
 const auth_1 = require("../middleware/auth");
+const zodOpenApi_1 = require("../utils/zodOpenApi");
 const validations_1 = require("../validations");
-const zodFormData_1 = require("../utils/zodFormData");
 const communityResponse = {
     type: "object",
     properties: {
@@ -55,16 +55,8 @@ async function community(app) {
     app.post("/", {
         schema: {
             tags: ["Community"],
-            consumes: ["multipart/form-data"],
-            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.communityCreateMultipartSchema),
-            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.communityCreateMultipartSchema),
-            body: {
-                properties: {
-                    name: { type: "string", description: "Name of the community" },
-                    description: { type: "string", description: "Description of the community" },
-                    imageUrl: { type: "string", format: "binary", description: "Community image" },
-                },
-            },
+            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.communityCreateMultipartSchema, { target: 'openApi3' }),
             response: {
                 201: {
                     type: "object",
@@ -100,23 +92,9 @@ async function community(app) {
     app.patch("/:id", {
         schema: {
             tags: ["Community"],
-            consumes: ["application/json", "multipart/form-data"],
-            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.communityUpdateMultipartSchema),
-            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.communityUpdateMultipartSchema),
-            params: {
-                type: "object",
-                properties: {
-                    id: { type: "integer", description: "Community ID" },
-                },
-                required: ["id"],
-            },
-            body: {
-                properties: {
-                    name: { type: "string", description: "Name of the community" },
-                    description: { type: "string", description: "Description of the community" },
-                    imageUrl: { type: "string", format: "binary", description: "Community image" },
-                },
-            },
+            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.communityIdParamsSchema, { target: 'openApi3' }),
+            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.communityUpdateMultipartSchema, { target: 'openApi3' }),
             response: {
                 200: {
                     type: "object",
@@ -211,14 +189,7 @@ async function community(app) {
     app.patch("/:id/status", {
         schema: {
             tags: ["Community"],
-            body: {
-                type: "object",
-                properties: {
-                    communityId: { type: "integer", description: "ID of the community to join" },
-                    userId: { type: "integer", description: "ID of the user (optional)" },
-                },
-                required: ["communityId"],
-            },
+            consumes: ['application/json', 'application/x-www-form-urlencoded'],
             response: {
                 200: {
                     type: "object",
@@ -243,6 +214,8 @@ async function community(app) {
     app.post("/join", {
         schema: {
             tags: ["Community"],
+            consumes: ['application/json', 'application/x-www-form-urlencoded'],
+            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.communityJoinSchema, { target: 'openApi3' }),
             response: {
                 200: {
                     type: "object",

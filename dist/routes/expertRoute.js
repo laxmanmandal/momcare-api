@@ -36,15 +36,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = ExpertRoutes;
 const expertService = __importStar(require("../services/expertService"));
 const auth_1 = require("../middleware/auth");
+const zodOpenApi_1 = require("../utils/zodOpenApi");
 const validations_1 = require("../validations");
-const expertBody = {
-    type: 'object',
+const expertBodyProps = {
     properties: {
         name: { type: 'string' },
         profession_id: { type: 'integer', minimum: 1 },
         name_org: { type: 'string' },
         qualification: { type: 'string' },
-        image: { type: 'string', contentEncoding: 'binary' }
+        image: { type: 'string', format: 'binary' }
     }
 };
 const successObjectResponse = {
@@ -67,15 +67,9 @@ async function ExpertRoutes(app) {
     app.post('/', {
         schema: {
             tags: ['Experts'],
-            consumes: ['multipart/form-data'],
+            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+            body: expertBodyProps,
             summary: 'Create an expert',
-            parameters: [
-                { name: 'name', in: 'formData', type: 'string', required: true },
-                { name: 'profession_id', in: 'formData', type: 'integer', required: true },
-                { name: 'name_org', in: 'formData', type: 'string', required: false },
-                { name: 'qualification', in: 'formData', type: 'string', required: false },
-                { name: 'image', in: 'formData', type: 'file', required: false }
-            ],
             response: { 200: successObjectResponse }
         },
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
@@ -102,15 +96,10 @@ async function ExpertRoutes(app) {
     app.patch('/:id', {
         schema: {
             tags: ['Experts'],
-            consumes: ['application/json', 'multipart/form-data'],
+            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+            body: expertBodyProps,
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.expertIdParamsSchema, { target: 'openApi3' }),
             summary: 'Update an expert',
-            parameters: [
-                { name: 'name', in: 'formData', type: 'string', required: false },
-                { name: 'profession_id', in: 'formData', type: 'integer', required: false },
-                { name: 'name_org', in: 'formData', type: 'string', required: false },
-                { name: 'qualification', in: 'formData', type: 'string', required: false },
-                { name: 'image', in: 'formData', type: 'file', required: false }
-            ],
             response: { 200: successObjectResponse }
         },
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
@@ -153,6 +142,7 @@ async function ExpertRoutes(app) {
     app.get('/:id', {
         schema: {
             tags: ['Experts'],
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.expertIdParamsSchema, { target: 'openApi3' }),
             summary: 'Get expert by ID',
             response: { 200: successObjectResponse }
         },

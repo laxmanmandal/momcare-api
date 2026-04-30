@@ -42,7 +42,7 @@ const client_1 = __importDefault(require("../prisma/client"));
 const userService = __importStar(require("../services/userService"));
 const jwt_1 = require("../utils/jwt");
 const validations_1 = require("../validations");
-const zod_to_json_schema_1 = require("zod-to-json-schema");
+const zodOpenApi_1 = require("../utils/zodOpenApi");
 const errorResponse = {
     type: 'object',
     properties: {
@@ -118,6 +118,8 @@ async function userRoutes(app) {
         ],
         schema: {
             tags: ['Users'],
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.usersListParamsSchema, { target: 'openApi3' }),
+            querystring: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.usersListQuerySchema, { target: 'openApi3' }),
             response: {
                 200: {
                     type: 'object',
@@ -229,6 +231,7 @@ async function userRoutes(app) {
         ],
         schema: {
             tags: ['Users'],
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.usersListByRoleParamsSchema, { target: 'openApi3' }),
             response: {
                 200: {
                     type: 'object',
@@ -292,7 +295,8 @@ async function userRoutes(app) {
     });
     app.get('/entity/:entityId', {
         schema: {
-            tags: ['Users']
+            tags: ['Users'],
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.usersByEntityParamsSchema, { target: 'openApi3' })
         },
         preHandler: [
             auth_1.authMiddleware,
@@ -311,6 +315,8 @@ async function userRoutes(app) {
         ],
         schema: {
             tags: ['Users'],
+            consumes: ['application/json', 'application/x-www-form-urlencoded'],
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.userStatusParamsSchema, { target: 'openApi3' }),
             response: {
                 200: {
                     type: 'object',
@@ -341,8 +347,8 @@ async function userRoutes(app) {
         ],
         schema: {
             tags: ['Users'],
-            consumes: ['application/json', 'multipart/form-data'],
-            body: (0, zod_to_json_schema_1.zodToJsonSchema)(validations_1.userUpdateBodySchema, { target: 'openApi3' }),
+            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.userUpdateBodySchema, { target: 'openApi3' }),
             response: {
                 200: {
                     type: 'object',

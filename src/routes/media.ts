@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify'
 import * as mediaservice from '../services/mediaService'
 import { authMiddleware, onlyOrg } from '../middleware/auth';
+import { zodToJsonSchema } from '../utils/zodOpenApi';
 import {
     mediaCreateMultipartSchema,
     mediaIdParamsSchema,
@@ -9,7 +10,6 @@ import {
     mediaUpdateMultipartSchema,
     validateData
 } from '../validations';
-import { zodToFormDataParams, zodToMultipartRequestBody } from '../utils/zodFormData'
 
 const successObjectResponse = {
     type: 'object',
@@ -27,10 +27,9 @@ export default async function mediaRoutes(app: FastifyInstance) {
         {
             schema: {
                 tags: ['Media Files'],
-                consumes: ['multipart/form-data'],
-                parameters: zodToFormDataParams(mediaCreateMultipartSchema as any),
-                requestBody: zodToMultipartRequestBody(mediaCreateMultipartSchema as any),
+                consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
                 summary: 'Create a media resource',
+                body: zodToJsonSchema(mediaCreateMultipartSchema as any, { target: 'openApi3' }),
                 response: { 201: successObjectResponse }
             },
             preHandler: [onlyOrg]
@@ -70,10 +69,10 @@ export default async function mediaRoutes(app: FastifyInstance) {
         {
             schema: {
                 tags: ['Media Files'],
-                consumes: ['application/json', 'multipart/form-data'],
-                parameters: zodToFormDataParams(mediaUpdateMultipartSchema as any),
-                requestBody: zodToMultipartRequestBody(mediaUpdateMultipartSchema as any),
+                consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
                 summary: 'Update a media resource',
+                body: zodToJsonSchema(mediaUpdateMultipartSchema as any, { target: 'openApi3' }),
+                params: zodToJsonSchema(mediaParamsSchema as any, { target: 'openApi3' }),
                 response: { 200: successObjectResponse }
             },
             preHandler: [onlyOrg]
@@ -176,6 +175,7 @@ export default async function mediaRoutes(app: FastifyInstance) {
     app.get('/:uuid', {
         schema: {
             tags: ['Media Files'],
+            params: zodToJsonSchema(mediaParamsSchema as any, { target: 'openApi3' }),
             response: {
                 200: {
                     type: 'object',
@@ -233,6 +233,7 @@ export default async function mediaRoutes(app: FastifyInstance) {
     app.get('/mediaId/:id', {
         schema: {
             tags: ['Media Files'],
+            params: zodToJsonSchema(mediaIdParamsSchema as any, { target: 'openApi3' }),
             response: {
                 200: {
                     type: 'object',
@@ -290,6 +291,7 @@ export default async function mediaRoutes(app: FastifyInstance) {
     app.get('/search', {
         schema: {
             tags: ['Media Files'],
+            querystring: zodToJsonSchema(mediaSearchQuerySchema as any, { target: 'openApi3' })
         }
     }, async (request, reply) => {
         try {

@@ -14,7 +14,7 @@ import {
   userStatusParamsSchema,
   userUpdateBodySchema
 } from '../validations';
-import { zodToJsonSchema } from 'zod-to-json-schema'
+import { zodToJsonSchema } from '../utils/zodOpenApi'
 import type {
   UsersListParams,
   UsersListQuery,
@@ -114,6 +114,8 @@ export default async function userRoutes(app: FastifyInstance) {
       ],
       schema: {
         tags: ['Users'],
+        params: zodToJsonSchema(usersListParamsSchema as any, { target: 'openApi3' }),
+        querystring: zodToJsonSchema(usersListQuerySchema as any, { target: 'openApi3' }),
         response: {
           200: {
             type: 'object',
@@ -240,6 +242,7 @@ export default async function userRoutes(app: FastifyInstance) {
       ],
       schema: {
         tags: ['Users'],
+        params: zodToJsonSchema(usersListByRoleParamsSchema as any, { target: 'openApi3' }),
         response: {
           200: {
             type: 'object',
@@ -308,7 +311,8 @@ export default async function userRoutes(app: FastifyInstance) {
     '/entity/:entityId',
     {
       schema: {
-        tags: ['Users']
+        tags: ['Users'],
+        params: zodToJsonSchema(usersByEntityParamsSchema as any, { target: 'openApi3' })
       },
       preHandler: [
         authMiddleware,
@@ -332,6 +336,8 @@ export default async function userRoutes(app: FastifyInstance) {
       ],
       schema: {
         tags: ['Users'],
+        consumes: ['application/json', 'application/x-www-form-urlencoded'],
+        params: zodToJsonSchema(userStatusParamsSchema as any, { target: 'openApi3' }),
         response: {
           200: {
             type: 'object',
@@ -367,7 +373,7 @@ export default async function userRoutes(app: FastifyInstance) {
       ],
       schema: {
         tags: ['Users'],
-        consumes: ['application/json', 'multipart/form-data'],
+        consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
         body: zodToJsonSchema(userUpdateBodySchema as any, { target: 'openApi3' }),
         response: {
           200: {

@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import * as subscriptionService from '../services/subscriptionService';
 import { authMiddleware, onlyOrg } from '../middleware/auth';
+import { zodToJsonSchema } from '../utils/zodOpenApi';
 import {
   subscriptionIdsParamsSchema,
   subscriptionPlanCreateSchema,
@@ -8,8 +9,6 @@ import {
   subscriptionUuidParamsSchema,
   validateData
 } from '../validations';
-import { zodToJsonSchema } from 'zod-to-json-schema'
-import { zodToFormDataParams, zodToMultipartRequestBody } from '../utils/zodFormData'
 
 const successObjectResponse = {
   type: 'object',
@@ -28,6 +27,15 @@ const successArrayResponse = {
     data: { type: 'array', items: { type: 'object', additionalProperties: true } }
   }
 } as const
+
+const planBodyProps = {
+  properties: {
+      name: { type: 'string' },
+      price: { type: 'number' },
+      courseIds: { type: 'string', description: 'Comma-separated course IDs or array' },
+      thumbnail: { type: 'string', format: 'binary' }
+  }
+};
 
 export default async function subscriptionRoutes(app: FastifyInstance) {
   app.addHook('preHandler', authMiddleware);
@@ -65,6 +73,7 @@ export default async function subscriptionRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Subscription Plans'],
       summary: 'Get subscription plan by UUID',
+      params: zodToJsonSchema(subscriptionUuidParamsSchema as any, { target: 'openApi3' }),
       response: { 200: successObjectResponse, 404: successObjectResponse }
     }
   }, async (req, reply) => {
@@ -88,6 +97,7 @@ export default async function subscriptionRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Subscription Plans'],
       summary: 'Get many plans by IDs',
+      params: zodToJsonSchema(subscriptionIdsParamsSchema as any, { target: 'openApi3' }),
       response: { 200: successArrayResponse, 500: successObjectResponse }
     }
   }, async (req, reply) => {
@@ -115,9 +125,8 @@ export default async function subscriptionRoutes(app: FastifyInstance) {
         tags: ['Subscription Plans'],
         summary: 'Create a subscription plan',
         description: 'Creates a new subscription plan. Supports multipart for thumbnail upload.',
-        consumes: ['multipart/form-data'],
-        parameters: zodToFormDataParams(subscriptionPlanCreateSchema as any),
-        requestBody: zodToMultipartRequestBody(subscriptionPlanCreateSchema as any),
+        consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+        body: planBodyProps,
         response: { 201: successObjectResponse, 400: successObjectResponse }
       },
     preHandler: [onlyOrg]
@@ -159,8 +168,10 @@ export default async function subscriptionRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Subscription Plans'],
       summary: 'Update a subscription plan',
-      response: { 200: successObjectResponse, 400: successObjectResponse },
-      body: zodToJsonSchema(subscriptionPlanUpdateSchema as any, 'subscriptionPlanUpdateBody')
+      consumes: ['application/json', 'application/x-www-form-urlencoded'],
+      body: zodToJsonSchema(subscriptionPlanUpdateSchema as any, { target: 'openApi3' }),
+      params: zodToJsonSchema(subscriptionUuidParamsSchema as any, { target: 'openApi3' }),
+      response: { 200: successObjectResponse, 400: successObjectResponse }
     },
     preHandler: [onlyOrg]
   }, async (req, reply) => {
@@ -185,6 +196,8 @@ export default async function subscriptionRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Subscription Plans'],
       summary: 'Toggle plan active status',
+      consumes: ['application/json', 'application/x-www-form-urlencoded'],
+      params: zodToJsonSchema(subscriptionUuidParamsSchema as any, { target: 'openApi3' }),
       response: { 200: successObjectResponse, 400: successObjectResponse }
     },
     preHandler: [onlyOrg]
@@ -209,6 +222,8 @@ export default async function subscriptionRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Subscription Plans'],
       summary: 'Toggle plan visibility',
+      consumes: ['application/json', 'application/x-www-form-urlencoded'],
+      params: zodToJsonSchema(subscriptionUuidParamsSchema as any, { target: 'openApi3' }),
       response: { 200: successObjectResponse, 400: successObjectResponse }
     },
     preHandler: [onlyOrg]

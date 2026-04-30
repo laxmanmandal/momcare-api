@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import type { FastifyReply, FastifyRequest } from 'fastify';
+import { hasZodFastifySchemaValidationErrors } from 'fastify-type-provider-zod';
 import { ValidationError } from '../validations/error';
 
 function normalizeTarget(target: unknown): string {
@@ -52,6 +53,18 @@ export function errorHandler(
             success: false,
             message: 'Validation Error',
             errors: error.errors
+        });
+        return;
+    }
+
+    if (hasZodFastifySchemaValidationErrors(error)) {
+        reply.status(422).send({
+            success: false,
+            message: 'Validation Error',
+            errors: error.validation.map((issue: any) => ({
+                field: issue.instancePath?.replace(/^\//, '').replace(/\//g, '.') || issue.params?.missingProperty || 'root',
+                message: issue.message
+            }))
         });
         return;
     }

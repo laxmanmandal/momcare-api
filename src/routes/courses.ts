@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify'
 import * as courseService from '../services/courseService'
 import { authMiddleware, onlyOrg } from '../middleware/auth'
-import { zodToJsonSchema } from 'zod-to-json-schema'
+import { zodToJsonSchema } from '../utils/zodOpenApi'
 import {
   courseCreateBodySchema,
   courseIdsParamsSchema,
@@ -53,7 +53,8 @@ export default async function courseRoutes(app: FastifyInstance) {
       tags: ['Lessons-courses'],
       summary: 'List all lessons',
       description: 'Retrieve a paginated/filtered list of lessons.',
-      response: { 200: successArrayResponse }
+      response: { 200: successArrayResponse },
+      querystring: zodToJsonSchema(courseLessonQuerySchema as any, { target: 'openApi3' })
     }
   }, async (req, reply) => {
     const query = validateData(courseLessonQuerySchema, req.query ?? {});
@@ -65,7 +66,8 @@ export default async function courseRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Lessons-courses'],
       summary: 'Get lesson by UUID',
-      response: { 200: successObjectResponse }
+      response: { 200: successObjectResponse },
+      params: zodToJsonSchema(courseUuidParamsSchema as any, { target: 'openApi3' })
     }
   }, async (req, reply) => {
     const { uuid } = validateData(courseUuidParamsSchema, req.params);
@@ -77,13 +79,15 @@ export default async function courseRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Lessons-courses'],
       summary: 'Create a lesson',
+      consumes: ['multipart/form-data', 'application/json', 'application/x-www-form-urlencoded'],
       response: { 201: successObjectResponse },
       body: zodToJsonSchema(courseLessonBodySchema as any, { target: 'openApi3' })
     },
     preHandler: [onlyOrg]
-  }, async (req, reply) => {
+  }, async (req: any, reply) => {
     let uuid = await app.uid('LS', 'lesson');
-    const body = validateData(courseLessonBodySchema, req.body ?? {});
+    const { fields } = req.isMultipart() ? await app.parseMultipartMemory(req) : { fields: req.body ?? {} };
+    const body = validateData(courseLessonBodySchema, fields);
     let data = { ...body, uuid };
     const newLesson = await courseService.addLesson(data);
     return reply.code(201).send({ success: true, message: 'Lesson created successfully', data: newLesson });
@@ -93,13 +97,16 @@ export default async function courseRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Lessons-courses'],
       summary: 'Update a lesson',
+      consumes: ['multipart/form-data', 'application/json', 'application/x-www-form-urlencoded'],
       response: { 200: successObjectResponse },
+      params: zodToJsonSchema(courseUuidParamsSchema as any, { target: 'openApi3' }),
       body: zodToJsonSchema(courseLessonBodySchema as any, { target: 'openApi3' })
     },
     preHandler: [onlyOrg]
-  }, async (req, reply) => {
+  }, async (req: any, reply) => {
     const { uuid } = validateData(courseUuidParamsSchema, req.params);
-    const updatedLesson = await courseService.updateLesson(uuid, validateData(courseLessonBodySchema, req.body ?? {}));
+    const { fields } = req.isMultipart() ? await app.parseMultipartMemory(req) : { fields: req.body ?? {} };
+    const updatedLesson = await courseService.updateLesson(uuid, validateData(courseLessonBodySchema, fields));
     return reply.send({ success: true, message: 'Lesson updated successfully', data: updatedLesson });
   });
 
@@ -107,7 +114,8 @@ export default async function courseRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Lessons-courses'],
       summary: 'Toggle lesson status',
-      response: { 200: successObjectResponse }
+      response: { 200: successObjectResponse },
+      params: zodToJsonSchema(courseUuidParamsSchema as any, { target: 'openApi3' })
     },
     preHandler: [onlyOrg]
   }, async (req, reply) => {
@@ -125,7 +133,8 @@ export default async function courseRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Lessons-courses'],
       summary: 'Get lesson medias by lesson UUID',
-      response: { 200: successArrayResponse }
+      response: { 200: successArrayResponse },
+      params: zodToJsonSchema(courseLessonUuidParamsSchema as any, { target: 'openApi3' })
     }
   }, async (req, reply) => {
     const { lessonUuid } = validateData(courseLessonUuidParamsSchema, req.params);
@@ -137,7 +146,8 @@ export default async function courseRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Lessons-courses'],
       summary: 'Get lesson media by ID',
-      response: { 200: successObjectResponse }
+      response: { 200: successObjectResponse },
+      params: zodToJsonSchema(courseIdParamsSchema as any, { target: 'openApi3' })
     }
   }, async (req, reply) => {
     const { id } = validateData(courseIdParamsSchema, req.params);
@@ -149,12 +159,14 @@ export default async function courseRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Lesson-media'],
       summary: 'Create or update lesson medias',
+      consumes: ['multipart/form-data', 'application/json', 'application/x-www-form-urlencoded'],
       response: { 201: successObjectResponse },
       body: zodToJsonSchema(courseLessonMediaBodySchema as any, { target: 'openApi3' })
     },
     preHandler: [onlyOrg]
   }, async (req: any, reply) => {
-    const item = validateData(courseLessonMediaBodySchema, req.body ?? {});
+    const { fields } = req.isMultipart() ? await app.parseMultipartMemory(req) : { fields: req.body ?? {} };
+    const item = validateData(courseLessonMediaBodySchema, fields);
     const result = await courseService.createUpdateMany([item]);
     reply.code(201).send({ success: true, message: 'Lesson medias saved', data: result });
   });
@@ -163,7 +175,8 @@ export default async function courseRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Lesson-media'],
       summary: 'Toggle lesson media status',
-      response: { 200: successObjectResponse }
+      response: { 200: successObjectResponse },
+      params: zodToJsonSchema(courseIdParamsSchema as any, { target: 'openApi3' })
     },
     preHandler: [onlyOrg]
   }, async (req, reply) => {
@@ -192,7 +205,8 @@ export default async function courseRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Lessons-courses'],
       summary: 'Get course by UUID',
-      response: { 200: successObjectResponse, 404: errorResponse }
+      response: { 200: successObjectResponse, 404: errorResponse },
+      params: zodToJsonSchema(courseUuidParamsSchema as any, { target: 'openApi3' })
     }
   }, async (req, reply) => {
     const { uuid } = validateData(courseUuidParamsSchema, req.params);
@@ -206,7 +220,8 @@ export default async function courseRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Lessons-courses'],
       summary: 'Get many courses by IDs',
-      response: { 200: successArrayResponse }
+      response: { 200: successArrayResponse },
+      params: zodToJsonSchema(courseIdsParamsSchema as any, { target: 'openApi3' })
     }
   }, async (req, reply) => {
     const { ids } = validateData(courseIdsParamsSchema, req.params);
@@ -219,13 +234,15 @@ export default async function courseRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Lessons-courses'],
       summary: 'Create a course',
+      consumes: ['multipart/form-data', 'application/json', 'application/x-www-form-urlencoded'],
       response: { 201: successObjectResponse },
       body: zodToJsonSchema(courseCreateBodySchema as any, { target: 'openApi3' })
     },
     preHandler: [onlyOrg]
-  }, async (req, reply) => {
+  }, async (req: any, reply) => {
     let uuid: string = await app.uid('CRS', 'course');
-    const body = validateData(courseCreateBodySchema, req.body ?? {});
+    const { fields } = req.isMultipart() ? await app.parseMultipartMemory(req) : { fields: req.body ?? {} };
+    const body = validateData(courseCreateBodySchema, fields);
     let data = { ...body, uuid };
     const newCourse = await courseService.createCourse(data);
     return reply.code(201).send({ success: true, message: 'Course created successfully', data: newCourse });
@@ -235,13 +252,16 @@ export default async function courseRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Lessons-courses'],
       summary: 'Update a course',
+      consumes: ['multipart/form-data', 'application/json', 'application/x-www-form-urlencoded'],
       response: { 200: successObjectResponse },
+      params: zodToJsonSchema(courseUuidParamsSchema as any, { target: 'openApi3' }),
       body: zodToJsonSchema(courseUpdateBodySchema as any, { target: 'openApi3' })
     },
     preHandler: [onlyOrg]
-  }, async (req, reply) => {
+  }, async (req: any, reply) => {
     const { uuid } = validateData(courseUuidParamsSchema, req.params);
-    const updatedCourse = await courseService.updateCourse(uuid, validateData(courseUpdateBodySchema, req.body ?? {}));
+    const { fields } = req.isMultipart() ? await app.parseMultipartMemory(req) : { fields: req.body ?? {} };
+    const updatedCourse = await courseService.updateCourse(uuid, validateData(courseUpdateBodySchema, fields));
     return reply.send({ success: true, message: 'Course updated successfully', data: updatedCourse });
   });
 
@@ -249,7 +269,8 @@ export default async function courseRoutes(app: FastifyInstance) {
     schema: {
       tags: ['Lessons-courses'],
       summary: 'Toggle course status',
-      response: { 200: successObjectResponse }
+      response: { 200: successObjectResponse },
+      params: zodToJsonSchema(courseUuidParamsSchema as any, { target: 'openApi3' })
     },
     preHandler: [onlyOrg]
   }, async (req, reply) => {
@@ -258,11 +279,12 @@ export default async function courseRoutes(app: FastifyInstance) {
     return reply.send({ success: true, message: 'Course status updated successfully', data: updatedCourse });
   });
 
-  app.get('/:courseUuid/lessons', {
+  app.get('/:uuid/lessons', {
     schema: {
       tags: ['Lessons-courses'],
       summary: 'Get lessons for a course',
-      response: { 200: successArrayResponse }
+      response: { 200: successArrayResponse },
+      params: zodToJsonSchema(courseUuidParamsSchema as any, { target: 'openApi3' })
     }
   }, async (req, reply) => {
     const { uuid: courseUuid } = validateData(courseUuidParamsSchema, req.params);

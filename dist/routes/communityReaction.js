@@ -36,7 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = communityReaction;
 const communityReactions = __importStar(require("../services/communityReactions"));
 const auth_1 = require("../middleware/auth");
-const zod_to_json_schema_1 = require("zod-to-json-schema");
+const zodOpenApi_1 = require("../utils/zodOpenApi");
 const validations_1 = require("../validations");
 async function communityReaction(app) {
     app.addHook('preHandler', auth_1.authMiddleware);
@@ -45,7 +45,8 @@ async function communityReaction(app) {
         schema: {
             tags: ['Community post and Comments Likes'],
             description: 'Toggle a reaction for either a post or a comment. Provide postId or commentId.',
-            body: (0, zod_to_json_schema_1.zodToJsonSchema)(validations_1.communityReactionBodySchema, 'communityReactionBody')
+            consumes: ['application/json', 'application/x-www-form-urlencoded'],
+            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.communityReactionBodySchema, { target: 'openApi3' }),
         }
     }, async (req, reply) => {
         const { postId, commentId } = (0, validations_1.validateData)(validations_1.communityReactionBodySchema, req.body ?? {});
@@ -64,6 +65,7 @@ async function communityReaction(app) {
     app.get('/', {
         schema: {
             tags: ['Community post and Comments Likes'],
+            querystring: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.communityReactionQuerySchema, { target: 'openApi3' }),
         }
     }, async (req, reply) => {
         const { postId, commentId } = (0, validations_1.validateData)(validations_1.communityReactionQuerySchema, req.query ?? {});

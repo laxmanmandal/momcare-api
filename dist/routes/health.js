@@ -40,8 +40,8 @@ exports.default = healthRoutes;
 const healthService = __importStar(require("../services/healthService"));
 const auth_1 = require("../middleware/auth");
 const client_1 = __importDefault(require("../prisma/client"));
+const zodOpenApi_1 = require("../utils/zodOpenApi");
 const validations_1 = require("../validations");
-const zod_to_json_schema_1 = require("zod-to-json-schema");
 const successArrayResponse = {
     type: 'object',
     properties: {
@@ -62,7 +62,8 @@ async function healthRoutes(app) {
         schema: {
             tags: ['Health'],
             description: 'Create a symptom entry',
-            body: (0, zod_to_json_schema_1.zodToJsonSchema)(validations_1.healthSymptomsSchema, 'healthSymptomsBody'),
+            consumes: ['application/json', 'application/x-www-form-urlencoded'],
+            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.healthSymptomsSchema, { target: 'openApi3' }),
             response: {
                 201: {
                     type: 'object',

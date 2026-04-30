@@ -8,7 +8,6 @@ import bcrypt from 'bcryptjs';
 import { loginRateLimiter, recordFailedAttempt, resetAttempts } from '../middleware/loginratelimiter';
 import { normalizePhone, otpRateLimiter, recordFailedVerification, recordSendSuccess, resetOtpAttempts } from '../middleware/otpratelimiter';
 import createHttpError from 'http-errors';
-import { validateRequest } from '../validations';
 import {
   requestOtpSchema,
   verifyOtpSchema,
@@ -35,13 +34,14 @@ export default async function authRoutes(app: FastifyInstance) {
           timeWindow: 10 * 60 * 1000
         }
       },
-      preHandler: [validateRequest(requestOtpSchema)],
       schema: {
-        tags: ['Auth']
+        tags: ['Auth'],
+        consumes: ['application/json', 'application/x-www-form-urlencoded'],
+        body: requestOtpSchema
       }
     },
     async (req, reply) => {
-      const body = req.validated?.body as RequestOtpBody;
+      const body = req.body as RequestOtpBody;
       const key = otpRateLimiter(body.phone, req, reply);
       if (!key) return;
 
@@ -64,13 +64,14 @@ export default async function authRoutes(app: FastifyInstance) {
           timeWindow: 10 * 60 * 1000
         }
       },
-      preHandler: [validateRequest(verifyOtpSchema)],
       schema: {
-        tags: ['Auth']
+        tags: ['Auth'],
+        consumes: ['application/json', 'application/x-www-form-urlencoded'],
+        body: verifyOtpSchema
       }
     },
     async (req, reply) => {
-      const { phone: rawPhone, otp } = req.validated?.body as VerifyOtpBody;
+      const { phone: rawPhone, otp } = req.body as VerifyOtpBody;
       const key = otpRateLimiter(rawPhone, req, reply);
       if (!key) return;
 
@@ -114,16 +115,17 @@ export default async function authRoutes(app: FastifyInstance) {
     {
       preHandler: [
         authMiddleware,
-        app.accessControl.check('CREATE_USER'),
-        validateRequest(signupSchema)
+        app.accessControl.check('CREATE_USER')
       ],
       schema: {
-        tags: ['Auth']
+        tags: ['Auth'],
+        consumes: ['application/json', 'application/x-www-form-urlencoded'],
+        body: signupSchema
       }
     },
     async (req: any, reply) => {
       const actorRole = req.user?.role;
-      const body = req.validated?.body as SignupBody;
+      const body = req.body as SignupBody;
       const targetRole = body.role;
 
       if (!canCreateRole(actorRole, targetRole)) {
@@ -163,9 +165,10 @@ export default async function authRoutes(app: FastifyInstance) {
           timeWindow: 15 * 60 * 1000
         }
       },
-      preHandler: [validateRequest(loginSchema)],
       schema: {
-        tags: ['Auth']
+        tags: ['Auth'],
+        consumes: ['application/json', 'application/x-www-form-urlencoded'],
+        body: loginSchema
       }
     },
     async (req, reply) => {
@@ -176,7 +179,7 @@ export default async function authRoutes(app: FastifyInstance) {
         )?.split(',')[0]?.trim()
         || req.ip;
 
-      const body = req.validated?.body as LoginBody;
+      const body = req.body as LoginBody;
       const key = loginRateLimiter(body.email, ip, reply);
       if (!key) return;
 
@@ -207,13 +210,14 @@ export default async function authRoutes(app: FastifyInstance) {
           timeWindow: 15 * 60 * 1000
         }
       },
-      preHandler: [validateRequest(refreshTokenSchema)],
       schema: {
-        tags: ['Auth']
+        tags: ['Auth'],
+        consumes: ['application/json', 'application/x-www-form-urlencoded'],
+        body: refreshTokenSchema
       }
     },
     async (req, reply) => {
-      const { refreshToken } = req.validated?.body as RefreshTokenBody;
+      const { refreshToken } = req.body as RefreshTokenBody;
       const tokens = await authService.refreshTokenService(refreshToken);
       return reply.send(tokens);
     }
@@ -224,16 +228,17 @@ export default async function authRoutes(app: FastifyInstance) {
     {
       preHandler: [
         authMiddleware,
-        app.accessControl.check('CHANGE_PASSWORD'),
-        validateRequest(changePasswordSchema)
+        app.accessControl.check('CHANGE_PASSWORD')
       ],
       schema: {
-        tags: ['Auth']
+        tags: ['Auth'],
+        consumes: ['application/json', 'application/x-www-form-urlencoded'],
+        body: changePasswordSchema
       }
     },
     async (req: any, res) => {
       const authUserId = Number(req.user.id);
-      const { userId, old_password, new_password } = req.validated?.body as ChangePasswordBody;
+      const { userId, old_password, new_password } = req.body as ChangePasswordBody;
 
       if (authUserId !== userId) {
         throw createHttpError(403, 'Unauthorized');

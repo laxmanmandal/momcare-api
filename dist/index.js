@@ -7,7 +7,10 @@ exports.UPLOAD_ROOT = void 0;
 const fastify_1 = __importDefault(require("fastify"));
 const swagger_1 = __importDefault(require("@fastify/swagger"));
 const swagger_ui_1 = __importDefault(require("@fastify/swagger-ui"));
-const zod_to_json_schema_1 = require("zod-to-json-schema");
+const ajv_1 = __importDefault(require("ajv"));
+const ajv_formats_1 = __importDefault(require("ajv-formats"));
+const fastify_type_provider_zod_1 = require("fastify-type-provider-zod");
+const zodOpenApi_1 = require("./utils/zodOpenApi");
 const multipart_1 = require("@fastify/multipart");
 const static_1 = __importDefault(require("@fastify/static"));
 const cors_1 = __importDefault(require("@fastify/cors"));
@@ -69,6 +72,29 @@ const app = (0, fastify_1.default)({
         }
     }
 });
+const ajv = new ajv_1.default({
+    coerceTypes: true,
+    useDefaults: true,
+    removeAdditional: false,
+    strict: false,
+    allErrors: true
+});
+(0, ajv_formats_1.default)(ajv);
+app.setValidatorCompiler((context) => {
+    if ((0, zodOpenApi_1.isZodSchema)(context.schema)) {
+        return (0, fastify_type_provider_zod_1.validatorCompiler)(context);
+    }
+    if (context.schema?.[zodOpenApi_1.ZOD_DOCS_ONLY]) {
+        return (data) => ({ value: data });
+    }
+    return ajv.compile(context.schema);
+});
+app.setSerializerCompiler((context) => {
+    if ((0, zodOpenApi_1.isZodSchema)(context.schema) || (0, zodOpenApi_1.isZodSchema)(context.schema?.properties)) {
+        return (0, fastify_type_provider_zod_1.serializerCompiler)(context);
+    }
+    return (data) => JSON.stringify(data);
+});
 app.register(rate_limit_1.default, {
     global: false // important — prevents whole server from being limited
 });
@@ -110,27 +136,85 @@ app.register(swagger_1.default, {
     transform: ({ schema, url, route }) => {
         const transformedSchema = { ...schema };
         const routeConfig = (route.config ?? {});
+        for (const key of ['body', 'params', 'querystring', 'headers']) {
+            if (transformedSchema[key]) {
+                transformedSchema[key] = (0, zodOpenApi_1.normalizeJsonSchema)(transformedSchema[key]);
+            }
+        }
+        if (transformedSchema.response && typeof transformedSchema.response === 'object') {
+            for (const status of Object.keys(transformedSchema.response)) {
+                if ((0, zodOpenApi_1.isZodSchema)(transformedSchema.response[status])) {
+                    transformedSchema.response[status] = (0, zodOpenApi_1.normalizeJsonSchema)(transformedSchema.response[status]);
+                }
+            }
+        }
         if (!routeConfig.swaggerPublic && !transformedSchema.security) {
             transformedSchema.security = [{ BearerAuth: [] }];
         }
-        // Convert Zod schemas attached to preHandler into JSON Schema for Swagger
+        // standard 400 and 500 error responses globally
+        transformedSchema.response = transformedSchema.response || {};
+        const standardErrorResponse = {
+            type: 'object',
+            properties: {
+                success: { type: 'boolean' },
+                message: { type: 'string' },
+                error: { type: 'string' }
+            }
+        };
+        if (!transformedSchema.response['400']) {
+            transformedSchema.response['400'] = {
+                description: 'Bad Request',
+                ...standardErrorResponse
+            };
+        }
+        if (!transformedSchema.response['500']) {
+            transformedSchema.response['500'] = {
+                description: 'Internal Server Error',
+                ...standardErrorResponse
+            };
+        }
+        // --- STEP 1: POPULATE SCHEMAS FROM ZOD (via preHandlers) ---
         try {
-            const preHandlers = Array.isArray(route.preHandler) ? route.preHandler : route.preHandler ? [route.preHandler] : [];
+            const preHandlers = Array.isArray(route.preHandler) ? route.preHandler : (route.preHandler ? [route.preHandler] : []);
             for (const ph of preHandlers) {
-                if (ph && ph._zodSchema) {
-                    const { source, schema: zschema } = ph._zodSchema;
-                    const json = (0, zod_to_json_schema_1.zodToJsonSchema)(zschema, { target: 'openApi3' });
+                const zData = ph && ph._zodSchema;
+                if (zData) {
+                    const { source, schema: zschema } = zData;
+                    const json = (0, zodOpenApi_1.zodToJsonSchema)(zschema, { target: 'openApi3' });
+                    if (json.$schema)
+                        delete json.$schema;
                     const key = source === 'query' ? 'querystring' : source;
-                    transformedSchema[key] = json;
+                    if (!transformedSchema[key]) {
+                        transformedSchema[key] = json;
+                    }
                 }
             }
         }
         catch (err) {
-            if (app.log && typeof app.log.warn === 'function') {
-                app.log.warn('Zod->JSON schema conversion failed for route', url, err);
+            if (app.log)
+                app.log.warn({ err, url }, 'Zod->Swagger transformation failed');
+        }
+        // --- STEP 2: ENSURE VALID BODY STRUCTURE & FLATTEN MULTIPART ---
+        if (transformedSchema.body && typeof transformedSchema.body === 'object') {
+            transformedSchema.body = (0, zodOpenApi_1.buildMultipartBodySchema)(transformedSchema.body);
+        }
+        // --- STEP 3: HANDLE WRITE METHODS (POST/PUT/PATCH) ---
+        const rawMethod = route.method;
+        const methods = Array.isArray(rawMethod) ? rawMethod : [rawMethod];
+        const isWriteMethod = methods.some(m => typeof m === 'string' && ['POST', 'PUT', 'PATCH'].includes(m.toUpperCase()));
+        if (isWriteMethod) {
+            if (!transformedSchema.consumes || (Array.isArray(transformedSchema.consumes) && transformedSchema.consumes.length === 0)) {
+                transformedSchema.consumes = ['application/json', 'application/x-www-form-urlencoded'];
+            }
+            if (transformedSchema.body && !transformedSchema.requestBody && Array.isArray(transformedSchema.consumes)) {
+                const content = {};
+                for (const ct of transformedSchema.consumes) {
+                    content[ct] = { schema: transformedSchema.body };
+                }
+                transformedSchema.requestBody = { content, required: true };
             }
         }
-        // Convert Swagger 2 style formData params (in: 'formData') into OpenAPI3 requestBody multipart/form-data
+        // --- STEP 4: LEGACY FORMDATA CONVERSION ---
         try {
             const params = transformedSchema.parameters;
             if (Array.isArray(params)) {
@@ -152,34 +236,33 @@ app.register(swagger_1.default, {
                             props[name] = { type: 'string', description: p.description };
                         }
                     }
-                    transformedSchema.requestBody = {
-                        content: {
-                            'multipart/form-data': {
-                                schema: {
-                                    type: 'object',
-                                    properties: props,
-                                    required: required.length ? required : undefined
-                                }
-                            }
+                    const rb = transformedSchema.requestBody || { content: {} };
+                    rb.content['multipart/form-data'] = {
+                        schema: {
+                            type: 'object',
+                            properties: props,
+                            required: required.length ? required : undefined
                         }
                     };
-                    // Remove formData params from parameters list
+                    transformedSchema.requestBody = rb;
                     transformedSchema.parameters = params.filter((p) => !(p && p.in === 'formData'));
                     if (transformedSchema.parameters.length === 0)
                         delete transformedSchema.parameters;
                 }
             }
         }
-        catch (err) {
-            /* ignore */
-        }
+        catch (err) { /* ignore */ }
         const transformedUrl = url !== '/' && url.endsWith('/') ? url.slice(0, -1) : url;
         return { schema: transformedSchema, url: transformedUrl };
     }
 });
 app.register(swagger_ui_1.default, {
     routePrefix: '/docs',
-    uiConfig: { docExpansion: 'list', deepLinking: true }
+    uiConfig: {
+        docExpansion: 'list',
+        deepLinking: true,
+        persistAuthorization: true
+    }
 });
 app.setErrorHandler(error_1.errorHandler);
 /* -------------------------- File Upload Handling ------------------------- */

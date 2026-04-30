@@ -36,8 +36,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = dailytipsRoute;
 const dailytipService = __importStar(require("../services/dailytipService"));
 const auth_1 = require("../middleware/auth");
+const zodOpenApi_1 = require("../utils/zodOpenApi");
 const validations_1 = require("../validations");
-const zodFormData_1 = require("../utils/zodFormData");
 const successObjectResponse = {
     type: 'object',
     properties: {
@@ -59,9 +59,8 @@ async function dailytipsRoute(app) {
         schema: {
             tags: ['Dailytips'],
             summary: 'Create a daily tip',
-            consumes: ['multipart/form-data'],
-            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.dailyTipCreateMultipartSchema),
-            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.dailyTipCreateMultipartSchema),
+            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.dailyTipCreateMultipartSchema, { target: 'openApi3' }),
             response: { 200: successObjectResponse }
         },
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
@@ -91,9 +90,9 @@ async function dailytipsRoute(app) {
         schema: {
             tags: ['Dailytips'],
             summary: 'Update a daily tip',
-            consumes: ['application/json', 'multipart/form-data'],
-            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.dailyTipUpdateMultipartSchema),
-            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.dailyTipUpdateMultipartSchema),
+            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.dailyTipUpdateMultipartSchema, { target: 'openApi3' }),
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.dailyTipIdParamsSchema, { target: 'openApi3' }),
             response: { 200: successObjectResponse }
         },
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
@@ -135,6 +134,7 @@ async function dailytipsRoute(app) {
     app.get('/:id', {
         schema: {
             tags: ['Dailytips'],
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.dailyTipIdParamsSchema, { target: 'openApi3' }),
             summary: 'Get daily tip by ID',
             response: { 200: successObjectResponse }
         },
@@ -151,6 +151,8 @@ async function dailytipsRoute(app) {
     app.patch('/:id/status', {
         schema: {
             tags: ['Dailytips'],
+            consumes: ['application/json', 'application/x-www-form-urlencoded'],
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.dailyTipIdParamsSchema, { target: 'openApi3' }),
             summary: 'Toggle daily tip status',
             response: { 200: successObjectResponse }
         },

@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify'
 import * as resourceService from '../services/resourceService'
 import { authMiddleware, onlyOrg } from '../middleware/auth';
+import { zodToJsonSchema } from '../utils/zodOpenApi';
 import {
   conceiveCreateMultipartSchema,
   conceiveIdParamsSchema,
@@ -8,7 +9,6 @@ import {
   conceiveUpdateMultipartSchema,
   validateData
 } from '../validations';
-import { zodToFormDataParams, zodToMultipartRequestBody } from '../utils/zodFormData'
 
 const successObjectResponse = {
     type: 'object',
@@ -27,18 +27,8 @@ export default async function resourceRoutes(app: FastifyInstance) {
       preHandler: [authMiddleware, onlyOrg],
       schema: {
         tags: ['Resources'],
-        consumes: ['multipart/form-data'],
-        parameters: zodToFormDataParams(conceiveCreateMultipartSchema as any),
-        requestBody: zodToMultipartRequestBody(conceiveCreateMultipartSchema as any),
-        body: {
-          properties: {
-            week: { type: 'number' },
-            title: { type: 'string' },
-            description: { type: 'string' },
-            thumbnail: { type: 'string', format: 'binary' },
-            image: { type: 'string', format: 'binary' }
-          }
-        },
+        consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+        body: zodToJsonSchema(conceiveCreateMultipartSchema as any, { target: 'openApi3' }),
         summary: 'Create a conceive resource',
         response: { 200: successObjectResponse }
       }
@@ -76,23 +66,9 @@ export default async function resourceRoutes(app: FastifyInstance) {
     {
       schema: {
         tags: ['Resources'],
-        consumes: ['application/json', 'multipart/form-data'],
-        parameters: zodToFormDataParams(conceiveUpdateMultipartSchema as any),
-        requestBody: zodToMultipartRequestBody(conceiveUpdateMultipartSchema as any),
-        params: {
-          type: 'object',
-          properties: { id: { type: 'integer' } },
-          required: ['id']
-        },
-        body: {
-          properties: {
-            week: { type: 'number' },
-            title: { type: 'string' },
-            description: { type: 'string' },
-            thumbnail: { type: 'string', format: 'binary' },
-            image: { type: 'string', format: 'binary' }
-          }
-        },
+        consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+        params: zodToJsonSchema(conceiveIdParamsSchema as any, { target: 'openApi3' }),
+        body: zodToJsonSchema(conceiveUpdateMultipartSchema as any, { target: 'openApi3' }),
         summary: 'Update a conceive resource',
         response: { 200: successObjectResponse }
       },
@@ -139,11 +115,7 @@ export default async function resourceRoutes(app: FastifyInstance) {
     preHandler: [authMiddleware],
     schema: {
       tags: ['Resources'],
-      params: {
-        type: 'object',
-        properties: { type: { type: 'string' } },
-        required: ['type']
-      },
+      params: zodToJsonSchema(conceiveTypeParamsSchema as any, { target: 'openApi3' }),
       response: {
         200: {
           type: 'object',
@@ -203,11 +175,7 @@ export default async function resourceRoutes(app: FastifyInstance) {
     preHandler: [authMiddleware],
     schema: {
       tags: ['Resources'],
-      params: {
-        type: 'object',
-        properties: { id: { type: 'integer' } },
-        required: ['id']
-      },
+      params: zodToJsonSchema(conceiveIdParamsSchema as any, { target: 'openApi3' }),
       response: {
         200: {
           type: 'object',

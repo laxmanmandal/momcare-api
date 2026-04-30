@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify'
 import * as loginActivity from '../services/loginActivity';
 import { authMiddleware, onlyOrg } from '../middleware/auth';
+import { zodToJsonSchema } from '../utils/zodOpenApi';
 import { loginLogParamsSchema, loginLogQuerySchema, validateData } from '../validations';
 export default async function LoginLogsRoutes(app: FastifyInstance) {
 
@@ -65,6 +66,7 @@ export default async function LoginLogsRoutes(app: FastifyInstance) {
             preHandler: [authMiddleware, onlyOrg],
             schema: {
                 tags: ['auth'],
+                querystring: zodToJsonSchema(loginLogQuerySchema as any, { target: 'openApi3' }),
                 response: loginHistoryResponseSchema
             }
         },
@@ -90,6 +92,8 @@ export default async function LoginLogsRoutes(app: FastifyInstance) {
             preHandler: [authMiddleware, onlyOrg],
             schema: {
                 tags: ['auth'],
+                querystring: zodToJsonSchema(loginLogQuerySchema as any, { target: 'openApi3' }),
+                params: zodToJsonSchema(loginLogParamsSchema as any, { target: 'openApi3' }),
                 response: loginHistoryResponseSchema
             }
         },

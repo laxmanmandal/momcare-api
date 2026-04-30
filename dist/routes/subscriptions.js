@@ -36,9 +36,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = subscriptionRoutes;
 const subscriptionService = __importStar(require("../services/subscriptionService"));
 const auth_1 = require("../middleware/auth");
+const zodOpenApi_1 = require("../utils/zodOpenApi");
 const validations_1 = require("../validations");
-const zod_to_json_schema_1 = require("zod-to-json-schema");
-const zodFormData_1 = require("../utils/zodFormData");
 const successObjectResponse = {
     type: 'object',
     properties: {
@@ -53,6 +52,14 @@ const successArrayResponse = {
         success: { type: 'boolean' },
         message: { type: 'string' },
         data: { type: 'array', items: { type: 'object', additionalProperties: true } }
+    }
+};
+const planBodyProps = {
+    properties: {
+        name: { type: 'string' },
+        price: { type: 'number' },
+        courseIds: { type: 'string', description: 'Comma-separated course IDs or array' },
+        thumbnail: { type: 'string', format: 'binary' }
     }
 };
 async function subscriptionRoutes(app) {
@@ -90,6 +97,7 @@ async function subscriptionRoutes(app) {
         schema: {
             tags: ['Subscription Plans'],
             summary: 'Get subscription plan by UUID',
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.subscriptionUuidParamsSchema, { target: 'openApi3' }),
             response: { 200: successObjectResponse, 404: successObjectResponse }
         }
     }, async (req, reply) => {
@@ -113,6 +121,7 @@ async function subscriptionRoutes(app) {
         schema: {
             tags: ['Subscription Plans'],
             summary: 'Get many plans by IDs',
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.subscriptionIdsParamsSchema, { target: 'openApi3' }),
             response: { 200: successArrayResponse, 500: successObjectResponse }
         }
     }, async (req, reply) => {
@@ -140,9 +149,8 @@ async function subscriptionRoutes(app) {
             tags: ['Subscription Plans'],
             summary: 'Create a subscription plan',
             description: 'Creates a new subscription plan. Supports multipart for thumbnail upload.',
-            consumes: ['multipart/form-data'],
-            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.subscriptionPlanCreateSchema),
-            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.subscriptionPlanCreateSchema),
+            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+            body: planBodyProps,
             response: { 201: successObjectResponse, 400: successObjectResponse }
         },
         preHandler: [auth_1.onlyOrg]
@@ -181,8 +189,10 @@ async function subscriptionRoutes(app) {
         schema: {
             tags: ['Subscription Plans'],
             summary: 'Update a subscription plan',
-            response: { 200: successObjectResponse, 400: successObjectResponse },
-            body: (0, zod_to_json_schema_1.zodToJsonSchema)(validations_1.subscriptionPlanUpdateSchema, 'subscriptionPlanUpdateBody')
+            consumes: ['application/json', 'application/x-www-form-urlencoded'],
+            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.subscriptionPlanUpdateSchema, { target: 'openApi3' }),
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.subscriptionUuidParamsSchema, { target: 'openApi3' }),
+            response: { 200: successObjectResponse, 400: successObjectResponse }
         },
         preHandler: [auth_1.onlyOrg]
     }, async (req, reply) => {
@@ -207,6 +217,8 @@ async function subscriptionRoutes(app) {
         schema: {
             tags: ['Subscription Plans'],
             summary: 'Toggle plan active status',
+            consumes: ['application/json', 'application/x-www-form-urlencoded'],
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.subscriptionUuidParamsSchema, { target: 'openApi3' }),
             response: { 200: successObjectResponse, 400: successObjectResponse }
         },
         preHandler: [auth_1.onlyOrg]
@@ -231,6 +243,8 @@ async function subscriptionRoutes(app) {
         schema: {
             tags: ['Subscription Plans'],
             summary: 'Toggle plan visibility',
+            consumes: ['application/json', 'application/x-www-form-urlencoded'],
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.subscriptionUuidParamsSchema, { target: 'openApi3' }),
             response: { 200: successObjectResponse, 400: successObjectResponse }
         },
         preHandler: [auth_1.onlyOrg]

@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import * as service from '../services/SubscriptionSaleService';
 import { authMiddleware } from '../middleware/auth';
+import { zodToJsonSchema } from '../utils/zodOpenApi';
 import {
     positiveIntSchema,
     subscriptionAllotmentSchema,
@@ -8,7 +9,6 @@ import {
     subscriptionConfirmPaymentSchema,
     validateData
 } from '../validations';
-import { zodToJsonSchema } from 'zod-to-json-schema'
 
 const successObjectResponse = {
     type: 'object',
@@ -106,7 +106,8 @@ export default async function subscriptionRoutes(app: FastifyInstance) {
             schema: {
                 tags: ['AllocationPlan'],
                 description: "Create user allotment",
-                body: zodToJsonSchema(subscriptionAllocationCreateSchema as any, 'subscriptionAllocationCreateBody')
+                consumes: ['application/json', 'application/x-www-form-urlencoded'],
+                body: zodToJsonSchema(subscriptionAllocationCreateSchema as any, { target: 'openApi3' }),
             },
         },
         async (req, reply) => {
@@ -128,7 +129,8 @@ export default async function subscriptionRoutes(app: FastifyInstance) {
             schema: {
                 description: "Create user allotment",
                 tags: ["Payments"],
-                body: zodToJsonSchema(subscriptionAllotmentSchema as any, 'subscriptionAllotmentBody'),
+                consumes: ['application/json', 'application/x-www-form-urlencoded'],
+                body: zodToJsonSchema(subscriptionAllotmentSchema as any, { target: 'openApi3' }),
                 response: {
                     200: {
                         type: "object",
@@ -156,6 +158,8 @@ export default async function subscriptionRoutes(app: FastifyInstance) {
             schema: {
                 description: "Create Razorpay order and payment intent",
                 tags: ["Payments"],
+                consumes: ['application/json', 'application/x-www-form-urlencoded'],
+                body: zodToJsonSchema(subscriptionAllotmentSchema as any, { target: 'openApi3' }),
                 response: {
                     200: {
                         type: "object",
@@ -183,7 +187,8 @@ export default async function subscriptionRoutes(app: FastifyInstance) {
             schema: {
                 description: "Confirm Razorpay payment",
                 tags: ["Payments"],
-                body: zodToJsonSchema(subscriptionConfirmPaymentSchema as any, 'subscriptionConfirmPaymentBody')
+                consumes: ['application/json', 'application/x-www-form-urlencoded'],
+                body: zodToJsonSchema(subscriptionConfirmPaymentSchema as any, { target: 'openApi3' }),
             }
         },
         async (req, reply) => {

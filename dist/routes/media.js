@@ -36,8 +36,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = mediaRoutes;
 const mediaservice = __importStar(require("../services/mediaService"));
 const auth_1 = require("../middleware/auth");
+const zodOpenApi_1 = require("../utils/zodOpenApi");
 const validations_1 = require("../validations");
-const zodFormData_1 = require("../utils/zodFormData");
 const successObjectResponse = {
     type: 'object',
     properties: {
@@ -51,10 +51,9 @@ async function mediaRoutes(app) {
     app.post('/', {
         schema: {
             tags: ['Media Files'],
-            consumes: ['multipart/form-data'],
-            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.mediaCreateMultipartSchema),
-            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.mediaCreateMultipartSchema),
+            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
             summary: 'Create a media resource',
+            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.mediaCreateMultipartSchema, { target: 'openApi3' }),
             response: { 201: successObjectResponse }
         },
         preHandler: [auth_1.onlyOrg]
@@ -85,10 +84,10 @@ async function mediaRoutes(app) {
     app.patch('/:uuid', {
         schema: {
             tags: ['Media Files'],
-            consumes: ['application/json', 'multipart/form-data'],
-            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.mediaUpdateMultipartSchema),
-            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.mediaUpdateMultipartSchema),
+            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
             summary: 'Update a media resource',
+            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.mediaUpdateMultipartSchema, { target: 'openApi3' }),
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.mediaParamsSchema, { target: 'openApi3' }),
             response: { 200: successObjectResponse }
         },
         preHandler: [auth_1.onlyOrg]
@@ -183,6 +182,7 @@ async function mediaRoutes(app) {
     app.get('/:uuid', {
         schema: {
             tags: ['Media Files'],
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.mediaParamsSchema, { target: 'openApi3' }),
             response: {
                 200: {
                     type: 'object',
@@ -238,6 +238,7 @@ async function mediaRoutes(app) {
     app.get('/mediaId/:id', {
         schema: {
             tags: ['Media Files'],
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.mediaIdParamsSchema, { target: 'openApi3' }),
             response: {
                 200: {
                     type: 'object',
@@ -292,6 +293,7 @@ async function mediaRoutes(app) {
     app.get('/search', {
         schema: {
             tags: ['Media Files'],
+            querystring: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.mediaSearchQuerySchema, { target: 'openApi3' })
         }
     }, async (request, reply) => {
         try {

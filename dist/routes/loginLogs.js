@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = LoginLogsRoutes;
 const loginActivity = __importStar(require("../services/loginActivity"));
 const auth_1 = require("../middleware/auth");
+const zodOpenApi_1 = require("../utils/zodOpenApi");
 const validations_1 = require("../validations");
 async function LoginLogsRoutes(app) {
     const loginHistoryResponseSchema = {
@@ -96,6 +97,7 @@ async function LoginLogsRoutes(app) {
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg],
         schema: {
             tags: ['auth'],
+            querystring: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.loginLogQuerySchema, { target: 'openApi3' }),
             response: loginHistoryResponseSchema
         }
     }, async (req, reply) => {
@@ -114,6 +116,8 @@ async function LoginLogsRoutes(app) {
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg],
         schema: {
             tags: ['auth'],
+            querystring: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.loginLogQuerySchema, { target: 'openApi3' }),
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.loginLogParamsSchema, { target: 'openApi3' }),
             response: loginHistoryResponseSchema
         }
     }, async (req, reply) => {

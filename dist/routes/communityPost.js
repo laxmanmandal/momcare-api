@@ -36,8 +36,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = communityPost;
 const communityService = __importStar(require("../services/communityPosts"));
 const auth_1 = require("../middleware/auth");
+const zodOpenApi_1 = require("../utils/zodOpenApi");
 const validations_1 = require("../validations");
-const zodFormData_1 = require("../utils/zodFormData");
 const successObjectResponse = {
     type: 'object',
     properties: {
@@ -60,9 +60,8 @@ async function communityPost(app) {
         schema: {
             tags: ['Community Posts'],
             summary: 'Create a community post',
-            consumes: ['multipart/form-data'],
-            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.communityPostCreateMultipartSchema),
-            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.communityPostCreateMultipartSchema),
+            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.communityPostCreateMultipartSchema, { target: 'openApi3' }),
             response: { 201: successObjectResponse }
         }
     }, async (req, reply) => {
@@ -98,9 +97,9 @@ async function communityPost(app) {
         schema: {
             tags: ['Community Posts'],
             summary: 'Update a community post',
-            consumes: ['application/json', 'multipart/form-data'],
-            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.communityPostUpdateMultipartSchema),
-            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.communityPostUpdateMultipartSchema),
+            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.communityPostUpdateMultipartSchema, { target: 'openApi3' }),
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.communityPostIdParamsSchema, { target: 'openApi3' }),
             response: { 200: successObjectResponse }
         }
     }, async (req, reply) => {
@@ -148,6 +147,7 @@ async function communityPost(app) {
     app.get('/type/:type', {
         schema: {
             tags: ['Community Posts'],
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.communityPostTypeParamsSchema, { target: 'openApi3' }),
             summary: 'List community posts by type',
             response: { 200: successArrayResponse }
         }
@@ -175,6 +175,7 @@ async function communityPost(app) {
     app.get('/community/:id', {
         schema: {
             tags: ['Community Posts'],
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.communityPostIdParamsSchema, { target: 'openApi3' }),
             summary: 'List community posts by community ID',
             response: { 200: successArrayResponse }
         }
@@ -189,6 +190,7 @@ async function communityPost(app) {
     app.get('/:id', {
         schema: {
             tags: ['Community Posts'],
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.communityPostIdParamsSchema, { target: 'openApi3' }),
             summary: 'Get a community post by ID',
             response: { 200: successObjectResponse }
         }
@@ -203,6 +205,8 @@ async function communityPost(app) {
     app.patch('/:id/status', {
         schema: {
             tags: ['Community Posts'],
+            consumes: ['application/json', 'application/x-www-form-urlencoded'],
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.communityPostIdParamsSchema, { target: 'openApi3' }),
             summary: 'Toggle a community post status',
             response: { 200: successObjectResponse }
         }

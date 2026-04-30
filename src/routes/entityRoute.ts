@@ -1,13 +1,13 @@
 import { FastifyInstance, FastifyReply } from 'fastify';
 import * as entityService from '../services/entityService';
 import { authMiddleware } from '../middleware/auth';
+import { zodToJsonSchema } from '../utils/zodOpenApi';
 import {
     entityBodySchema,
     entityIdParamsSchema,
     entityUpdateSchema,
     validateData
 } from '../validations';
-import { zodToFormDataParams, zodToMultipartRequestBody } from '../utils/zodFormData'
 
 const successObjectResponse = {
     type: 'object',
@@ -102,6 +102,7 @@ export default async function entityRoutes(app: FastifyInstance) {
             schema: {
                 tags: ['Entities'],
                 summary: 'Get entity by ID',
+                params: zodToJsonSchema(entityIdParamsSchema as any, { target: 'openApi3' }),
                 response: { 200: successObjectResponse }
             }
         },
@@ -154,10 +155,6 @@ export default async function entityRoutes(app: FastifyInstance) {
         }
     );
 
-    const entityBody = {
-        type: 'object'
-    } as const
-
     app.post(
         '/create',
         {
@@ -165,8 +162,8 @@ export default async function entityRoutes(app: FastifyInstance) {
             schema: {
                 tags: ['Entities'],
                 summary: 'Create an entity',
-                parameters: zodToFormDataParams(entityBodySchema as any),
-                requestBody: zodToMultipartRequestBody(entityBodySchema as any),
+                consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+                body: zodToJsonSchema(entityBodySchema as any, { target: 'openApi3' }),
                 response: { 201: successObjectResponse }
             }
         },
@@ -222,8 +219,8 @@ export default async function entityRoutes(app: FastifyInstance) {
             schema: {
                 tags: ['Entities'],
                 summary: 'Register a new entity (public)',
-                parameters: zodToFormDataParams(entityBodySchema as any),
-                requestBody: zodToMultipartRequestBody(entityBodySchema as any),
+                consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+                body: zodToJsonSchema(entityBodySchema as any, { target: 'openApi3' }),
                 response: { 201: successObjectResponse }
             }
         },
@@ -283,6 +280,9 @@ export default async function entityRoutes(app: FastifyInstance) {
             schema: {
                 tags: ['Entities'],
                 summary: 'Update an entity',
+                consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+                body: zodToJsonSchema(entityUpdateSchema as any, { target: 'openApi3' }),
+                params: zodToJsonSchema(entityIdParamsSchema as any, { target: 'openApi3' }),
                 response: { 200: successObjectResponse, 400: errorResponse }
             }
         },

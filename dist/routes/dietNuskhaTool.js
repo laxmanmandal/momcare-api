@@ -36,9 +36,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = dietNuskhaRoute;
 const dietNuskhaToolervice = __importStar(require("../services/dietNuskhaToolService"));
 const auth_1 = require("../middleware/auth");
+const zodOpenApi_1 = require("../utils/zodOpenApi");
 const validations_1 = require("../validations");
-const zod_to_json_schema_1 = require("zod-to-json-schema");
-const zodFormData_1 = require("../utils/zodFormData");
 const successObjectResponse = {
     type: 'object',
     properties: {
@@ -55,38 +54,25 @@ const successArrayResponse = {
         data: { type: 'array', items: { type: 'object', additionalProperties: true } }
     }
 };
-const dietChartBody = {
-    type: 'object',
-    additionalProperties: false,
+const dietChartBodyProps = {
     properties: {
         heading: { type: 'string' },
-        weekId: { type: 'integer', minimum: 1 },
+        weekId: { type: 'integer' },
         category: { type: 'string' },
         subheading: { type: 'string' },
         content: { type: 'string' },
         toolType: { type: 'string' },
-        icon: { type: 'string', contentEncoding: 'binary' }
+        icon: { type: 'string', format: 'binary' }
     }
 };
-const nuskheBody = {
-    type: 'object',
-    additionalProperties: false,
+const nuskheBodyProps = {
     properties: {
         category: { type: 'string' },
         heading: { type: 'string' },
         subheading: { type: 'string' },
         content: { type: 'string' },
-        icon: { type: 'string', contentEncoding: 'binary' }
+        icon: { type: 'string', format: 'binary' }
     }
-};
-const weekBody = {
-    type: 'object',
-    additionalProperties: false,
-    properties: {
-        name: { type: 'string' },
-        order: { type: 'number' }
-    },
-    required: ['name', 'order']
 };
 async function dietNuskhaRoute(app) {
     app.addHook('preHandler', auth_1.authMiddleware);
@@ -94,9 +80,8 @@ async function dietNuskhaRoute(app) {
         schema: {
             tags: ['diet-chart'],
             summary: 'Create a diet chart entry',
-            consumes: ['multipart/form-data'],
-            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.dietChartMultipartSchema),
-            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.dietChartMultipartSchema),
+            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+            body: dietChartBodyProps,
             response: { 200: successObjectResponse, 500: successObjectResponse }
         },
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
@@ -127,9 +112,9 @@ async function dietNuskhaRoute(app) {
         schema: {
             tags: ['diet-chart'],
             summary: 'Update a diet chart entry',
-            consumes: ['application/json', 'multipart/form-data'],
-            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.dietChartMultipartSchema),
-            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.dietChartMultipartSchema),
+            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+            body: dietChartBodyProps,
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.dietToolIdParamsSchema, { target: 'openApi3' }),
             response: { 200: successObjectResponse, 500: successObjectResponse }
         },
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
@@ -173,6 +158,7 @@ async function dietNuskhaRoute(app) {
     app.get('/diet-chart-by-week-id/:id', {
         schema: {
             tags: ['diet-chart'],
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.dietToolIdParamsSchema, { target: 'openApi3' }),
             summary: 'Get diet chart by week ID',
             response: { 200: successArrayResponse }
         },
@@ -189,6 +175,7 @@ async function dietNuskhaRoute(app) {
     app.get('/diet-chart/:id', {
         schema: {
             tags: ['diet-chart'],
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.dietToolIdParamsSchema, { target: 'openApi3' }),
             summary: 'Get diet chart by ID',
             response: { 200: successObjectResponse, 404: successObjectResponse }
         },
@@ -205,6 +192,8 @@ async function dietNuskhaRoute(app) {
     app.patch('/diet-chart/:id/status', {
         schema: {
             tags: ['diet-chart'],
+            consumes: ['application/json', 'application/x-www-form-urlencoded'],
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.dietToolIdParamsSchema, { target: 'openApi3' }),
             summary: 'Toggle diet chart status',
             response: { 200: successObjectResponse, 500: successObjectResponse }
         },
@@ -218,8 +207,8 @@ async function dietNuskhaRoute(app) {
         schema: {
             tags: ['Dadi-nani-Nuskhe'],
             summary: 'Create a Dadi-Nani Nuskhe entry',
-            consumes: ['multipart/form-data'],
-            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.dietNuskheMultipartSchema),
+            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+            body: nuskheBodyProps,
             response: { 200: successObjectResponse, 500: successObjectResponse }
         },
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
@@ -248,8 +237,9 @@ async function dietNuskhaRoute(app) {
         schema: {
             tags: ['Dadi-nani-Nuskhe'],
             summary: 'Update a Dadi-Nani Nuskhe entry',
-            consumes: ['application/json', 'multipart/form-data'],
-            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.dietNuskheMultipartSchema),
+            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+            body: nuskheBodyProps,
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.dietToolIdParamsSchema, { target: 'openApi3' }),
             response: { 200: successObjectResponse, 500: successObjectResponse }
         },
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
@@ -290,6 +280,7 @@ async function dietNuskhaRoute(app) {
     app.get('/dadi-nani-nuskhe/:id', {
         schema: {
             tags: ['Dadi-nani-Nuskhe'],
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.dietToolIdParamsSchema, { target: 'openApi3' }),
             summary: 'Get Dadi-Nani Nuskhe by ID',
             response: { 200: successObjectResponse, 500: successObjectResponse }
         },
@@ -306,6 +297,8 @@ async function dietNuskhaRoute(app) {
     app.patch('/dadi-nani-nuskhe/:id/status', {
         schema: {
             tags: ['Dadi-nani-Nuskhe'],
+            consumes: ['application/json', 'application/x-www-form-urlencoded'],
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.dietToolIdParamsSchema, { target: 'openApi3' }),
             summary: 'Toggle Dadi-Nani Nuskhe status',
             response: { 200: successObjectResponse, 500: successObjectResponse }
         },
@@ -318,8 +311,9 @@ async function dietNuskhaRoute(app) {
     app.post('/week', {
         schema: {
             tags: ['diet-chart-weeks'],
+            consumes: ['application/json', 'application/x-www-form-urlencoded'],
+            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.weekBodySchema, { target: 'openApi3' }),
             summary: 'Create a week entry',
-            body: (0, zod_to_json_schema_1.zodToJsonSchema)(validations_1.weekBodySchema, 'weekBody'),
             response: { 200: successObjectResponse, 500: successObjectResponse }
         },
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
@@ -334,6 +328,7 @@ async function dietNuskhaRoute(app) {
     app.get('/week/:id', {
         schema: {
             tags: ['diet-chart-weeks'],
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.dietToolIdParamsSchema, { target: 'openApi3' }),
             summary: 'Get week by ID',
             response: { 200: successObjectResponse, 500: successObjectResponse }
         },
@@ -350,8 +345,10 @@ async function dietNuskhaRoute(app) {
     app.patch('/week/:id', {
         schema: {
             tags: ['diet-chart-weeks'],
+            consumes: ['application/json', 'application/x-www-form-urlencoded'],
+            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.weekBodySchema.pick({ name: true }), { target: 'openApi3' }),
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.dietToolIdParamsSchema, { target: 'openApi3' }),
             summary: 'Update a week entry',
-            body: (0, zod_to_json_schema_1.zodToJsonSchema)(validations_1.weekBodySchema.pick({ name: true }), 'weekUpdateBody'),
             response: { 200: successObjectResponse, 500: successObjectResponse }
         },
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]

@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import * as communityComments from '../services/communityComments';
 import { authMiddleware } from '../middleware/auth';
-import { zodToJsonSchema } from 'zod-to-json-schema'
+import { zodToJsonSchema } from '../utils/zodOpenApi';
 import {
     communityCommentCreateSchema,
     communityCommentIdParamsSchema,
@@ -9,7 +9,6 @@ import {
     communityCommentUpdateSchema,
     validateData
 } from '../validations';
-import { zodToFormDataParams, zodToMultipartRequestBody } from '../utils/zodFormData'
 
 const successObjectResponse = {
     type: 'object',
@@ -29,6 +28,12 @@ const successArrayResponse = {
     }
 } as const;
 
+const commentUpdateProps = {
+    properties: {
+        content: { type: 'string' }
+    }
+};
+
 export default async function communityComment(app: FastifyInstance) {
     app.addHook('preHandler', authMiddleware);
 
@@ -38,7 +43,8 @@ export default async function communityComment(app: FastifyInstance) {
             schema: {
                 tags: ['Community Comments'],
                 summary: 'Create a community comment',
-                body: zodToJsonSchema(communityCommentCreateSchema as any, 'communityCommentCreateBody'),
+                consumes: ['application/json', 'application/x-www-form-urlencoded'],
+                body: zodToJsonSchema(communityCommentCreateSchema as any, { target: 'openApi3' }),
                 response: { 200: successObjectResponse }
             }
         },
@@ -65,9 +71,9 @@ export default async function communityComment(app: FastifyInstance) {
             schema: {
                 tags: ['Community Comments'],
                 summary: 'Update a community comment',
-                body: zodToJsonSchema(communityCommentUpdateSchema as any, 'communityCommentUpdateBody'),
-                parameters: zodToFormDataParams(communityCommentUpdateSchema as any),
-                requestBody: zodToMultipartRequestBody(communityCommentUpdateSchema as any),
+                consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+                body: commentUpdateProps,
+                params: zodToJsonSchema(communityCommentIdParamsSchema as any, { target: 'openApi3' }),
                 response: { 200: successObjectResponse }
             }
         },
@@ -92,6 +98,7 @@ export default async function communityComment(app: FastifyInstance) {
             schema: {
                 tags: ['Community Comments'],
                 summary: 'List nested comments for a post',
+                params: zodToJsonSchema(communityCommentPostParamsSchema as any, { target: 'openApi3' }),
                 response: { 200: successArrayResponse }
             }
         },
@@ -113,6 +120,8 @@ export default async function communityComment(app: FastifyInstance) {
             schema: {
                 tags: ['Community Comments'],
                 summary: 'Toggle a community comment status',
+                consumes: ['application/json', 'application/x-www-form-urlencoded'],
+                params: zodToJsonSchema(communityCommentIdParamsSchema as any, { target: 'openApi3' }),
                 response: { 200: successObjectResponse }
             }
         },

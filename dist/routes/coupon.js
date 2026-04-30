@@ -37,9 +37,8 @@ exports.default = CouponRoute;
 const client_1 = require("@prisma/client");
 const couponService = __importStar(require("../services/couponService"));
 const auth_1 = require("../middleware/auth");
+const zodOpenApi_1 = require("../utils/zodOpenApi");
 const validations_1 = require("../validations");
-const zodFormData_1 = require("../utils/zodFormData");
-const zod_to_json_schema_1 = require("zod-to-json-schema");
 const successObjectResponse = {
     type: 'object',
     properties: {
@@ -61,9 +60,8 @@ async function CouponRoute(app) {
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg],
         schema: {
             tags: ['Coupon'],
-            consumes: ['multipart/form-data'],
-            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.couponCreateMultipartSchema),
-            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.couponCreateMultipartSchema),
+            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.couponCreateMultipartSchema, { target: 'openApi3' }),
             summary: 'Create a coupon',
             response: { 201: successObjectResponse }
         }
@@ -86,7 +84,8 @@ async function CouponRoute(app) {
         schema: {
             tags: ['Coupon'],
             summary: 'Validate coupon and calculate final price',
-            body: (0, zod_to_json_schema_1.zodToJsonSchema)(validations_1.couponProcessSchema, 'couponProcessBody'),
+            consumes: ['application/json', 'application/x-www-form-urlencoded'],
+            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.couponProcessSchema, { target: 'openApi3' }),
             response: {
                 200: {
                     type: 'object',
@@ -211,6 +210,7 @@ async function CouponRoute(app) {
     app.get('/:coupon_code', {
         schema: {
             tags: ['Coupon'],
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.couponCodeParamsSchema, { target: 'openApi3' }),
             response: { 200: successObjectResponse }
         }
     }, async (req, reply) => {
@@ -226,9 +226,9 @@ async function CouponRoute(app) {
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg],
         schema: {
             tags: ['Coupon'],
-            consumes: ['multipart/form-data', 'application/json'],
-            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.couponUpdateMultipartSchema),
-            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.couponUpdateMultipartSchema),
+            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.couponUpdateMultipartSchema, { target: 'openApi3' }),
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.couponIdParamsSchema, { target: 'openApi3' }),
             summary: 'Update a coupon',
             response: { 200: successObjectResponse }
         }
@@ -249,6 +249,8 @@ async function CouponRoute(app) {
     app.patch('/:id/status', {
         schema: {
             tags: ['Coupon'],
+            consumes: ['application/json', 'application/x-www-form-urlencoded'],
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.couponIdParamsSchema, { target: 'openApi3' }),
             summary: 'Toggle coupon status',
             response: { 200: successObjectResponse }
         },
@@ -261,6 +263,8 @@ async function CouponRoute(app) {
     app.delete('/delete/:id', {
         schema: {
             tags: ['Coupon'],
+            consumes: ['application/json', 'application/x-www-form-urlencoded'],
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.couponIdParamsSchema, { target: 'openApi3' }),
             summary: 'Delete a coupon',
             response: { 200: successObjectResponse }
         },

@@ -36,8 +36,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = resourceRoutes;
 const resourceService = __importStar(require("../services/resourceService"));
 const auth_1 = require("../middleware/auth");
+const zodOpenApi_1 = require("../utils/zodOpenApi");
 const validations_1 = require("../validations");
-const zodFormData_1 = require("../utils/zodFormData");
 const successObjectResponse = {
     type: 'object',
     properties: {
@@ -51,18 +51,8 @@ async function resourceRoutes(app) {
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg],
         schema: {
             tags: ['Resources'],
-            consumes: ['multipart/form-data'],
-            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.conceiveCreateMultipartSchema),
-            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.conceiveCreateMultipartSchema),
-            body: {
-                properties: {
-                    week: { type: 'number' },
-                    title: { type: 'string' },
-                    description: { type: 'string' },
-                    thumbnail: { type: 'string', format: 'binary' },
-                    image: { type: 'string', format: 'binary' }
-                }
-            },
+            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.conceiveCreateMultipartSchema, { target: 'openApi3' }),
             summary: 'Create a conceive resource',
             response: { 200: successObjectResponse }
         }
@@ -87,23 +77,9 @@ async function resourceRoutes(app) {
     app.patch('/conceive/:id', {
         schema: {
             tags: ['Resources'],
-            consumes: ['application/json', 'multipart/form-data'],
-            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.conceiveUpdateMultipartSchema),
-            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.conceiveUpdateMultipartSchema),
-            params: {
-                type: 'object',
-                properties: { id: { type: 'integer' } },
-                required: ['id']
-            },
-            body: {
-                properties: {
-                    week: { type: 'number' },
-                    title: { type: 'string' },
-                    description: { type: 'string' },
-                    thumbnail: { type: 'string', format: 'binary' },
-                    image: { type: 'string', format: 'binary' }
-                }
-            },
+            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.conceiveIdParamsSchema, { target: 'openApi3' }),
+            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.conceiveUpdateMultipartSchema, { target: 'openApi3' }),
             summary: 'Update a conceive resource',
             response: { 200: successObjectResponse }
         },
@@ -132,11 +108,7 @@ async function resourceRoutes(app) {
         preHandler: [auth_1.authMiddleware],
         schema: {
             tags: ['Resources'],
-            params: {
-                type: 'object',
-                properties: { type: { type: 'string' } },
-                required: ['type']
-            },
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.conceiveTypeParamsSchema, { target: 'openApi3' }),
             response: {
                 200: {
                     type: 'object',
@@ -197,11 +169,7 @@ async function resourceRoutes(app) {
         preHandler: [auth_1.authMiddleware],
         schema: {
             tags: ['Resources'],
-            params: {
-                type: 'object',
-                properties: { id: { type: 'integer' } },
-                required: ['id']
-            },
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.conceiveIdParamsSchema, { target: 'openApi3' }),
             response: {
                 200: {
                     type: 'object',

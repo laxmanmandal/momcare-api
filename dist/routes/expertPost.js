@@ -36,8 +36,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = expertPost;
 const expertPostService = __importStar(require("../services/expertPostService"));
 const auth_1 = require("../middleware/auth");
+const zodOpenApi_1 = require("../utils/zodOpenApi");
 const validations_1 = require("../validations");
-const zodFormData_1 = require("../utils/zodFormData");
 const successObjectResponse = {
     type: 'object',
     properties: {
@@ -59,10 +59,9 @@ async function expertPost(app) {
     app.post('/', {
         schema: {
             tags: ['Expert Posts'],
-            consumes: ['multipart/form-data'],
+            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.expertPostCreateMultipartSchema, { target: 'openApi3' }),
             summary: 'Create an expert post',
-            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.expertPostCreateMultipartSchema),
-            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.expertPostCreateMultipartSchema),
             response: { 200: successObjectResponse }
         }
     }, async (req, reply) => {
@@ -88,10 +87,10 @@ async function expertPost(app) {
     app.patch('/:id', {
         schema: {
             tags: ['Expert Posts'],
-            consumes: ['application/json', 'multipart/form-data'],
+            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.expertPostUpdateMultipartSchema, { target: 'openApi3' }),
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.expertPostIdParamsSchema, { target: 'openApi3' }),
             summary: 'Update an expert post',
-            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.expertPostUpdateMultipartSchema),
-            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.expertPostUpdateMultipartSchema),
             response: { 200: successObjectResponse }
         }
     }, async (req, reply) => {
@@ -119,6 +118,8 @@ async function expertPost(app) {
     app.patch('/share/:postId', {
         schema: {
             tags: ['Expert Posts'],
+            consumes: ['application/json', 'application/x-www-form-urlencoded'],
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.expertPostShareParamsSchema, { target: 'openApi3' }),
             summary: 'Increment expert post share count',
             response: { 200: successObjectResponse }
         }
@@ -134,6 +135,8 @@ async function expertPost(app) {
     app.patch('/view/:postId', {
         schema: {
             tags: ['Expert Posts'],
+            consumes: ['application/json', 'application/x-www-form-urlencoded'],
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.expertPostShareParamsSchema, { target: 'openApi3' }),
             summary: 'Increment expert post view count',
             response: { 200: successObjectResponse }
         }
@@ -163,6 +166,7 @@ async function expertPost(app) {
     app.get('/profession/:professionId', {
         schema: {
             tags: ['Expert Posts'],
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.expertProfessionParamsSchema, { target: 'openApi3' }),
             summary: 'List expert posts by profession ID',
             response: { 200: successArrayResponse }
         }
@@ -178,6 +182,7 @@ async function expertPost(app) {
     app.get('/:id', {
         schema: {
             tags: ['Expert Posts'],
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.expertPostIdParamsSchema, { target: 'openApi3' }),
             summary: 'Get expert post by ID',
             response: { 200: successObjectResponse }
         }
@@ -193,6 +198,8 @@ async function expertPost(app) {
     app.patch('/:id/status', {
         schema: {
             tags: ['Expert Posts'],
+            consumes: ['application/json', 'application/x-www-form-urlencoded'],
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.expertPostIdParamsSchema, { target: 'openApi3' }),
             summary: 'Toggle expert post status',
             response: { 200: successObjectResponse }
         }
@@ -205,7 +212,8 @@ async function expertPost(app) {
         preHandler: [auth_1.onlyOrg],
         schema: {
             tags: ['Expert Posts'],
-            consumes: ['application/json', 'multipart/form-data'],
+            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.professionCreateSchema, { target: 'openApi3' }),
             summary: 'Create a profession',
             response: { 200: successObjectResponse }
         }

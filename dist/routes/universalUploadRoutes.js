@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const client_1 = require("@prisma/client");
 const excelparsarconfig_1 = require("../config/excelparsarconfig");
 const excelParsar_1 = require("../utils/excelParsar");
+const zodOpenApi_1 = require("../utils/zodOpenApi");
 const auth_1 = require("../middleware/auth");
 const validations_1 = require("../validations");
 const prisma = new client_1.PrismaClient();
@@ -11,8 +12,14 @@ const universalUploadRoutes = async (fastify) => {
         preHandler: [auth_1.authMiddleware, fastify.accessControl.check('UPLOAD_EXCEL')],
         schema: {
             tags: ['Upload from excel'],
-            consumes: ['multipart/form-data'],
-            summary: 'Upload an Excel file for a target table'
+            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+            summary: 'Upload an Excel file for a target table',
+            querystring: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.uploadTableQuerySchema, { target: 'openApi3' }),
+            body: {
+                properties: {
+                    file: { type: 'string', format: 'binary' }
+                }
+            }
         }
     }, async (request, reply) => {
         try {
@@ -97,6 +104,7 @@ const universalUploadRoutes = async (fastify) => {
     fastify.get('/upload-config', {
         schema: {
             tags: ['Upload from excel'],
+            querystring: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.uploadTableQuerySchema, { target: 'openApi3' }),
             summary: 'Get a single upload parser config'
         }
     }, async (request, reply) => {

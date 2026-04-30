@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify'
 import * as expertPostService from '../services/expertPostService'
 import { authMiddleware, onlyOrg } from '../middleware/auth';
+import { zodToJsonSchema } from '../utils/zodOpenApi';
 import {
     expertPostCreateMultipartSchema,
     expertPostIdParamsSchema,
@@ -10,7 +11,6 @@ import {
     professionCreateSchema,
     validateData
 } from '../validations';
-import { zodToFormDataParams, zodToMultipartRequestBody } from '../utils/zodFormData'
 
 const successObjectResponse = {
     type: 'object',
@@ -38,10 +38,9 @@ export default async function expertPost(app: FastifyInstance) {
         {
             schema: {
                 tags: ['Expert Posts'],
-                consumes: ['multipart/form-data'],
+                consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+                body: zodToJsonSchema(expertPostCreateMultipartSchema as any, { target: 'openApi3' }),
                 summary: 'Create an expert post',
-                parameters: zodToFormDataParams(expertPostCreateMultipartSchema as any),
-                requestBody: zodToMultipartRequestBody(expertPostCreateMultipartSchema as any),
                 response: { 200: successObjectResponse }
             }
         },
@@ -77,10 +76,10 @@ export default async function expertPost(app: FastifyInstance) {
         {
             schema: {
                 tags: ['Expert Posts'],
-                consumes: ['application/json', 'multipart/form-data'],
+                consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+                body: zodToJsonSchema(expertPostUpdateMultipartSchema as any, { target: 'openApi3' }),
+                params: zodToJsonSchema(expertPostIdParamsSchema as any, { target: 'openApi3' }),
                 summary: 'Update an expert post',
-                parameters: zodToFormDataParams(expertPostUpdateMultipartSchema as any),
-                requestBody: zodToMultipartRequestBody(expertPostUpdateMultipartSchema as any),
                 response: { 200: successObjectResponse }
             }
         },
@@ -116,6 +115,8 @@ export default async function expertPost(app: FastifyInstance) {
         {
             schema: {
                 tags: ['Expert Posts'],
+                consumes: ['application/json', 'application/x-www-form-urlencoded'],
+                params: zodToJsonSchema(expertPostShareParamsSchema as any, { target: 'openApi3' }),
                 summary: 'Increment expert post share count',
                 response: { 200: successObjectResponse }
             }
@@ -137,6 +138,8 @@ export default async function expertPost(app: FastifyInstance) {
         {
             schema: {
                 tags: ['Expert Posts'],
+                consumes: ['application/json', 'application/x-www-form-urlencoded'],
+                params: zodToJsonSchema(expertPostShareParamsSchema as any, { target: 'openApi3' }),
                 summary: 'Increment expert post view count',
                 response: { 200: successObjectResponse }
             }
@@ -177,6 +180,7 @@ export default async function expertPost(app: FastifyInstance) {
         {
             schema: {
                 tags: ['Expert Posts'],
+                params: zodToJsonSchema(expertProfessionParamsSchema as any, { target: 'openApi3' }),
                 summary: 'List expert posts by profession ID',
                 response: { 200: successArrayResponse }
             }
@@ -199,6 +203,7 @@ export default async function expertPost(app: FastifyInstance) {
         {
             schema: {
                 tags: ['Expert Posts'],
+                params: zodToJsonSchema(expertPostIdParamsSchema as any, { target: 'openApi3' }),
                 summary: 'Get expert post by ID',
                 response: { 200: successObjectResponse }
             }
@@ -220,6 +225,8 @@ export default async function expertPost(app: FastifyInstance) {
         {
             schema: {
                 tags: ['Expert Posts'],
+                consumes: ['application/json', 'application/x-www-form-urlencoded'],
+                params: zodToJsonSchema(expertPostIdParamsSchema as any, { target: 'openApi3' }),
                 summary: 'Toggle expert post status',
                 response: { 200: successObjectResponse }
             }
@@ -237,7 +244,8 @@ export default async function expertPost(app: FastifyInstance) {
             preHandler: [onlyOrg],
             schema: {
                 tags: ['Expert Posts'],
-                consumes: ['application/json', 'multipart/form-data'],
+                consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+                body: zodToJsonSchema(professionCreateSchema as any, { target: 'openApi3' }),
                 summary: 'Create a profession',
                 response: { 200: successObjectResponse }
             }

@@ -36,9 +36,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = communityComment;
 const communityComments = __importStar(require("../services/communityComments"));
 const auth_1 = require("../middleware/auth");
-const zod_to_json_schema_1 = require("zod-to-json-schema");
+const zodOpenApi_1 = require("../utils/zodOpenApi");
 const validations_1 = require("../validations");
-const zodFormData_1 = require("../utils/zodFormData");
 const successObjectResponse = {
     type: 'object',
     properties: {
@@ -55,13 +54,19 @@ const successArrayResponse = {
         data: { type: 'array', items: { type: 'object', additionalProperties: true } }
     }
 };
+const commentUpdateProps = {
+    properties: {
+        content: { type: 'string' }
+    }
+};
 async function communityComment(app) {
     app.addHook('preHandler', auth_1.authMiddleware);
     app.post('/', {
         schema: {
             tags: ['Community Comments'],
             summary: 'Create a community comment',
-            body: (0, zod_to_json_schema_1.zodToJsonSchema)(validations_1.communityCommentCreateSchema, 'communityCommentCreateBody'),
+            consumes: ['application/json', 'application/x-www-form-urlencoded'],
+            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.communityCommentCreateSchema, { target: 'openApi3' }),
             response: { 200: successObjectResponse }
         }
     }, async (req, reply) => {
@@ -82,9 +87,9 @@ async function communityComment(app) {
         schema: {
             tags: ['Community Comments'],
             summary: 'Update a community comment',
-            body: (0, zod_to_json_schema_1.zodToJsonSchema)(validations_1.communityCommentUpdateSchema, 'communityCommentUpdateBody'),
-            parameters: (0, zodFormData_1.zodToFormDataParams)(validations_1.communityCommentUpdateSchema),
-            requestBody: (0, zodFormData_1.zodToMultipartRequestBody)(validations_1.communityCommentUpdateSchema),
+            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+            body: commentUpdateProps,
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.communityCommentIdParamsSchema, { target: 'openApi3' }),
             response: { 200: successObjectResponse }
         }
     }, async (req, reply) => {
@@ -102,6 +107,7 @@ async function communityComment(app) {
         schema: {
             tags: ['Community Comments'],
             summary: 'List nested comments for a post',
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.communityCommentPostParamsSchema, { target: 'openApi3' }),
             response: { 200: successArrayResponse }
         }
     }, async (req, reply) => {
@@ -117,6 +123,8 @@ async function communityComment(app) {
         schema: {
             tags: ['Community Comments'],
             summary: 'Toggle a community comment status',
+            consumes: ['application/json', 'application/x-www-form-urlencoded'],
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.communityCommentIdParamsSchema, { target: 'openApi3' }),
             response: { 200: successObjectResponse }
         }
     }, async (req, reply) => {

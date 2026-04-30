@@ -2,6 +2,7 @@ import { Role } from '@prisma/client';
 import { FastifyInstance } from 'fastify';
 import * as couponService from '../services/couponService';
 import { authMiddleware, onlyOrg } from '../middleware/auth';
+import { zodToJsonSchema } from '../utils/zodOpenApi';
 import {
     couponCodeParamsSchema,
     couponCreateMultipartSchema,
@@ -10,8 +11,6 @@ import {
     couponUpdateMultipartSchema,
     validateData
 } from '../validations';
-import { zodToFormDataParams, zodToMultipartRequestBody } from '../utils/zodFormData'
-import { zodToJsonSchema } from 'zod-to-json-schema'
 
 const successObjectResponse = {
     type: 'object',
@@ -38,9 +37,8 @@ export default async function CouponRoute(app: FastifyInstance) {
             preHandler: [authMiddleware, onlyOrg],
             schema: {
                 tags: ['Coupon'],
-                consumes: ['multipart/form-data'],
-                parameters: zodToFormDataParams(couponCreateMultipartSchema as any),
-                requestBody: zodToMultipartRequestBody(couponCreateMultipartSchema as any),
+                consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+                body: zodToJsonSchema(couponCreateMultipartSchema as any, { target: 'openApi3' }),
                 summary: 'Create a coupon',
                 response: { 201: successObjectResponse }
             }
@@ -74,7 +72,8 @@ export default async function CouponRoute(app: FastifyInstance) {
             schema: {
                 tags: ['Coupon'],
                 summary: 'Validate coupon and calculate final price',
-                body: zodToJsonSchema(couponProcessSchema as any, 'couponProcessBody'),
+                consumes: ['application/json', 'application/x-www-form-urlencoded'],
+                body: zodToJsonSchema(couponProcessSchema as any, { target: 'openApi3' }),
                 response: {
                     200: {
                         type: 'object',
@@ -217,6 +216,7 @@ export default async function CouponRoute(app: FastifyInstance) {
         {
             schema: {
                 tags: ['Coupon'],
+                params: zodToJsonSchema(couponCodeParamsSchema as any, { target: 'openApi3' }),
                 response: { 200: successObjectResponse }
             }
         },
@@ -238,9 +238,9 @@ export default async function CouponRoute(app: FastifyInstance) {
             preHandler: [authMiddleware, onlyOrg],
             schema: {
                 tags: ['Coupon'],
-                consumes: ['multipart/form-data', 'application/json'],
-                parameters: zodToFormDataParams(couponUpdateMultipartSchema as any),
-                requestBody: zodToMultipartRequestBody(couponUpdateMultipartSchema as any),
+                consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+                body: zodToJsonSchema(couponUpdateMultipartSchema as any, { target: 'openApi3' }),
+                params: zodToJsonSchema(couponIdParamsSchema as any, { target: 'openApi3' }),
                 summary: 'Update a coupon',
                 response: { 200: successObjectResponse }
             }
@@ -272,6 +272,8 @@ export default async function CouponRoute(app: FastifyInstance) {
         {
             schema: {
                 tags: ['Coupon'],
+                consumes: ['application/json', 'application/x-www-form-urlencoded'],
+                params: zodToJsonSchema(couponIdParamsSchema as any, { target: 'openApi3' }),
                 summary: 'Toggle coupon status',
                 response: { 200: successObjectResponse }
             },
@@ -289,6 +291,8 @@ export default async function CouponRoute(app: FastifyInstance) {
         {
             schema: {
                 tags: ['Coupon'],
+                consumes: ['application/json', 'application/x-www-form-urlencoded'],
+                params: zodToJsonSchema(couponIdParamsSchema as any, { target: 'openApi3' }),
                 summary: 'Delete a coupon',
                 response: { 200: successObjectResponse }
             },

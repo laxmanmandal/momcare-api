@@ -1,13 +1,13 @@
 import { FastifyInstance } from 'fastify'
 import * as dailytipService from '../services/dailytipService'
 import { authMiddleware, onlyOrg } from '../middleware/auth';
+import { zodToJsonSchema } from '../utils/zodOpenApi';
 import {
     dailyTipCreateMultipartSchema,
     dailyTipIdParamsSchema,
     dailyTipUpdateMultipartSchema,
     validateData
 } from '../validations';
-import { zodToFormDataParams, zodToMultipartRequestBody } from '../utils/zodFormData'
 
 const successObjectResponse = {
     type: 'object',
@@ -34,9 +34,8 @@ export default async function dailytipsRoute(app: FastifyInstance) {
             schema: {
                 tags: ['Dailytips'],
                 summary: 'Create a daily tip',
-                consumes: ['multipart/form-data'],
-                parameters: zodToFormDataParams(dailyTipCreateMultipartSchema as any),
-                requestBody: zodToMultipartRequestBody(dailyTipCreateMultipartSchema as any),
+                consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+                body: zodToJsonSchema(dailyTipCreateMultipartSchema as any, { target: 'openApi3' }),
                 response: { 200: successObjectResponse }
             },
             preHandler: [authMiddleware, onlyOrg]
@@ -78,9 +77,9 @@ export default async function dailytipsRoute(app: FastifyInstance) {
             schema: {
                 tags: ['Dailytips'],
                 summary: 'Update a daily tip',
-                consumes: ['application/json', 'multipart/form-data'],
-                parameters: zodToFormDataParams(dailyTipUpdateMultipartSchema as any),
-                requestBody: zodToMultipartRequestBody(dailyTipUpdateMultipartSchema as any),
+                consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+                body: zodToJsonSchema(dailyTipUpdateMultipartSchema as any, { target: 'openApi3' }),
+                params: zodToJsonSchema(dailyTipIdParamsSchema as any, { target: 'openApi3' }),
                 response: { 200: successObjectResponse }
             },
             preHandler: [authMiddleware, onlyOrg]
@@ -139,6 +138,7 @@ export default async function dailytipsRoute(app: FastifyInstance) {
         {
             schema: {
                 tags: ['Dailytips'],
+                params: zodToJsonSchema(dailyTipIdParamsSchema as any, { target: 'openApi3' }),
                 summary: 'Get daily tip by ID',
                 response: { 200: successObjectResponse }
             },
@@ -160,6 +160,8 @@ export default async function dailytipsRoute(app: FastifyInstance) {
         {
             schema: {
                 tags: ['Dailytips'],
+                consumes: ['application/json', 'application/x-www-form-urlencoded'],
+                params: zodToJsonSchema(dailyTipIdParamsSchema as any, { target: 'openApi3' }),
                 summary: 'Toggle daily tip status',
                 response: { 200: successObjectResponse }
             },

@@ -1,21 +1,21 @@
 import { FastifyInstance } from 'fastify'
 import * as expertService from '../services/expertService'
 import { authMiddleware, onlyOrg } from '../middleware/auth';
+import { zodToJsonSchema } from '../utils/zodOpenApi';
 import {
     expertIdParamsSchema,
     validateData
 } from '../validations';
 
-const expertBody = {
-    type: 'object',
+const expertBodyProps = {
     properties: {
         name: { type: 'string' },
         profession_id: { type: 'integer', minimum: 1 },
         name_org: { type: 'string' },
         qualification: { type: 'string' },
-        image: { type: 'string', contentEncoding: 'binary' }
+        image: { type: 'string', format: 'binary' }
     }
-} as const
+};
 
 const successObjectResponse = {
     type: 'object',
@@ -41,15 +41,9 @@ export default async function ExpertRoutes(app: FastifyInstance) {
         {
             schema: {
                 tags: ['Experts'],
-                consumes: ['multipart/form-data'],
+                consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+                body: expertBodyProps,
                 summary: 'Create an expert',
-                parameters: [
-                    { name: 'name', in: 'formData', type: 'string', required: true },
-                    { name: 'profession_id', in: 'formData', type: 'integer', required: true },
-                    { name: 'name_org', in: 'formData', type: 'string', required: false },
-                    { name: 'qualification', in: 'formData', type: 'string', required: false },
-                    { name: 'image', in: 'formData', type: 'file', required: false }
-                ],
                 response: { 200: successObjectResponse }
             },
             preHandler: [authMiddleware, onlyOrg]
@@ -84,15 +78,10 @@ export default async function ExpertRoutes(app: FastifyInstance) {
         {
             schema: {
                 tags: ['Experts'],
-                consumes: ['application/json', 'multipart/form-data'],
+                consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+                body: expertBodyProps,
+                params: zodToJsonSchema(expertIdParamsSchema as any, { target: 'openApi3' }),
                 summary: 'Update an expert',
-                parameters: [
-                    { name: 'name', in: 'formData', type: 'string', required: false },
-                    { name: 'profession_id', in: 'formData', type: 'integer', required: false },
-                    { name: 'name_org', in: 'formData', type: 'string', required: false },
-                    { name: 'qualification', in: 'formData', type: 'string', required: false },
-                    { name: 'image', in: 'formData', type: 'file', required: false }
-                ],
                 response: { 200: successObjectResponse }
             },
             preHandler: [authMiddleware, onlyOrg]
@@ -148,6 +137,7 @@ export default async function ExpertRoutes(app: FastifyInstance) {
         {
             schema: {
                 tags: ['Experts'],
+                params: zodToJsonSchema(expertIdParamsSchema as any, { target: 'openApi3' }),
                 summary: 'Get expert by ID',
                 response: { 200: successObjectResponse }
             },

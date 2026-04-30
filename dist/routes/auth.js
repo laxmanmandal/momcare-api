@@ -47,7 +47,6 @@ const loginratelimiter_1 = require("../middleware/loginratelimiter");
 const otpratelimiter_1 = require("../middleware/otpratelimiter");
 const http_errors_1 = __importDefault(require("http-errors"));
 const validations_1 = require("../validations");
-const validations_2 = require("../validations");
 async function authRoutes(app) {
     app.post('/request-otp', {
         config: {
@@ -57,12 +56,13 @@ async function authRoutes(app) {
                 timeWindow: 10 * 60 * 1000
             }
         },
-        preHandler: [(0, validations_1.validateRequest)(validations_2.requestOtpSchema)],
         schema: {
-            tags: ['Auth']
+            tags: ['Auth'],
+            consumes: ['application/json', 'application/x-www-form-urlencoded'],
+            body: validations_1.requestOtpSchema
         }
     }, async (req, reply) => {
-        const body = req.validated?.body;
+        const body = req.body;
         const key = (0, otpratelimiter_1.otpRateLimiter)(body.phone, req, reply);
         if (!key)
             return;
@@ -79,12 +79,13 @@ async function authRoutes(app) {
                 timeWindow: 10 * 60 * 1000
             }
         },
-        preHandler: [(0, validations_1.validateRequest)(validations_2.verifyOtpSchema)],
         schema: {
-            tags: ['Auth']
+            tags: ['Auth'],
+            consumes: ['application/json', 'application/x-www-form-urlencoded'],
+            body: validations_1.verifyOtpSchema
         }
     }, async (req, reply) => {
-        const { phone: rawPhone, otp } = req.validated?.body;
+        const { phone: rawPhone, otp } = req.body;
         const key = (0, otpratelimiter_1.otpRateLimiter)(rawPhone, req, reply);
         if (!key)
             return;
@@ -119,15 +120,16 @@ async function authRoutes(app) {
     app.post('/signup', {
         preHandler: [
             auth_1.authMiddleware,
-            app.accessControl.check('CREATE_USER'),
-            (0, validations_1.validateRequest)(validations_2.signupSchema)
+            app.accessControl.check('CREATE_USER')
         ],
         schema: {
-            tags: ['Auth']
+            tags: ['Auth'],
+            consumes: ['application/json', 'application/x-www-form-urlencoded'],
+            body: validations_1.signupSchema
         }
     }, async (req, reply) => {
         const actorRole = req.user?.role;
-        const body = req.validated?.body;
+        const body = req.body;
         const targetRole = body.role;
         if (!(0, roles_1.canCreateRole)(actorRole, targetRole)) {
             return reply.code(403).send({
@@ -159,16 +161,17 @@ async function authRoutes(app) {
                 timeWindow: 15 * 60 * 1000
             }
         },
-        preHandler: [(0, validations_1.validateRequest)(validations_2.loginSchema)],
         schema: {
-            tags: ['Auth']
+            tags: ['Auth'],
+            consumes: ['application/json', 'application/x-www-form-urlencoded'],
+            body: validations_1.loginSchema
         }
     }, async (req, reply) => {
         const ip = (Array.isArray(req.headers['x-forwarded-for'])
             ? req.headers['x-forwarded-for'][0]
             : req.headers['x-forwarded-for'])?.split(',')[0]?.trim()
             || req.ip;
-        const body = req.validated?.body;
+        const body = req.body;
         const key = (0, loginratelimiter_1.loginRateLimiter)(body.email, ip, reply);
         if (!key)
             return;
@@ -193,27 +196,29 @@ async function authRoutes(app) {
                 timeWindow: 15 * 60 * 1000
             }
         },
-        preHandler: [(0, validations_1.validateRequest)(validations_2.refreshTokenSchema)],
         schema: {
-            tags: ['Auth']
+            tags: ['Auth'],
+            consumes: ['application/json', 'application/x-www-form-urlencoded'],
+            body: validations_1.refreshTokenSchema
         }
     }, async (req, reply) => {
-        const { refreshToken } = req.validated?.body;
+        const { refreshToken } = req.body;
         const tokens = await authService.refreshTokenService(refreshToken);
         return reply.send(tokens);
     });
     app.post('/change-password', {
         preHandler: [
             auth_1.authMiddleware,
-            app.accessControl.check('CHANGE_PASSWORD'),
-            (0, validations_1.validateRequest)(validations_2.changePasswordSchema)
+            app.accessControl.check('CHANGE_PASSWORD')
         ],
         schema: {
-            tags: ['Auth']
+            tags: ['Auth'],
+            consumes: ['application/json', 'application/x-www-form-urlencoded'],
+            body: validations_1.changePasswordSchema
         }
     }, async (req, res) => {
         const authUserId = Number(req.user.id);
-        const { userId, old_password, new_password } = req.validated?.body;
+        const { userId, old_password, new_password } = req.body;
         if (authUserId !== userId) {
             throw (0, http_errors_1.default)(403, 'Unauthorized');
         }
