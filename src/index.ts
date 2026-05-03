@@ -140,7 +140,7 @@ app.register(fastifySwagger, {
             version: '1.0.0'
         },
         servers: [
-            { url: 'http://0.0.0.0:8080', description: 'Local server' }
+            { url: '/', description: 'Current Environment' }
         ],
         components: {
             securitySchemes: {
