@@ -3,7 +3,6 @@ import { authMiddleware } from '../middleware/auth';
 import prisma from '../prisma/client';
 import * as userService from '../services/userService';
 import { verifyToken } from '../utils/jwt';
-import { handlePrismaDuplicate } from '../utils/prisma-error';
 import {
   validateRequest,
   validateData,
@@ -20,9 +19,7 @@ import type {
   UsersListQuery,
   UsersListByRoleParams,
   UsersByEntityParams,
-  UserStatusParams,
-  UserUpdateBody
-} from '../validations';
+  UserStatusParams} from '../validations';
 
 const errorResponse = {
   type: 'object',
