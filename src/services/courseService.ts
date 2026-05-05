@@ -243,15 +243,35 @@ export async function getLessonMedia(id: number) {
   })
 }
 export async function createUpdateMany(items: any[]) {
-  return prisma.$transaction(
-    items.map(item =>
-      prisma.lessonMedia.upsert({
-        where: { id: item.id },         // or unique field (mediaId, uuid, etc.)
-        update: item,
-        create: item
-      })
-    )
-  );
+  const lessonId = items[0]?.lessonId;
+  const existingIds = items
+    .map(item => item.id)
+    .filter((id): id is number => Number.isInteger(id));
+
+  return prisma.$transaction([
+    ...(lessonId
+      ? [
+        prisma.lessonMedia.deleteMany({
+          where: {
+            lessonId,
+            ...(existingIds.length ? { id: { notIn: existingIds } } : {})
+          }
+        })
+      ]
+      : []),
+    ...items.map(item => {
+      const { id, ...data } = item;
+
+      if (id) {
+        return prisma.lessonMedia.update({
+          where: { id },
+          data
+        });
+      }
+
+      return prisma.lessonMedia.create({ data });
+    })
+  ]);
 }
 
 export async function updateLessonMedia(id: number, data: any) {
@@ -286,5 +306,3 @@ export async function LessonMediaStatus(id: number) {
     data: { is_active: !lesson.is_active },
   });
 }
-
-

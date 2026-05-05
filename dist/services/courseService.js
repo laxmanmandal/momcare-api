@@ -224,11 +224,32 @@ async function getLessonMedia(id) {
     });
 }
 async function createUpdateMany(items) {
-    return client_1.default.$transaction(items.map(item => client_1.default.lessonMedia.upsert({
-        where: { id: item.id }, // or unique field (mediaId, uuid, etc.)
-        update: item,
-        create: item
-    })));
+    const lessonId = items[0]?.lessonId;
+    const existingIds = items
+        .map(item => item.id)
+        .filter((id) => Number.isInteger(id));
+    return client_1.default.$transaction([
+        ...(lessonId
+            ? [
+                client_1.default.lessonMedia.deleteMany({
+                    where: {
+                        lessonId,
+                        ...(existingIds.length ? { id: { notIn: existingIds } } : {})
+                    }
+                })
+            ]
+            : []),
+        ...items.map(item => {
+            const { id, ...data } = item;
+            if (id) {
+                return client_1.default.lessonMedia.update({
+                    where: { id },
+                    data
+                });
+            }
+            return client_1.default.lessonMedia.create({ data });
+        })
+    ]);
 }
 async function updateLessonMedia(id, data) {
     return client_1.default.lessonMedia.update({ where: { id }, data });

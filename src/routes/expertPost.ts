@@ -9,7 +9,8 @@ import {
     expertPostUpdateMultipartSchema,
     expertProfessionParamsSchema,
     professionCreateSchema,
-    validateData
+    validateData,
+    zodToSwagger
 } from '../validations';
 
 const successObjectResponse = {
@@ -39,7 +40,7 @@ export default async function expertPost(app: FastifyInstance) {
             schema: {
                 tags: ['Expert Posts'],
                 consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-                body: zodToJsonSchema(expertPostCreateMultipartSchema as any, { target: 'openApi3' }),
+                body: zodToSwagger(expertPostCreateMultipartSchema),
                 summary: 'Create an expert post',
                 response: { 200: successObjectResponse }
             }
@@ -77,7 +78,7 @@ export default async function expertPost(app: FastifyInstance) {
             schema: {
                 tags: ['Expert Posts'],
                 consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-                body: zodToJsonSchema(expertPostUpdateMultipartSchema as any, { target: 'openApi3' }),
+                body: zodToSwagger(expertPostUpdateMultipartSchema),
                 params: zodToJsonSchema(expertPostIdParamsSchema as any, { target: 'openApi3' }),
                 summary: 'Update an expert post',
                 response: { 200: successObjectResponse }

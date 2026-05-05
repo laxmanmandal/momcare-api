@@ -7,7 +7,8 @@ import {
     communityCommentIdParamsSchema,
     communityCommentPostParamsSchema,
     communityCommentUpdateSchema,
-    validateData
+    validateData,
+    zodToSwagger
 } from '../validations';
 
 const successObjectResponse = {
@@ -27,12 +28,6 @@ const successArrayResponse = {
         data: { type: 'array', items: { type: 'object', additionalProperties: true } }
     }
 } as const;
-
-const commentUpdateProps = {
-    properties: {
-        content: { type: 'string' }
-    }
-};
 
 export default async function communityComment(app: FastifyInstance) {
     app.addHook('preHandler', authMiddleware);
@@ -72,7 +67,7 @@ export default async function communityComment(app: FastifyInstance) {
                 tags: ['Community Comments'],
                 summary: 'Update a community comment',
                 consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-                body: commentUpdateProps,
+                body: zodToSwagger(communityCommentUpdateSchema),
                 params: zodToJsonSchema(communityCommentIdParamsSchema as any, { target: 'openApi3' }),
                 response: { 200: successObjectResponse }
             }

@@ -4,6 +4,9 @@ import { z } from 'zod';
 const phonePattern = /^[0-9+() -]{10,20}$/;
 const otpPattern = /^[0-9]{4,8}$/;
 
+const startsWithLetterPattern = /^\p{L}/u;
+const startsWithLetterMsg = 'name must start with a letter';
+
 export const requestOtpSchema = z.object({
   phone: z.string().trim().regex(phonePattern, 'phone must be a valid mobile number')
 }).strict();
@@ -29,7 +32,7 @@ export const changePasswordSchema = z.object({
 }).strict();
 
 export const signupSchema = z.object({
-  name: z.string().trim().min(2).max(120),
+  name: z.string().trim().min(2).max(120).regex(startsWithLetterPattern, startsWithLetterMsg),
   type: z.string().trim().max(50).optional(),
   location: z.string().trim().min(2).max(255).optional(),
   email: z.string().trim().email('email must be a valid email address').max(254).optional(),

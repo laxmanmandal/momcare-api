@@ -7,7 +7,8 @@ import {
   conceiveIdParamsSchema,
   conceiveTypeParamsSchema,
   conceiveUpdateMultipartSchema,
-  validateData
+  validateData,
+  zodToSwagger
 } from '../validations';
 
 const successObjectResponse = {
@@ -28,7 +29,7 @@ export default async function resourceRoutes(app: FastifyInstance) {
       schema: {
         tags: ['Resources'],
         consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-        body: zodToJsonSchema(conceiveCreateMultipartSchema as any, { target: 'openApi3' }),
+        body: zodToSwagger(conceiveCreateMultipartSchema),
         summary: 'Create a conceive resource',
         response: { 200: successObjectResponse }
       }
@@ -68,7 +69,7 @@ export default async function resourceRoutes(app: FastifyInstance) {
         tags: ['Resources'],
         consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
         params: zodToJsonSchema(conceiveIdParamsSchema as any, { target: 'openApi3' }),
-        body: zodToJsonSchema(conceiveUpdateMultipartSchema as any, { target: 'openApi3' }),
+        body: zodToSwagger(conceiveUpdateMultipartSchema),
         summary: 'Update a conceive resource',
         response: { 200: successObjectResponse }
       },

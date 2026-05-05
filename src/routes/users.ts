@@ -11,7 +11,8 @@ import {
   usersListByRoleParamsSchema,
   usersByEntityParamsSchema,
   userStatusParamsSchema,
-  userUpdateBodySchema
+  userUpdateBodySchema,
+  zodToSwagger
 } from '../validations';
 import { zodToJsonSchema } from '../utils/zodOpenApi'
 import type {
@@ -157,77 +158,6 @@ export default async function userRoutes(app: FastifyInstance) {
     }
   );
 
-
-
-  // GET /:uuid/profile
-  // app.get(
-  //   '/:uuid/profile',
-  //   {
-  //     schema: {
-  //       tags: ['Users'],
-  //       response: {
-  //         200: {
-  //           type: 'object',
-  //           properties: {
-  //             uuid: { type: 'string' },
-  //             name: { type: 'string' },
-  //             email: { type: 'string' },
-  //             role: { type: 'string' },
-  //             imageUrl: { type: 'string' },
-  //             location: { type: 'string' },
-  //             isActive: { type: 'boolean' },
-  //             created_at: { type: 'string', format: 'date-time' },
-  //             updated_at: { type: 'string', format: 'date-time' },
-  //             organization: {
-  //               type: 'object',
-  //               nullable: true,
-  //               properties: { id: { type: 'number' }, name: { type: 'string' } }
-  //             },
-  //             partner: {
-  //               type: 'object',
-  //               nullable: true,
-  //               properties: { id: { type: 'number' }, name: { type: 'string' } }
-  //             },
-  //             channel: {
-  //               type: 'object',
-  //               nullable: true,
-  //               properties: { id: { type: 'number' }, name: { type: 'string' } }
-  //             },
-  //             createdByUser: {
-  //               type: 'object',
-  //               nullable: true,
-  //               properties: { id: { type: 'number' }, name: { type: 'string' } }
-  //             },
-  //             UserSubscription: {
-  //               type: 'array',
-  //               items: {
-  //                 type: 'object',
-  //                 properties: {
-  //                   startedAt: { type: 'string', format: 'date-time' },
-  //                   expiresAt: { type: 'string', format: 'date-time' },
-  //                   subscriptionPlan: {
-  //                     type: 'object',
-  //                     properties: { id: { type: 'number' }, name: { type: 'string' } }
-  //                   }
-  //                 }
-  //               }
-  //             }
-  //           }
-  //         }
-  //       }
-  //     }
-  //   },
-  //   async (req: FastifyRequest, reply: FastifyReply) => {
-  //     const { uuid } = req.params as { uuid: string };
-  //     try {
-  //       const user = await userService.getUser(uuid);
-  //       return reply.send(user);
-  //     } catch (err: any) {
-  //       return reply.status(404).send({ message: err.message || 'User not found' });
-  //     }
-  //   }
-  // );
-
   // GET /:uuid/:role/child  (returns users created by uuid filtered by role)
   app.get(
     '/list/:entityId/:role',
@@ -371,7 +301,7 @@ export default async function userRoutes(app: FastifyInstance) {
       schema: {
         tags: ['Users'],
         consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-        body: zodToJsonSchema(userUpdateBodySchema as any, { target: 'openApi3' }),
+        body: zodToSwagger(userUpdateBodySchema),
         response: {
           200: {
             type: 'object',

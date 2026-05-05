@@ -6,7 +6,8 @@ import {
     entityBodySchema,
     entityIdParamsSchema,
     entityUpdateSchema,
-    validateData
+    validateData,
+    zodToSwagger
 } from '../validations';
 
 const successObjectResponse = {
@@ -98,7 +99,7 @@ export default async function entityRoutes(app: FastifyInstance) {
     app.get(
         '/:id',
         {
-            preHandler: [authMiddleware, app.accessControl.check('LIST_ENTITY')],
+            preHandler: [authMiddleware, app.accessControl.check('BELONGS_TO_ENTITY')],
             schema: {
                 tags: ['Entities'],
                 summary: 'Get entity by ID',
@@ -163,7 +164,7 @@ export default async function entityRoutes(app: FastifyInstance) {
                 tags: ['Entities'],
                 summary: 'Create an entity',
                 consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-                body: zodToJsonSchema(entityBodySchema as any, { target: 'openApi3' }),
+                body: zodToSwagger(entityBodySchema),
                 response: { 201: successObjectResponse }
             }
         },
@@ -220,7 +221,7 @@ export default async function entityRoutes(app: FastifyInstance) {
                 tags: ['Entities'],
                 summary: 'Register a new entity (public)',
                 consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-                body: zodToJsonSchema(entityBodySchema as any, { target: 'openApi3' }),
+                body: zodToSwagger(entityBodySchema),
                 response: { 201: successObjectResponse }
             }
         },
@@ -281,7 +282,7 @@ export default async function entityRoutes(app: FastifyInstance) {
                 tags: ['Entities'],
                 summary: 'Update an entity',
                 consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-                body: zodToJsonSchema(entityUpdateSchema as any, { target: 'openApi3' }),
+                body: zodToSwagger(entityUpdateSchema),
                 params: zodToJsonSchema(entityIdParamsSchema as any, { target: 'openApi3' }),
                 response: { 200: successObjectResponse, 400: errorResponse }
             }

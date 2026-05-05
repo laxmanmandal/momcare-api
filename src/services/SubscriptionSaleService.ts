@@ -189,7 +189,10 @@ export async function getSaleTransaction(
 export async function getPlanWiseBalance(entityId: number, planId: number) {
     // Fetch all rows for this sender + plan
     const rows = await prisma.planAllocation.findMany({
-        where: { receiverId: entityId, planId },
+        where: { 
+            planId,
+            OR: [{ receiverId: entityId }, { senderId: entityId }]
+        },
         include: {
             plan: { select: { id: true, name: true, price: true } }
         }
@@ -214,13 +217,24 @@ export async function getPlanWiseBalance(entityId: number, planId: number) {
     let revoked = 0;
 
     for (const row of rows) {
-        if (row.type === "ALLOCATE") allocated += row.quantity;
-        else if (row.type === "SELL") sold += row.quantity;
-        else if (row.type === "REVOKE") revoked += row.quantity;
+        const isIncoming = row.receiverId === entityId;
+        const isOutgoing = row.senderId === entityId;
+        const qty = Math.abs(row.quantity || 0);
+
+        if (row.type === "ALLOCATE") {
+            if (isIncoming) allocated += qty;
+            if (isOutgoing && !isIncoming) sold += qty;
+        }
+        else if (row.type === "SELL") {
+            if (isOutgoing) sold += qty;
+        }
+        else if (row.type === "REVOKE") {
+            if (isIncoming) revoked += qty;
+            if (isOutgoing && !isIncoming) allocated += qty;
+        }
     }
 
-    const netAllocated = allocated - revoked;
-    const balance = netAllocated - sold;
+    const balance = allocated - sold - revoked;
 
 
     return {
@@ -251,21 +265,21 @@ export async function createPlanAllocation(input: any, user: any) {
     const senderId = input.senderId !== undefined ? Number(input.senderId) : Number(user?.belongsToId ?? null);
     const receiverId = input.receiverId !== undefined ? Number(input.receiverId) : null;
 
-    return await prisma.$transaction?.(async (tx) => { /* if you use tx, use prisma.$transaction below */ }) ?? await prisma.$transaction(async (tx) => {
-        const entity = await prisma.entityTable.findFirst({
-            where: { belongsToId: senderId }
-        });
-
-
-        if (!entity) {
-            throw new Error("Entity not found!");
-        }
+    return await prisma.$transaction(async (tx) => {
         if (user.role === Role.USER) {
             throw new Error("User cannot perform this operation!");
-
         }
-        if (entity.belongsToId !== user.belongsToId) {
-            throw new Error("Entity doesnt belong to you!");
+
+        if (senderId) {
+            const entity = await tx.entityTable.findUnique({
+                where: { id: senderId }
+            });
+            if (!entity) {
+                throw new Error("Sender Entity not found!");
+            }
+            if (!isOrgAdmin(user) && entity.id !== user.belongsToId) {
+                throw new Error("Entity doesnt belong to you!");
+            }
         }
 
         if (input.type === 'SELL') {
@@ -293,6 +307,15 @@ export async function createPlanAllocation(input: any, user: any) {
         // REVOKE validation
         if (type === "REVOKE") {
             if (!receiverId) throw new Error("ReceiverId required for REVOKE operation");
+            
+            if (!isOrgAdmin(user)) {
+                const receiverEntity = await tx.entityTable.findUnique({ where: { id: receiverId } });
+                if (!receiverEntity) throw new Error("Receiver entity not found");
+                if (receiverEntity.belongsToId !== senderId) {
+                    throw new Error("Unauthorized to revoke from this entity");
+                }
+            }
+
             const balance = await getPlanWiseBalance(receiverId, planId);
             if (qty > balance.balance) {
                 throw new Error(`Insufficient Balance to return.`);
@@ -309,7 +332,7 @@ export async function createPlanAllocation(input: any, user: any) {
             planId
         });
 
-        if (!calculation.finalAmount) {
+        if (calculation.finalAmount === null || calculation.finalAmount === undefined) {
             throw new Error("Price calculation failed");
         }
         // Create record
@@ -321,10 +344,10 @@ export async function createPlanAllocation(input: any, user: any) {
                 receiverId: receiverId ?? null,
                 userId: input.userId ?? null,
                 allocatedById: user.id,
-                quantity: user.role === 'USER' ? 1 : qty,
+                quantity: qty,
                 type: type ?? "SELL",
-                amount: calculation.finalAmount * (user.role === 'USER' ? 1 : qty),
-                discount: calculation.discountAmount * (user.role === 'USER' ? 1 : qty),
+                amount: calculation.finalAmount * qty,
+                discount: (calculation.discountAmount ?? 0) * qty,
                 coupon_code: calculation.coupon?.code ?? null,
             },
         });
@@ -388,7 +411,7 @@ export async function appAllotment(
         userId
     });
 
-    if (!calculation.finalAmount) {
+    if (calculation.finalAmount === null || calculation.finalAmount === undefined) {
         throw new BadRequest("Price calculation failed");
     }
 
@@ -505,7 +528,7 @@ export async function confirmPayment(
 
     });
 
-    if (!calculation.finalAmount) {
+    if (calculation.finalAmount === null || calculation.finalAmount === undefined) {
         throw new BadRequest("Price calculation failed");
     }
 

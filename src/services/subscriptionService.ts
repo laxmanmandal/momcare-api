@@ -109,7 +109,8 @@ export async function createPlan(data: CreatePlanInput) {
 
     // 2) create subscriptionCourse rows if courseIds is an array
     if (courseIds && Array.isArray(courseIds) && courseIds.length > 0) {
-      const subscriptionCourses = courseIds.map((courseId: any) => ({
+      const uniqueCourseIds = Array.from(new Set(courseIds.map(Number)));
+      const subscriptionCourses = uniqueCourseIds.map((courseId: any) => ({
         subscriptionPlanId: Number(plan.id),
         courseId
       }));
@@ -171,7 +172,8 @@ export async function updatePlan(uuid: string, data: UpdatePlanInput) {
 
       // add new if provided as array
       if (Array.isArray(courseIds) && courseIds.length > 0) {
-        const subscriptionCourses = courseIds.map((courseId: any) => ({
+        const uniqueCourseIds = Array.from(new Set(courseIds.map(Number)));
+        const subscriptionCourses = uniqueCourseIds.map((courseId: any) => ({
           subscriptionPlanId: plan.id,
           courseId
         }));

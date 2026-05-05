@@ -3,19 +3,12 @@ import * as expertService from '../services/expertService'
 import { authMiddleware, onlyOrg } from '../middleware/auth';
 import { zodToJsonSchema } from '../utils/zodOpenApi';
 import {
+    expertCreateMultipartSchema,
     expertIdParamsSchema,
-    validateData
+    expertUpdateMultipartSchema,
+    validateData,
+    zodToSwagger
 } from '../validations';
-
-const expertBodyProps = {
-    properties: {
-        name: { type: 'string' },
-        profession_id: { type: 'integer', minimum: 1 },
-        name_org: { type: 'string' },
-        qualification: { type: 'string' },
-        image: { type: 'string', format: 'binary' }
-    }
-};
 
 const successObjectResponse = {
     type: 'object',
@@ -41,18 +34,21 @@ export default async function ExpertRoutes(app: FastifyInstance) {
         {
             schema: {
                 tags: ['Experts'],
-                consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-                body: expertBodyProps,
+                consumes: ['multipart/form-data', 'application/json', 'application/x-www-form-urlencoded'],
+                body: zodToSwagger(expertCreateMultipartSchema),
                 summary: 'Create an expert',
                 response: { 200: successObjectResponse }
             },
             preHandler: [authMiddleware, onlyOrg]
         },
         async (req, reply) => {
-            const { fields, files } = await app.parseMultipartMemory(req);
+            const { fields, files } = validateData(
+                expertCreateMultipartSchema,
+                await app.parseMultipartMemory(req)
+            );
             const expertsData = {
                 name: fields.name,
-                profession_id: Number(fields.profession_id),
+                profession_id: fields.profession_id,
                 name_org: fields.name_org,
                 qualification: fields.qualification,
             };
@@ -78,8 +74,8 @@ export default async function ExpertRoutes(app: FastifyInstance) {
         {
             schema: {
                 tags: ['Experts'],
-                consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-                body: expertBodyProps,
+                consumes: ['multipart/form-data', 'application/json', 'application/x-www-form-urlencoded'],
+                body: zodToSwagger(expertUpdateMultipartSchema),
                 params: zodToJsonSchema(expertIdParamsSchema as any, { target: 'openApi3' }),
                 summary: 'Update an expert',
                 response: { 200: successObjectResponse }
@@ -88,12 +84,13 @@ export default async function ExpertRoutes(app: FastifyInstance) {
         },
         async (req, reply) => {
             const { id } = validateData(expertIdParamsSchema, req.params);
-            const { files, fields } = await app.parseMultipartMemory(req);
-            if (!req.isMultipart() && req.body) Object.assign(fields, req.body);
+            const parsed = await app.parseMultipartMemory(req);
+            if (!req.isMultipart() && req.body) Object.assign(parsed.fields, req.body);
+            const { files, fields } = validateData(expertUpdateMultipartSchema, parsed);
 
             const updateData: any = {
                 name: fields.name,
-                profession_id: Number(fields.profession_id),
+                profession_id: fields.profession_id,
                 name_org: fields.name_org,
                 qualification: fields.qualification,
             };

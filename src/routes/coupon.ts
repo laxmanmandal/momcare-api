@@ -9,7 +9,8 @@ import {
     couponIdParamsSchema,
     couponProcessSchema,
     couponUpdateMultipartSchema,
-    validateData
+    validateData,
+    zodToSwagger
 } from '../validations';
 
 const successObjectResponse = {
@@ -38,7 +39,7 @@ export default async function CouponRoute(app: FastifyInstance) {
             schema: {
                 tags: ['Coupon'],
                 consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-                body: zodToJsonSchema(couponCreateMultipartSchema as any, { target: 'openApi3' }),
+                body: zodToSwagger(couponCreateMultipartSchema),
                 summary: 'Create a coupon',
                 response: { 201: successObjectResponse }
             }
@@ -239,7 +240,7 @@ export default async function CouponRoute(app: FastifyInstance) {
             schema: {
                 tags: ['Coupon'],
                 consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-                body: zodToJsonSchema(couponUpdateMultipartSchema as any, { target: 'openApi3' }),
+                body: zodToSwagger(couponUpdateMultipartSchema),
                 params: zodToJsonSchema(couponIdParamsSchema as any, { target: 'openApi3' }),
                 summary: 'Update a coupon',
                 response: { 200: successObjectResponse }

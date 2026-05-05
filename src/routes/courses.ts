@@ -12,7 +12,8 @@ import {
   courseLessonUuidParamsSchema,
   courseUpdateBodySchema,
   courseUuidParamsSchema,
-  validateData
+  validateData,
+  zodToSwagger
 } from '../validations';
 
 const successArrayResponse = {
@@ -81,7 +82,7 @@ export default async function courseRoutes(app: FastifyInstance) {
       summary: 'Create a lesson',
       consumes: ['multipart/form-data', 'application/json', 'application/x-www-form-urlencoded'],
       response: { 201: successObjectResponse },
-      body: zodToJsonSchema(courseLessonBodySchema as any, { target: 'openApi3' })
+      body: zodToSwagger(courseLessonBodySchema)
     },
     preHandler: [onlyOrg]
   }, async (req: any, reply) => {
@@ -100,7 +101,7 @@ export default async function courseRoutes(app: FastifyInstance) {
       consumes: ['multipart/form-data', 'application/json', 'application/x-www-form-urlencoded'],
       response: { 200: successObjectResponse },
       params: zodToJsonSchema(courseUuidParamsSchema as any, { target: 'openApi3' }),
-      body: zodToJsonSchema(courseLessonBodySchema as any, { target: 'openApi3' })
+      body: zodToSwagger(courseLessonBodySchema)
     },
     preHandler: [onlyOrg]
   }, async (req: any, reply) => {
@@ -161,13 +162,14 @@ export default async function courseRoutes(app: FastifyInstance) {
       summary: 'Create or update lesson medias',
       consumes: ['multipart/form-data', 'application/json', 'application/x-www-form-urlencoded'],
       response: { 201: successObjectResponse },
-      body: zodToJsonSchema(courseLessonMediaBodySchema as any, { target: 'openApi3' })
+      body: zodToSwagger(courseLessonMediaBodySchema)
     },
     preHandler: [onlyOrg]
   }, async (req: any, reply) => {
     const { fields } = req.isMultipart() ? await app.parseMultipartMemory(req) : { fields: req.body ?? {} };
-    const item = validateData(courseLessonMediaBodySchema, fields);
-    const result = await courseService.createUpdateMany([item]);
+    const body = validateData(courseLessonMediaBodySchema, fields);
+    const items = Array.isArray(body) ? body : [body];
+    const result = await courseService.createUpdateMany(items);
     reply.code(201).send({ success: true, message: 'Lesson medias saved', data: result });
   });
 
@@ -236,7 +238,7 @@ export default async function courseRoutes(app: FastifyInstance) {
       summary: 'Create a course',
       consumes: ['multipart/form-data', 'application/json', 'application/x-www-form-urlencoded'],
       response: { 201: successObjectResponse },
-      body: zodToJsonSchema(courseCreateBodySchema as any, { target: 'openApi3' })
+      body: zodToSwagger(courseCreateBodySchema)
     },
     preHandler: [onlyOrg]
   }, async (req: any, reply) => {
@@ -255,7 +257,7 @@ export default async function courseRoutes(app: FastifyInstance) {
       consumes: ['multipart/form-data', 'application/json', 'application/x-www-form-urlencoded'],
       response: { 200: successObjectResponse },
       params: zodToJsonSchema(courseUuidParamsSchema as any, { target: 'openApi3' }),
-      body: zodToJsonSchema(courseUpdateBodySchema as any, { target: 'openApi3' })
+      body: zodToSwagger(courseUpdateBodySchema)
     },
     preHandler: [onlyOrg]
   }, async (req: any, reply) => {

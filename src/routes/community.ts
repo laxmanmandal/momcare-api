@@ -9,6 +9,7 @@ import {
   communityUpdateMultipartSchema,
   positiveIntSchema,
   validateData,
+  zodToSwagger
 } from "../validations";
 
 const communityResponse = {
@@ -33,7 +34,7 @@ export default async function community(app: FastifyInstance) {
       schema: {
         tags: ["Community"],
         consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-        body: zodToJsonSchema(communityCreateMultipartSchema as any, { target: 'openApi3' }),
+        body: zodToSwagger(communityCreateMultipartSchema),
         response: {
           201: {
             type: "object",
@@ -85,8 +86,8 @@ export default async function community(app: FastifyInstance) {
       schema: {
         tags: ["Community"],
         consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-        params: zodToJsonSchema(communityIdParamsSchema as any, { target: 'openApi3' }),
-        body: zodToJsonSchema(communityUpdateMultipartSchema as any, { target: 'openApi3' }),
+        params: zodToSwagger(communityIdParamsSchema),
+        body: zodToSwagger(communityUpdateMultipartSchema),
         response: {
           200: {
             type: "object",
@@ -143,13 +144,6 @@ export default async function community(app: FastifyInstance) {
     {
       schema: {
         tags: ["Community"],
-        params: {
-          type: "object",
-          properties: {
-            id: { type: "integer", description: "Community ID" },
-          },
-          required: ["id"],
-        },
         response: {
           200: {
             type: "object",
@@ -176,13 +170,7 @@ export default async function community(app: FastifyInstance) {
     {
       schema: {
         tags: ["Community"],
-        params: {
-          type: "object",
-          properties: {
-            id: { type: "integer", description: "Community ID" },
-          },
-          required: ["id"],
-        },
+        params: zodToJsonSchema(communityIdParamsSchema as any, { target: 'openApi3' }),
         response: {
           200: {
             type: "object",
@@ -214,6 +202,7 @@ export default async function community(app: FastifyInstance) {
       schema: {
         tags: ["Community"],
         consumes: ['application/json', 'application/x-www-form-urlencoded'],
+        params: zodToJsonSchema(communityIdParamsSchema as any, { target: 'openApi3' }),
         response: {
           200: {
             type: "object",
@@ -244,7 +233,7 @@ export default async function community(app: FastifyInstance) {
       schema: {
         tags: ["Community"],
         consumes: ['application/json', 'application/x-www-form-urlencoded'],
-        body: zodToJsonSchema(communityJoinSchema as any, { target: 'openApi3' }),
+        body: zodToSwagger(communityJoinSchema),
         response: {
           200: {
             type: "object",

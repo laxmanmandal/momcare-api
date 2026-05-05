@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+const startsWithLetterPattern = /^\p{L}/u;
+const startsWithLetterMsg = 'name must start with a letter';
+
 export const usersListParamsSchema = z.object({
   entityId: z.coerce.number().int().positive()
 }).strict();
@@ -29,7 +32,7 @@ export const userStatusParamsSchema = z.object({
 }).strict();
 
 export const userUpdateBodySchema = z.object({
-  name: z.string().trim().min(2).max(120).optional(),
+  name: z.string().trim().min(2).max(120).regex(startsWithLetterPattern, startsWithLetterMsg).optional(),
   email: z.union([z.string().trim().email('email must be a valid email address'), z.literal(''), z.null()]).optional(),
   phone: z.string().trim().min(10).max(20).optional(),
   child_gender: z.string().trim().optional(),

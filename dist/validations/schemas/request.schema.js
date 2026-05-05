@@ -620,6 +620,7 @@ exports.subscriptionPlanCreateSchema = zod_1.z
         .object({
         name: requiredTrimmedString(1, 255),
         price: zod_1.z.coerce.number().nonnegative(),
+        isVisible: zod_1.z.union([zod_1.z.boolean(), zod_1.z.enum(["true", "false"])]).optional(),
         courseIds: optionalCourseIds(),
     })
         .strict(),
@@ -634,11 +635,13 @@ exports.subscriptionPlanUpdateSchema = zod_1.z
     .object({
     name: optionalTrimmedString(255),
     price: zod_1.z.coerce.number().nonnegative().optional(),
+    isVisible: zod_1.z.union([zod_1.z.boolean(), zod_1.z.enum(["true", "false"])]).optional(),
     courseIds: optionalCourseIds(),
 })
     .strict()
     .refine((data) => data.name !== undefined ||
     data.price !== undefined ||
+    data.isVisible !== undefined ||
     data.courseIds !== undefined, {
     message: "At least one field is required",
 });
@@ -752,21 +755,27 @@ exports.courseLessonBodySchema = zod_1.z
     mediaResourceId: exports.positiveIntSchema.optional(),
 })
     .strict();
-exports.courseLessonMediaBodySchema = zod_1.z
+const courseLessonMediaItemSchema = zod_1.z
     .object({
-    lessonId: exports.positiveIntSchema.optional(),
-    title: optionalTrimmedString(255),
+    id: exports.positiveIntSchema.optional(),
+    lessonId: exports.positiveIntSchema,
+    title: requiredTrimmedString(1, 255),
     mediaResourceId: exports.positiveIntSchema.optional(),
     description: optionalTrimmedString(5000),
     is_active: zod_1.z.union([zod_1.z.boolean(), zod_1.z.enum(["true", "false"])]).optional(),
 })
     .strict();
+exports.courseLessonMediaBodySchema = zod_1.z.union([
+    courseLessonMediaItemSchema,
+    zod_1.z.array(courseLessonMediaItemSchema).min(1),
+]);
 exports.courseCreateBodySchema = zod_1.z
     .object({
     title: optionalTrimmedString(255),
     description: optionalTrimmedString(5000),
     category: optionalTrimmedString(255),
     mediaResourceId: exports.positiveIntSchema.optional(),
+    lessonIds: optionalCourseIds(),
 })
     .strict();
 exports.courseUpdateBodySchema = exports.courseCreateBodySchema.refine((data) => {

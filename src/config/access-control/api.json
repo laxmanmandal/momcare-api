@@ -48,6 +48,13 @@
       "LIST_ENTITY"
     ]
   },
+    {
+    "apiId": "BELONGS_TO_ENTITY",
+    "apiEndpoint": "/entities/:id",
+    "policyName": [
+      "BELONGS_TO_ENTITY"
+    ]
+  },
   {
     "apiId": "UPDATE_ENTITY",
     "apiEndpoint": "/entities/:id/update",

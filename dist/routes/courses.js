@@ -176,8 +176,9 @@ async function courseRoutes(app) {
         preHandler: [auth_1.onlyOrg]
     }, async (req, reply) => {
         const { fields } = req.isMultipart() ? await app.parseMultipartMemory(req) : { fields: req.body ?? {} };
-        const item = (0, validations_1.validateData)(validations_1.courseLessonMediaBodySchema, fields);
-        const result = await courseService.createUpdateMany([item]);
+        const body = (0, validations_1.validateData)(validations_1.courseLessonMediaBodySchema, fields);
+        const items = Array.isArray(body) ? body : [body];
+        const result = await courseService.createUpdateMany(items);
         reply.code(201).send({ success: true, message: 'Lesson medias saved', data: result });
     });
     app.patch('/lesson-medias/:id/status', {

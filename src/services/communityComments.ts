@@ -76,6 +76,3 @@ export async function CommentStatus(id: number) {
         data: { isActive: !comment.isActive },
     });
 }
-
-
-// comments reply 

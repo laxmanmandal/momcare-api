@@ -5,6 +5,9 @@ const httpUrlPattern = /^https?:\/\/[^\s]+$/i;
 const localAssetPattern = /^\/[A-Za-z0-9/_-]+(?:\.[A-Za-z0-9]+)?$/;
 const codePattern = /^[A-Za-z0-9_-]+$/;
 
+const startsWithLetterPattern = /^\p{L}/u;
+const startsWithLetterMsg = "must start with a letter";
+
 export const multipartFileSchema = z.object({
   fieldname: z.string(),
   filename: z.string(),
@@ -14,11 +17,15 @@ export const multipartFileSchema = z.object({
 
 export const positiveIntSchema = z.coerce.number().int().positive();
 
-function optionalTrimmedString(maxLength?: number) {
+function optionalTrimmedString(maxLength?: number, pattern?: RegExp, message?: string) {
   let schema = z.string().trim();
 
   if (maxLength !== undefined) {
     schema = schema.max(maxLength);
+  }
+
+  if (pattern) {
+    schema = schema.regex(pattern, message);
   }
 
   return z.preprocess((value) => {
@@ -28,11 +35,15 @@ function optionalTrimmedString(maxLength?: number) {
   }, schema.optional());
 }
 
-function requiredTrimmedString(minLength = 1, maxLength?: number) {
+function requiredTrimmedString(minLength = 1, maxLength?: number, pattern?: RegExp, message?: string) {
   let schema = z.string().trim().min(minLength);
 
   if (maxLength !== undefined) {
     schema = schema.max(maxLength);
+  }
+
+  if (pattern) {
+    schema = schema.regex(pattern, message);
   }
 
   return schema;
@@ -158,7 +169,7 @@ export const communityCreateMultipartSchema = z
   .object({
     fields: z
       .object({
-        name: requiredTrimmedString(2, 120),
+        name: requiredTrimmedString(2, 120, startsWithLetterPattern, startsWithLetterMsg),
         description: optionalTrimmedString(1000),
       })
       .strict(),
@@ -170,7 +181,7 @@ export const communityUpdateMultipartSchema = z
   .object({
     fields: z
       .object({
-        name: optionalTrimmedString(120),
+        name: optionalTrimmedString(120, startsWithLetterPattern, startsWithLetterMsg),
         description: optionalTrimmedString(1000),
       })
       .strict(),
@@ -206,7 +217,7 @@ export const communityPostCreateMultipartSchema = z
   .object({
     fields: z
       .object({
-        title: requiredTrimmedString(2, 160),
+        title: requiredTrimmedString(2, 160, startsWithLetterPattern, startsWithLetterMsg),
         content: requiredTrimmedString(2, 10000),
         communityId: positiveIntSchema,
         userId: positiveIntSchema.optional(),
@@ -222,7 +233,7 @@ export const communityPostUpdateMultipartSchema = z
   .object({
     fields: z
       .object({
-        title: optionalTrimmedString(160),
+        title: optionalTrimmedString(160, startsWithLetterPattern, startsWithLetterMsg),
         content: optionalTrimmedString(10000),
         communityId: positiveIntSchema.optional(),
         userId: positiveIntSchema.optional(),
@@ -280,7 +291,7 @@ export const mediaCreateMultipartSchema = z
   .object({
     fields: z
       .object({
-        title: requiredTrimmedString(2, 160),
+        title: requiredTrimmedString(2, 160, startsWithLetterPattern, startsWithLetterMsg),
         type: requiredTrimmedString(2, 50),
         mimeType: optionalTrimmedString(100),
         mimetype: optionalTrimmedString(100),
@@ -305,7 +316,7 @@ export const mediaUpdateMultipartSchema = z
   .object({
     fields: z
       .object({
-        title: optionalTrimmedString(160),
+        title: optionalTrimmedString(160, startsWithLetterPattern, startsWithLetterMsg),
         type: optionalTrimmedString(50),
         mimeType: optionalTrimmedString(100),
         mimetype: optionalTrimmedString(100),
@@ -503,11 +514,10 @@ export const dailyTipCreateMultipartSchema = z
   .object({
     fields: z
       .object({
-        title: requiredTrimmedString(1, 255),
-        heading: requiredTrimmedString(1, 255),
-        subheading: requiredTrimmedString(1, 255),
-        content: requiredTrimmedString(1, 5000),
-        category: requiredTrimmedString(1, 255),
+        heading: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
+        category: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
+        subheading: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
+        content: optionalTrimmedString(10000),
       })
       .strict(),
     files: z
@@ -522,11 +532,10 @@ export const dailyTipUpdateMultipartSchema = z
   .object({
     fields: z
       .object({
-        title: optionalTrimmedString(255),
-        heading: optionalTrimmedString(255),
-        subheading: optionalTrimmedString(255),
-        content: optionalTrimmedString(5000),
-        category: optionalTrimmedString(255),
+        heading: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
+        category: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
+        subheading: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
+        content: optionalTrimmedString(10000),
       })
       .strict(),
     files: z
@@ -545,8 +554,8 @@ export const conceiveCreateMultipartSchema = z
     fields: z
       .object({
         week: z.coerce.number().int().positive(),
-        title: requiredTrimmedString(1, 255),
-        subtitle: optionalTrimmedString(255),
+        title: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
+        subtitle: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
         type: optionalTrimmedString(100),
         description: optionalTrimmedString(5000),
         height: optionalTrimmedString(100),
@@ -567,8 +576,8 @@ export const conceiveUpdateMultipartSchema = z
     fields: z
       .object({
         week: z.coerce.number().int().positive().optional(),
-        title: optionalTrimmedString(255),
-        subtitle: optionalTrimmedString(255),
+        title: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
+        subtitle: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
         type: optionalTrimmedString(100),
         description: optionalTrimmedString(5000),
         height: optionalTrimmedString(100),
@@ -609,6 +618,45 @@ export const expertIdParamsSchema = z
   })
   .strict();
 
+export const expertCreateMultipartSchema = z
+  .object({
+    fields: z
+      .object({
+        name: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
+        profession_id: positiveIntSchema,
+        name_org: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
+        qualification: optionalTrimmedString(255),
+      })
+      .strict(),
+    files: z
+      .object({
+        image: fileField(),
+      })
+      .strict(),
+  })
+  .strict();
+
+export const expertUpdateMultipartSchema = z
+  .object({
+    fields: z
+      .object({
+        name: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
+        profession_id: positiveIntSchema.optional(),
+        name_org: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
+        qualification: optionalTrimmedString(255),
+      })
+      .strict(),
+    files: z
+      .object({
+        image: fileField(),
+      })
+      .strict(),
+  })
+  .strict()
+  .refine(({ fields, files }) => {
+    return hasMeaningfulValue(fields) || (files.image?.length ?? 0) > 0;
+  }, "At least one field is required");
+
 export const expertPostIdParamsSchema = z
   .object({
     id: positiveIntSchema,
@@ -631,7 +679,7 @@ export const expertPostCreateMultipartSchema = z
   .object({
     fields: z
       .object({
-        title: requiredTrimmedString(1, 255),
+        title: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
         content: requiredTrimmedString(1, 10000),
         expert_id: positiveIntSchema,
         mediaType: optionalTrimmedString(255),
@@ -649,7 +697,7 @@ export const expertPostUpdateMultipartSchema = z
   .object({
     fields: z
       .object({
-        title: optionalTrimmedString(255),
+        title: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
         content: optionalTrimmedString(10000),
         expert_id: positiveIntSchema.optional(),
         mediaType: optionalTrimmedString(255),
@@ -668,7 +716,7 @@ export const expertPostUpdateMultipartSchema = z
 
 export const professionCreateSchema = z
   .object({
-    name: requiredTrimmedString(1, 255),
+    name: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
   })
   .strict();
 
@@ -708,8 +756,9 @@ export const subscriptionPlanCreateSchema = z
   .object({
     fields: z
       .object({
-        name: requiredTrimmedString(1, 255),
+        name: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
         price: z.coerce.number().nonnegative(),
+        isVisible: z.union([z.boolean(), z.enum(["true", "false"])]).optional(),
         courseIds: optionalCourseIds(),
       })
       .strict(),
@@ -723,8 +772,9 @@ export const subscriptionPlanCreateSchema = z
 
 export const subscriptionPlanUpdateSchema = z
   .object({
-    name: optionalTrimmedString(255),
+    name: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
     price: z.coerce.number().nonnegative().optional(),
+    isVisible: z.union([z.boolean(), z.enum(["true", "false"])]).optional(),
     courseIds: optionalCourseIds(),
   })
   .strict()
@@ -732,6 +782,7 @@ export const subscriptionPlanUpdateSchema = z
     (data) =>
       data.name !== undefined ||
       data.price !== undefined ||
+      data.isVisible !== undefined ||
       data.courseIds !== undefined,
     {
       message: "At least one field is required",
@@ -787,7 +838,7 @@ const nullableString = z.union([z.string(), z.null()]);
 export const entityBodySchema = z
   .object({
     type: requiredTrimmedString(1, 255),
-    name: requiredTrimmedString(1, 255),
+    name: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
     phone: optionalTrimmedString(50),
     email: z.string().trim().email(),
     location: z.union([optionalTrimmedString(255), z.literal("")]).optional(),
@@ -804,7 +855,7 @@ export const entityBodySchema = z
 export const entityUpdateSchema = z
   .object({
     type: optionalTrimmedString(255),
-    name: optionalTrimmedString(255),
+    name: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
     phone: optionalTrimmedString(50),
     email: z.string().trim().email().optional(),
     location: z.union([optionalTrimmedString(255), z.literal("")]).optional(),
@@ -858,28 +909,35 @@ export const courseLessonQuerySchema = z
 
 export const courseLessonBodySchema = z
   .object({
-    title: optionalTrimmedString(255),
+    title: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
     description: optionalTrimmedString(5000),
     mediaResourceId: positiveIntSchema.optional(),
   })
   .strict();
 
-export const courseLessonMediaBodySchema = z
+const courseLessonMediaItemSchema = z
   .object({
-    lessonId: positiveIntSchema.optional(),
-    title: optionalTrimmedString(255),
+    id: positiveIntSchema.optional(),
+    lessonId: positiveIntSchema,
+    title: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
     mediaResourceId: positiveIntSchema.optional(),
     description: optionalTrimmedString(5000),
     is_active: z.union([z.boolean(), z.enum(["true", "false"])]).optional(),
   })
   .strict();
 
+export const courseLessonMediaBodySchema = z.union([
+  courseLessonMediaItemSchema,
+  z.array(courseLessonMediaItemSchema).min(1),
+]);
+
 export const courseCreateBodySchema = z
   .object({
-    title: optionalTrimmedString(255),
+    title: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
     description: optionalTrimmedString(5000),
-    category: optionalTrimmedString(255),
+    category: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
     mediaResourceId: positiveIntSchema.optional(),
+    lessonIds: optionalCourseIds(),
   })
   .strict();
 
@@ -901,10 +959,10 @@ export const dietChartMultipartSchema = z
     fields: z
       .object({
         creator: optionalTrimmedString(255),
-        heading: optionalTrimmedString(255),
+        heading: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
         weekId: z.coerce.number().int().positive().optional(),
-        category: optionalTrimmedString(255),
-        subheading: optionalTrimmedString(255),
+        category: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
+        subheading: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
         content: optionalTrimmedString(5000),
         toolType: optionalTrimmedString(255),
       })
@@ -922,9 +980,9 @@ export const dietNuskheMultipartSchema = z
     fields: z
       .object({
         creator: optionalTrimmedString(255),
-        category: optionalTrimmedString(255),
-        heading: optionalTrimmedString(255),
-        subheading: optionalTrimmedString(255),
+        category: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
+        heading: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
+        subheading: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
         content: optionalTrimmedString(5000),
       })
       .strict(),
@@ -938,7 +996,7 @@ export const dietNuskheMultipartSchema = z
 
 export const weekBodySchema = z
   .object({
-    name: requiredTrimmedString(1, 255),
+    name: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
     order: z.coerce.number(),
   })
   .strict();

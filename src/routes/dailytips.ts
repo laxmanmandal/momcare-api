@@ -6,7 +6,8 @@ import {
     dailyTipCreateMultipartSchema,
     dailyTipIdParamsSchema,
     dailyTipUpdateMultipartSchema,
-    validateData
+    validateData,
+    zodToSwagger
 } from '../validations';
 
 const successObjectResponse = {
@@ -34,8 +35,8 @@ export default async function dailytipsRoute(app: FastifyInstance) {
             schema: {
                 tags: ['Dailytips'],
                 summary: 'Create a daily tip',
-                consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-                body: zodToJsonSchema(dailyTipCreateMultipartSchema as any, { target: 'openApi3' }),
+                consumes: ['multipart/form-data', 'application/json', 'application/x-www-form-urlencoded'],
+                body: zodToSwagger(dailyTipCreateMultipartSchema),
                 response: { 200: successObjectResponse }
             },
             preHandler: [authMiddleware, onlyOrg]
@@ -47,7 +48,6 @@ export default async function dailytipsRoute(app: FastifyInstance) {
             );
 
             const dailytipsData = {
-                title: fields.title,
                 heading: fields.heading,
                 subheading: fields.subheading,
                 content: fields.content,
@@ -77,8 +77,8 @@ export default async function dailytipsRoute(app: FastifyInstance) {
             schema: {
                 tags: ['Dailytips'],
                 summary: 'Update a daily tip',
-                consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-                body: zodToJsonSchema(dailyTipUpdateMultipartSchema as any, { target: 'openApi3' }),
+                consumes: ['multipart/form-data', 'application/json', 'application/x-www-form-urlencoded'],
+                body: zodToSwagger(dailyTipUpdateMultipartSchema),
                 params: zodToJsonSchema(dailyTipIdParamsSchema as any, { target: 'openApi3' }),
                 response: { 200: successObjectResponse }
             },
@@ -92,7 +92,6 @@ export default async function dailytipsRoute(app: FastifyInstance) {
             );
 
             const updateData: any = {
-                title: fields.title,
                 heading: fields.heading,
                 subheading: fields.subheading,
                 content: fields.content,

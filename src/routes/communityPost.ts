@@ -8,7 +8,8 @@ import {
     communityPostTypeParamsSchema,
     communityPostUpdateMultipartSchema,
     positiveIntSchema,
-    validateData
+    validateData,
+    zodToSwagger
 } from '../validations';
 
 const successObjectResponse = {
@@ -39,7 +40,7 @@ export default async function communityPost(app: FastifyInstance) {
                 tags: ['Community Posts'],
                 summary: 'Create a community post',
                 consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-                body: zodToJsonSchema(communityPostCreateMultipartSchema as any, { target: 'openApi3' }),
+                body: zodToSwagger(communityPostCreateMultipartSchema),
                 response: { 201: successObjectResponse }
             }
         },
@@ -89,7 +90,7 @@ export default async function communityPost(app: FastifyInstance) {
                 tags: ['Community Posts'],
                 summary: 'Update a community post',
                 consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-                body: zodToJsonSchema(communityPostUpdateMultipartSchema as any, { target: 'openApi3' }),
+                body: zodToSwagger(communityPostUpdateMultipartSchema),
                 params: zodToJsonSchema(communityPostIdParamsSchema as any, { target: 'openApi3' }),
                 response: { 200: successObjectResponse }
             }

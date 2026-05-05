@@ -62,6 +62,13 @@ const planBodyProps = {
         thumbnail: { type: 'string', format: 'binary' }
     }
 };
+function normalizeBoolean(value) {
+    if (value === 'true')
+        return true;
+    if (value === 'false')
+        return false;
+    return value;
+}
 async function subscriptionRoutes(app) {
     app.addHook('preHandler', auth_1.authMiddleware);
     app.get('/plans', {
@@ -161,6 +168,7 @@ async function subscriptionRoutes(app) {
             const planData = {
                 name: fields.name,
                 price: fields.price,
+                isVisible: normalizeBoolean(fields.isVisible),
                 uuid: uuid,
                 courseIds: fields.courseIds
             };
@@ -189,7 +197,7 @@ async function subscriptionRoutes(app) {
         schema: {
             tags: ['Subscription Plans'],
             summary: 'Update a subscription plan',
-            consumes: ['application/json', 'application/x-www-form-urlencoded'],
+            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
             body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.subscriptionPlanUpdateSchema, { target: 'openApi3' }),
             params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.subscriptionUuidParamsSchema, { target: 'openApi3' }),
             response: { 200: successObjectResponse, 400: successObjectResponse }
@@ -198,7 +206,15 @@ async function subscriptionRoutes(app) {
     }, async (req, reply) => {
         try {
             const { uuid } = (0, validations_1.validateData)(validations_1.subscriptionUuidParamsSchema, req.params);
-            const updated = await subscriptionService.updatePlan(uuid, (0, validations_1.validateData)(validations_1.subscriptionPlanUpdateSchema, req.body ?? {}));
+            const { fields, files } = req.isMultipart() ? await app.parseMultipartMemory(req) : { fields: req.body ?? {}, files: {} };
+            const updateData = (0, validations_1.validateData)(validations_1.subscriptionPlanUpdateSchema, fields);
+            if (updateData.isVisible !== undefined) {
+                updateData.isVisible = normalizeBoolean(updateData.isVisible);
+            }
+            if (files.thumbnail?.length) {
+                updateData.thumbnail = await app.saveFileBuffer(files.thumbnail[0], 'subscription-plans');
+            }
+            const updated = await subscriptionService.updatePlan(uuid, updateData);
             return reply.code(200).send({
                 success: true,
                 message: 'Subscription plan updated successfully',
