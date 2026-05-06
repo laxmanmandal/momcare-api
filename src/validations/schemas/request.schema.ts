@@ -211,7 +211,7 @@ const communityPostFileSchema = z
   })
   .strict();
 
-const communityPostTypeSchema = z.nativeEnum(PostType);
+const communityPostTypeSchema = z.enum(PostType);
 
 export const communityPostCreateMultipartSchema = z
   .object({
@@ -840,7 +840,7 @@ export const entityBodySchema = z
     type: requiredTrimmedString(1, 255),
     name: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
     phone: optionalTrimmedString(50),
-    email: z.string().trim().email(),
+    email: z.string().trim().pipe(z.email()),
     location: z.union([optionalTrimmedString(255), z.literal("")]).optional(),
     description: z
       .union([optionalTrimmedString(5000), z.literal("")])
@@ -857,7 +857,7 @@ export const entityUpdateSchema = z
     type: optionalTrimmedString(255),
     name: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
     phone: optionalTrimmedString(50),
-    email: z.string().trim().email().optional(),
+    email: z.string().trim().pipe(z.email()).optional(),
     location: z.union([optionalTrimmedString(255), z.literal("")]).optional(),
     description: z
       .union([optionalTrimmedString(5000), z.literal("")])

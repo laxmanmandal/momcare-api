@@ -17,7 +17,7 @@ export const verifyOtpSchema = z.object({
 }).strict();
 
 export const loginSchema = z.object({
-  email: z.string().trim().email('email must be a valid email address'),
+  email: z.string().trim().pipe(z.email({ error: 'email must be a valid email address' })),
   password: z.string().min(8).max(128)
 }).strict();
 
@@ -35,10 +35,10 @@ export const signupSchema = z.object({
   name: z.string().trim().min(2).max(120).regex(startsWithLetterPattern, startsWithLetterMsg),
   type: z.string().trim().max(50).optional(),
   location: z.string().trim().min(2).max(255).optional(),
-  email: z.string().trim().email('email must be a valid email address').max(254).optional(),
+  email: z.string().trim().max(254).pipe(z.email({ error: 'email must be a valid email address' })).optional(),
   phone: z.string().trim().regex(phonePattern, 'phone must be a valid mobile number'),
   password: z.string().min(8).max(128).optional(),
-  role: z.nativeEnum(Role),
+  role: z.enum(Role),
   belongsToId: z.coerce.number().int().optional(),
   createdBy: z.coerce.number().int().optional(),
   planId: z.union([z.coerce.number().int().positive(), z.null()]).optional()
