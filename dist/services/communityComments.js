@@ -73,5 +73,4 @@ async function CommentStatus(id) {
         data: { isActive: !comment.isActive },
     });
 }
-// comments reply 
 //# sourceMappingURL=communityComments.js.map

@@ -61,7 +61,7 @@ async function communityPost(app) {
             tags: ['Community Posts'],
             summary: 'Create a community post',
             consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.communityPostCreateMultipartSchema, { target: 'openApi3' }),
+            body: (0, validations_1.zodToSwagger)(validations_1.communityPostCreateMultipartSchema),
             response: { 201: successObjectResponse }
         }
     }, async (req, reply) => {
@@ -98,7 +98,7 @@ async function communityPost(app) {
             tags: ['Community Posts'],
             summary: 'Update a community post',
             consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.communityPostUpdateMultipartSchema, { target: 'openApi3' }),
+            body: (0, validations_1.zodToSwagger)(validations_1.communityPostUpdateMultipartSchema),
             params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.communityPostIdParamsSchema, { target: 'openApi3' }),
             response: { 200: successObjectResponse }
         }

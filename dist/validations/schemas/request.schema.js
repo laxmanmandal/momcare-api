@@ -1,12 +1,14 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.subscriptionPaymentSchema = exports.subscriptionAllotmentSchema = exports.subscriptionAllocationCreateSchema = exports.subscriptionPlanUpdateSchema = exports.subscriptionPlanCreateSchema = exports.subscriptionIdsParamsSchema = exports.subscriptionUuidParamsSchema = exports.loginLogParamsSchema = exports.loginLogQuerySchema = exports.healthSymptomsSchema = exports.professionCreateSchema = exports.expertPostUpdateMultipartSchema = exports.expertPostCreateMultipartSchema = exports.expertProfessionParamsSchema = exports.expertPostShareParamsSchema = exports.expertPostIdParamsSchema = exports.expertIdParamsSchema = exports.conceiveTypeParamsSchema = exports.conceiveIdParamsSchema = exports.conceiveUpdateMultipartSchema = exports.conceiveCreateMultipartSchema = exports.dailyTipUpdateMultipartSchema = exports.dailyTipCreateMultipartSchema = exports.dailyTipIdParamsSchema = exports.communityCommentPostParamsSchema = exports.communityCommentIdParamsSchema = exports.communityCommentUpdateSchema = exports.communityCommentCreateSchema = exports.communityReactionQuerySchema = exports.communityReactionBodySchema = exports.couponProcessSchema = exports.couponUpdateMultipartSchema = exports.couponCreateMultipartSchema = exports.couponCodeParamsSchema = exports.couponIdParamsSchema = exports.mediaUpdateMultipartSchema = exports.mediaCreateMultipartSchema = exports.mediaSearchQuerySchema = exports.mediaIdParamsSchema = exports.mediaParamsSchema = exports.communityPostTypeParamsSchema = exports.communityPostIdParamsSchema = exports.communityPostUpdateMultipartSchema = exports.communityPostCreateMultipartSchema = exports.communityIdParamsSchema = exports.communityJoinSchema = exports.communityUpdateMultipartSchema = exports.communityCreateMultipartSchema = exports.positiveIntSchema = exports.multipartFileSchema = void 0;
-exports.weekBodySchema = exports.dietNuskheMultipartSchema = exports.dietChartMultipartSchema = exports.dietToolIdParamsSchema = exports.courseUpdateBodySchema = exports.courseCreateBodySchema = exports.courseLessonMediaBodySchema = exports.courseLessonBodySchema = exports.courseLessonQuerySchema = exports.courseIdsParamsSchema = exports.courseIdParamsSchema = exports.courseLessonUuidParamsSchema = exports.courseUuidParamsSchema = exports.entityUpdateSchema = exports.entityBodySchema = exports.entityIdParamsSchema = exports.uploadTableQuerySchema = exports.subscriptionConfirmPaymentSchema = void 0;
+exports.subscriptionAllocationCreateSchema = exports.subscriptionPlanUpdateSchema = exports.subscriptionPlanCreateSchema = exports.subscriptionIdsParamsSchema = exports.subscriptionUuidParamsSchema = exports.loginLogParamsSchema = exports.loginLogQuerySchema = exports.healthSymptomsSchema = exports.professionCreateSchema = exports.expertPostUpdateMultipartSchema = exports.expertPostCreateMultipartSchema = exports.expertProfessionParamsSchema = exports.expertPostShareParamsSchema = exports.expertPostIdParamsSchema = exports.expertUpdateMultipartSchema = exports.expertCreateMultipartSchema = exports.expertIdParamsSchema = exports.conceiveTypeParamsSchema = exports.conceiveIdParamsSchema = exports.conceiveUpdateMultipartSchema = exports.conceiveCreateMultipartSchema = exports.dailyTipUpdateMultipartSchema = exports.dailyTipCreateMultipartSchema = exports.dailyTipIdParamsSchema = exports.communityCommentPostParamsSchema = exports.communityCommentIdParamsSchema = exports.communityCommentUpdateSchema = exports.communityCommentCreateSchema = exports.communityReactionQuerySchema = exports.communityReactionBodySchema = exports.couponProcessSchema = exports.couponUpdateMultipartSchema = exports.couponCreateMultipartSchema = exports.couponCodeParamsSchema = exports.couponIdParamsSchema = exports.mediaUpdateMultipartSchema = exports.mediaCreateMultipartSchema = exports.mediaSearchQuerySchema = exports.mediaIdParamsSchema = exports.mediaParamsSchema = exports.communityPostTypeParamsSchema = exports.communityPostIdParamsSchema = exports.communityPostUpdateMultipartSchema = exports.communityPostCreateMultipartSchema = exports.communityIdParamsSchema = exports.communityJoinSchema = exports.communityUpdateMultipartSchema = exports.communityCreateMultipartSchema = exports.positiveIntSchema = exports.multipartFileSchema = void 0;
+exports.weekBodySchema = exports.dietNuskheMultipartSchema = exports.dietChartMultipartSchema = exports.dietToolIdParamsSchema = exports.courseUpdateBodySchema = exports.courseCreateBodySchema = exports.courseLessonMediaBodySchema = exports.courseLessonBodySchema = exports.courseLessonQuerySchema = exports.courseIdsParamsSchema = exports.courseIdParamsSchema = exports.courseLessonUuidParamsSchema = exports.courseUuidParamsSchema = exports.entityUpdateMultipartSchema = exports.entityCreateMultipartSchema = exports.entityUpdateSchema = exports.entityBodySchema = exports.entityIdParamsSchema = exports.uploadTableQuerySchema = exports.subscriptionConfirmPaymentSchema = exports.subscriptionPaymentSchema = exports.subscriptionAllotmentSchema = void 0;
 const client_1 = require("@prisma/client");
 const zod_1 = require("zod");
 const httpUrlPattern = /^https?:\/\/[^\s]+$/i;
 const localAssetPattern = /^\/[A-Za-z0-9/_-]+(?:\.[A-Za-z0-9]+)?$/;
 const codePattern = /^[A-Za-z0-9_-]+$/;
+const startsWithLetterPattern = /^\p{L}/u;
+const startsWithLetterMsg = "must start with a letter";
 exports.multipartFileSchema = zod_1.z.object({
     fieldname: zod_1.z.string(),
     filename: zod_1.z.string(),
@@ -14,10 +16,13 @@ exports.multipartFileSchema = zod_1.z.object({
     buffer: zod_1.z.instanceof(Buffer),
 });
 exports.positiveIntSchema = zod_1.z.coerce.number().int().positive();
-function optionalTrimmedString(maxLength) {
+function optionalTrimmedString(maxLength, pattern, message) {
     let schema = zod_1.z.string().trim();
     if (maxLength !== undefined) {
         schema = schema.max(maxLength);
+    }
+    if (pattern) {
+        schema = schema.regex(pattern, message);
     }
     return zod_1.z.preprocess((value) => {
         if (value === undefined || value === null)
@@ -27,10 +32,13 @@ function optionalTrimmedString(maxLength) {
         return value;
     }, schema.optional());
 }
-function requiredTrimmedString(minLength = 1, maxLength) {
+function requiredTrimmedString(minLength = 1, maxLength, pattern, message) {
     let schema = zod_1.z.string().trim().min(minLength);
     if (maxLength !== undefined) {
         schema = schema.max(maxLength);
+    }
+    if (pattern) {
+        schema = schema.regex(pattern, message);
     }
     return schema;
 }
@@ -136,7 +144,7 @@ exports.communityCreateMultipartSchema = zod_1.z
     .object({
     fields: zod_1.z
         .object({
-        name: requiredTrimmedString(2, 120),
+        name: requiredTrimmedString(2, 120, startsWithLetterPattern, startsWithLetterMsg),
         description: optionalTrimmedString(1000),
     })
         .strict(),
@@ -147,7 +155,7 @@ exports.communityUpdateMultipartSchema = zod_1.z
     .object({
     fields: zod_1.z
         .object({
-        name: optionalTrimmedString(120),
+        name: optionalTrimmedString(120, startsWithLetterPattern, startsWithLetterMsg),
         description: optionalTrimmedString(1000),
     })
         .strict(),
@@ -173,12 +181,12 @@ const communityPostFileSchema = zod_1.z
     media: fileField(),
 })
     .strict();
-const communityPostTypeSchema = zod_1.z.nativeEnum(client_1.PostType);
+const communityPostTypeSchema = zod_1.z.enum(client_1.PostType);
 exports.communityPostCreateMultipartSchema = zod_1.z
     .object({
     fields: zod_1.z
         .object({
-        title: requiredTrimmedString(2, 160),
+        title: requiredTrimmedString(2, 160, startsWithLetterPattern, startsWithLetterMsg),
         content: requiredTrimmedString(2, 10000),
         communityId: exports.positiveIntSchema,
         userId: exports.positiveIntSchema.optional(),
@@ -193,7 +201,7 @@ exports.communityPostUpdateMultipartSchema = zod_1.z
     .object({
     fields: zod_1.z
         .object({
-        title: optionalTrimmedString(160),
+        title: optionalTrimmedString(160, startsWithLetterPattern, startsWithLetterMsg),
         content: optionalTrimmedString(10000),
         communityId: exports.positiveIntSchema.optional(),
         userId: exports.positiveIntSchema.optional(),
@@ -244,7 +252,7 @@ exports.mediaCreateMultipartSchema = zod_1.z
     .object({
     fields: zod_1.z
         .object({
-        title: requiredTrimmedString(2, 160),
+        title: requiredTrimmedString(2, 160, startsWithLetterPattern, startsWithLetterMsg),
         type: requiredTrimmedString(2, 50),
         mimeType: optionalTrimmedString(100),
         mimetype: optionalTrimmedString(100),
@@ -258,7 +266,7 @@ exports.mediaCreateMultipartSchema = zod_1.z
     .superRefine(({ fields, files }, ctx) => {
     if ((files.url?.length ?? 0) === 0 && !fields.url) {
         ctx.addIssue({
-            code: zod_1.z.ZodIssueCode.custom,
+            code: "custom",
             path: ["fields", "url"],
             message: "url is required",
         });
@@ -268,7 +276,7 @@ exports.mediaUpdateMultipartSchema = zod_1.z
     .object({
     fields: zod_1.z
         .object({
-        title: optionalTrimmedString(160),
+        title: optionalTrimmedString(160, startsWithLetterPattern, startsWithLetterMsg),
         type: optionalTrimmedString(50),
         mimeType: optionalTrimmedString(100),
         mimetype: optionalTrimmedString(100),
@@ -319,21 +327,21 @@ exports.couponCreateMultipartSchema = zod_1.z
     const { percent, fixed_amount, effective_at, expires_at } = fields;
     if (percent == null && fixed_amount == null) {
         ctx.addIssue({
-            code: zod_1.z.ZodIssueCode.custom,
+            code: "custom",
             path: ["fields", "percent"],
             message: "Either percent or fixed_amount is required",
         });
     }
     if (percent != null && fixed_amount != null) {
         ctx.addIssue({
-            code: zod_1.z.ZodIssueCode.custom,
+            code: "custom",
             path: ["fields", "fixed_amount"],
             message: "Percent and fixed_amount cannot both be provided",
         });
     }
     if (effective_at > expires_at) {
         ctx.addIssue({
-            code: zod_1.z.ZodIssueCode.custom,
+            code: "custom",
             path: ["fields", "expires_at"],
             message: "effective_at must be before or equal to expires_at",
         });
@@ -361,7 +369,7 @@ exports.couponUpdateMultipartSchema = zod_1.z
         fields.percent !== null &&
         fields.fixed_amount !== null) {
         ctx.addIssue({
-            code: zod_1.z.ZodIssueCode.custom,
+            code: "custom",
             path: ["fields", "fixed_amount"],
             message: "Percent and fixed_amount cannot both be provided",
         });
@@ -370,7 +378,7 @@ exports.couponUpdateMultipartSchema = zod_1.z
         fields.percent === null &&
         fields.fixed_amount === null) {
         ctx.addIssue({
-            code: zod_1.z.ZodIssueCode.custom,
+            code: "custom",
             path: ["fields", "percent"],
             message: "At least one discount value must remain set",
         });
@@ -379,7 +387,7 @@ exports.couponUpdateMultipartSchema = zod_1.z
         fields.expires_at &&
         fields.effective_at > fields.expires_at) {
         ctx.addIssue({
-            code: zod_1.z.ZodIssueCode.custom,
+            code: "custom",
             path: ["fields", "expires_at"],
             message: "effective_at must be before or equal to expires_at",
         });
@@ -433,11 +441,10 @@ exports.dailyTipCreateMultipartSchema = zod_1.z
     .object({
     fields: zod_1.z
         .object({
-        title: requiredTrimmedString(1, 255),
-        heading: requiredTrimmedString(1, 255),
-        subheading: requiredTrimmedString(1, 255),
-        content: requiredTrimmedString(1, 5000),
-        category: requiredTrimmedString(1, 255),
+        heading: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
+        category: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
+        subheading: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
+        content: optionalTrimmedString(10000),
     })
         .strict(),
     files: zod_1.z
@@ -451,11 +458,10 @@ exports.dailyTipUpdateMultipartSchema = zod_1.z
     .object({
     fields: zod_1.z
         .object({
-        title: optionalTrimmedString(255),
-        heading: optionalTrimmedString(255),
-        subheading: optionalTrimmedString(255),
-        content: optionalTrimmedString(5000),
-        category: optionalTrimmedString(255),
+        heading: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
+        category: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
+        subheading: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
+        content: optionalTrimmedString(10000),
     })
         .strict(),
     files: zod_1.z
@@ -473,8 +479,8 @@ exports.conceiveCreateMultipartSchema = zod_1.z
     fields: zod_1.z
         .object({
         week: zod_1.z.coerce.number().int().positive(),
-        title: requiredTrimmedString(1, 255),
-        subtitle: optionalTrimmedString(255),
+        title: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
+        subtitle: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
         type: optionalTrimmedString(100),
         description: optionalTrimmedString(5000),
         height: optionalTrimmedString(100),
@@ -494,8 +500,8 @@ exports.conceiveUpdateMultipartSchema = zod_1.z
     fields: zod_1.z
         .object({
         week: zod_1.z.coerce.number().int().positive().optional(),
-        title: optionalTrimmedString(255),
-        subtitle: optionalTrimmedString(255),
+        title: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
+        subtitle: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
         type: optionalTrimmedString(100),
         description: optionalTrimmedString(5000),
         height: optionalTrimmedString(100),
@@ -530,6 +536,43 @@ exports.expertIdParamsSchema = zod_1.z
     id: exports.positiveIntSchema,
 })
     .strict();
+exports.expertCreateMultipartSchema = zod_1.z
+    .object({
+    fields: zod_1.z
+        .object({
+        name: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
+        profession_id: exports.positiveIntSchema,
+        name_org: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
+        qualification: optionalTrimmedString(255),
+    })
+        .strict(),
+    files: zod_1.z
+        .object({
+        image: fileField(),
+    })
+        .strict(),
+})
+    .strict();
+exports.expertUpdateMultipartSchema = zod_1.z
+    .object({
+    fields: zod_1.z
+        .object({
+        name: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
+        profession_id: exports.positiveIntSchema.optional(),
+        name_org: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
+        qualification: optionalTrimmedString(255),
+    })
+        .strict(),
+    files: zod_1.z
+        .object({
+        image: fileField(),
+    })
+        .strict(),
+})
+    .strict()
+    .refine(({ fields, files }) => {
+    return hasMeaningfulValue(fields) || (files.image?.length ?? 0) > 0;
+}, "At least one field is required");
 exports.expertPostIdParamsSchema = zod_1.z
     .object({
     id: exports.positiveIntSchema,
@@ -549,7 +592,7 @@ exports.expertPostCreateMultipartSchema = zod_1.z
     .object({
     fields: zod_1.z
         .object({
-        title: requiredTrimmedString(1, 255),
+        title: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
         content: requiredTrimmedString(1, 10000),
         expert_id: exports.positiveIntSchema,
         mediaType: optionalTrimmedString(255),
@@ -566,7 +609,7 @@ exports.expertPostUpdateMultipartSchema = zod_1.z
     .object({
     fields: zod_1.z
         .object({
-        title: optionalTrimmedString(255),
+        title: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
         content: optionalTrimmedString(10000),
         expert_id: exports.positiveIntSchema.optional(),
         mediaType: optionalTrimmedString(255),
@@ -584,7 +627,7 @@ exports.expertPostUpdateMultipartSchema = zod_1.z
 }, "At least one field is required");
 exports.professionCreateSchema = zod_1.z
     .object({
-    name: requiredTrimmedString(1, 255),
+    name: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
 })
     .strict();
 exports.healthSymptomsSchema = zod_1.z
@@ -618,7 +661,7 @@ exports.subscriptionPlanCreateSchema = zod_1.z
     .object({
     fields: zod_1.z
         .object({
-        name: requiredTrimmedString(1, 255),
+        name: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
         price: zod_1.z.coerce.number().nonnegative(),
         isVisible: zod_1.z.union([zod_1.z.boolean(), zod_1.z.enum(["true", "false"])]).optional(),
         courseIds: optionalCourseIds(),
@@ -633,7 +676,7 @@ exports.subscriptionPlanCreateSchema = zod_1.z
     .strict();
 exports.subscriptionPlanUpdateSchema = zod_1.z
     .object({
-    name: optionalTrimmedString(255),
+    name: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
     price: zod_1.z.coerce.number().nonnegative().optional(),
     isVisible: zod_1.z.union([zod_1.z.boolean(), zod_1.z.enum(["true", "false"])]).optional(),
     courseIds: optionalCourseIds(),
@@ -689,9 +732,9 @@ const nullableString = zod_1.z.union([zod_1.z.string(), zod_1.z.null()]);
 exports.entityBodySchema = zod_1.z
     .object({
     type: requiredTrimmedString(1, 255),
-    name: requiredTrimmedString(1, 255),
+    name: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
     phone: optionalTrimmedString(50),
-    email: zod_1.z.string().trim().email(),
+    email: zod_1.z.string().trim().pipe(zod_1.z.email()),
     location: zod_1.z.union([optionalTrimmedString(255), zod_1.z.literal("")]).optional(),
     description: zod_1.z
         .union([optionalTrimmedString(5000), zod_1.z.literal("")])
@@ -702,12 +745,12 @@ exports.entityBodySchema = zod_1.z
     isActive: zod_1.z.union([zod_1.z.boolean(), zod_1.z.enum(["true", "false"])]).optional(),
 })
     .strict();
-exports.entityUpdateSchema = zod_1.z
+const entityUpdateFieldsSchema = zod_1.z
     .object({
     type: optionalTrimmedString(255),
-    name: optionalTrimmedString(255),
+    name: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
     phone: optionalTrimmedString(50),
-    email: zod_1.z.string().trim().email().optional(),
+    email: zod_1.z.string().trim().pipe(zod_1.z.email()).optional(),
     location: zod_1.z.union([optionalTrimmedString(255), zod_1.z.literal("")]).optional(),
     description: zod_1.z
         .union([optionalTrimmedString(5000), zod_1.z.literal("")])
@@ -715,10 +758,30 @@ exports.entityUpdateSchema = zod_1.z
     imageUrl: zod_1.z.union([zod_1.z.string(), zod_1.z.null()]).optional(),
     isActive: zod_1.z.union([zod_1.z.boolean(), zod_1.z.enum(["true", "false"])]).optional(),
 })
-    .strict()
+    .strict();
+exports.entityUpdateSchema = entityUpdateFieldsSchema
     .refine((data) => {
     return Object.values(data).some((value) => value !== undefined);
 }, { message: "At least one field is required" });
+exports.entityCreateMultipartSchema = zod_1.z
+    .object({
+    fields: exports.entityBodySchema,
+    files: zod_1.z
+        .object({
+        imageUrl: fileField(),
+    })
+        .strict(),
+})
+    .strict();
+exports.entityUpdateMultipartSchema = zod_1.z
+    .object({
+    fields: entityUpdateFieldsSchema,
+    files: zod_1.z.object({ imageUrl: fileField() }).strict(),
+})
+    .strict()
+    .refine(({ fields, files }) => {
+    return hasMeaningfulValue(fields) || (files.imageUrl?.length ?? 0) > 0;
+}, "At least one field is required");
 exports.courseUuidParamsSchema = zod_1.z
     .object({
     uuid: zod_1.z.string().trim().min(2).max(64),
@@ -750,7 +813,7 @@ exports.courseLessonQuerySchema = zod_1.z
     .strict();
 exports.courseLessonBodySchema = zod_1.z
     .object({
-    title: optionalTrimmedString(255),
+    title: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
     description: optionalTrimmedString(5000),
     mediaResourceId: exports.positiveIntSchema.optional(),
 })
@@ -759,7 +822,7 @@ const courseLessonMediaItemSchema = zod_1.z
     .object({
     id: exports.positiveIntSchema.optional(),
     lessonId: exports.positiveIntSchema,
-    title: requiredTrimmedString(1, 255),
+    title: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
     mediaResourceId: exports.positiveIntSchema.optional(),
     description: optionalTrimmedString(5000),
     is_active: zod_1.z.union([zod_1.z.boolean(), zod_1.z.enum(["true", "false"])]).optional(),
@@ -771,9 +834,9 @@ exports.courseLessonMediaBodySchema = zod_1.z.union([
 ]);
 exports.courseCreateBodySchema = zod_1.z
     .object({
-    title: optionalTrimmedString(255),
+    title: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
     description: optionalTrimmedString(5000),
-    category: optionalTrimmedString(255),
+    category: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
     mediaResourceId: exports.positiveIntSchema.optional(),
     lessonIds: optionalCourseIds(),
 })
@@ -791,10 +854,10 @@ exports.dietChartMultipartSchema = zod_1.z
     fields: zod_1.z
         .object({
         creator: optionalTrimmedString(255),
-        heading: optionalTrimmedString(255),
+        heading: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
         weekId: zod_1.z.coerce.number().int().positive().optional(),
-        category: optionalTrimmedString(255),
-        subheading: optionalTrimmedString(255),
+        category: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
+        subheading: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
         content: optionalTrimmedString(5000),
         toolType: optionalTrimmedString(255),
     })
@@ -811,9 +874,9 @@ exports.dietNuskheMultipartSchema = zod_1.z
     fields: zod_1.z
         .object({
         creator: optionalTrimmedString(255),
-        category: optionalTrimmedString(255),
-        heading: optionalTrimmedString(255),
-        subheading: optionalTrimmedString(255),
+        category: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
+        heading: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
+        subheading: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
         content: optionalTrimmedString(5000),
     })
         .strict(),
@@ -826,7 +889,7 @@ exports.dietNuskheMultipartSchema = zod_1.z
     .strict();
 exports.weekBodySchema = zod_1.z
     .object({
-    name: requiredTrimmedString(1, 255),
+    name: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
     order: zod_1.z.coerce.number(),
 })
     .strict();

@@ -46,6 +46,7 @@ const health_1 = __importDefault(require("./routes/health"));
 const error_1 = require("./utils/error");
 const universalUploadRoutes_1 = __importDefault(require("./routes/universalUploadRoutes"));
 const loginLogs_1 = __importDefault(require("./routes/loginLogs"));
+const babyCare_1 = __importDefault(require("./routes/babyCare"));
 const rate_limit_1 = __importDefault(require("@fastify/rate-limit"));
 const DEFAULT_MULTIPART_FILE_LIMIT = 25 * 1024 * 1024;
 const multipartFileLimit = Number(process.env.MULTIPART_FILE_LIMIT_BYTES || DEFAULT_MULTIPART_FILE_LIMIT);
@@ -376,6 +377,7 @@ app.register(log_route_1.default, { prefix: '/logs' });
 app.register(universalUploadRoutes_1.default, { prefix: '/api' });
 app.register(razorpay_webhook_1.default, { prefix: '/webhooks' });
 app.register(loginLogs_1.default, { prefix: '/ip-logs' });
+app.register(babyCare_1.default, { prefix: '/baby-care' });
 /*............................. error handler .............................. */
 console.log('✅ All routes registered successfully');
 /* ----------------------------- Health Check ------------------------------ */

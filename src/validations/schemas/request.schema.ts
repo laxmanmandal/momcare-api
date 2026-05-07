@@ -305,7 +305,7 @@ export const mediaCreateMultipartSchema = z
   .superRefine(({ fields, files }, ctx) => {
     if ((files.url?.length ?? 0) === 0 && !fields.url) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ["fields", "url"],
         message: "url is required",
       });
@@ -378,7 +378,7 @@ export const couponCreateMultipartSchema = z
 
     if (percent == null && fixed_amount == null) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ["fields", "percent"],
         message: "Either percent or fixed_amount is required",
       });
@@ -386,7 +386,7 @@ export const couponCreateMultipartSchema = z
 
     if (percent != null && fixed_amount != null) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ["fields", "fixed_amount"],
         message: "Percent and fixed_amount cannot both be provided",
       });
@@ -394,7 +394,7 @@ export const couponCreateMultipartSchema = z
 
     if (effective_at > expires_at) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ["fields", "expires_at"],
         message: "effective_at must be before or equal to expires_at",
       });
@@ -427,7 +427,7 @@ export const couponUpdateMultipartSchema = z
       fields.fixed_amount !== null
     ) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ["fields", "fixed_amount"],
         message: "Percent and fixed_amount cannot both be provided",
       });
@@ -439,7 +439,7 @@ export const couponUpdateMultipartSchema = z
       fields.fixed_amount === null
     ) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ["fields", "percent"],
         message: "At least one discount value must remain set",
       });
@@ -451,7 +451,7 @@ export const couponUpdateMultipartSchema = z
       fields.effective_at > fields.expires_at
     ) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ["fields", "expires_at"],
         message: "effective_at must be before or equal to expires_at",
       });
@@ -852,7 +852,7 @@ export const entityBodySchema = z
   })
   .strict();
 
-export const entityUpdateSchema = z
+const entityUpdateFieldsSchema = z
   .object({
     type: optionalTrimmedString(255),
     name: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
@@ -865,13 +865,36 @@ export const entityUpdateSchema = z
     imageUrl: z.union([z.string(), z.null()]).optional(),
     isActive: z.union([z.boolean(), z.enum(["true", "false"])]).optional(),
   })
-  .strict()
+  .strict();
+
+export const entityUpdateSchema = entityUpdateFieldsSchema
   .refine(
     (data) => {
       return Object.values(data).some((value) => value !== undefined);
     },
     { message: "At least one field is required" },
   );
+
+export const entityCreateMultipartSchema = z
+  .object({
+    fields: entityBodySchema,
+    files: z
+      .object({
+        imageUrl: fileField(),
+      })
+      .strict(),
+  })
+  .strict();
+
+export const entityUpdateMultipartSchema = z
+  .object({
+    fields: entityUpdateFieldsSchema,
+    files: z.object({ imageUrl: fileField() }).strict(),
+  })
+  .strict()
+  .refine(({ fields, files }) => {
+    return hasMeaningfulValue(fields) || (files.imageUrl?.length ?? 0) > 0;
+  }, "At least one field is required");
 
 export const courseUuidParamsSchema = z
   .object({

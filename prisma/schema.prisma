@@ -73,6 +73,7 @@ model User {
   login_activity  login_activity[]
   payments        payments[]
   userSessions    userSessions?
+  BabyProfile     BabyProfile[]
 
   @@index([email])
   @@index([belongsToId])
@@ -207,7 +208,7 @@ model Course {
   created_at      DateTime             @default(now())
   updated_at      DateTime             @default(now()) @updatedAt
   is_active       Boolean              @default(true)
-  lessonIds       Json?
+  lessonIds       String?              @db.LongText
   mediaRef        MediaResource?       @relation(fields: [mediaResourceId], references: [id])
   subscriptions   SubscriptionCourse[]
 
@@ -241,7 +242,7 @@ model Pregnancy {
 model SymptomEntry {
   id         Int      @id @default(autoincrement())
   userId     Int
-  symptoms   Json
+  symptoms   String   @db.LongText
   created_at DateTime @default(now())
   updated_at DateTime @default(now()) @updatedAt
   user       User     @relation(fields: [userId], references: [id])
@@ -268,7 +269,7 @@ model DadiNaniNuskha {
   subheading String
   creator    String?
   category   ProfileCategory
-  content    Json
+  content    String          @db.LongText
   isActive   Boolean         @default(true)
   icon       String?
   created_at DateTime        @default(now())
@@ -295,7 +296,7 @@ model DietChart {
   heading    String
   subheading String
   creator    String?
-  content    Json
+  content    String          @db.LongText
   category   ProfileCategory
   isActive   Boolean         @default(true)
   icon       String?
@@ -313,7 +314,7 @@ model DailyTip {
   creator    String?
   heading    String
   subheading String
-  content    Json
+  content    String          @db.LongText
   isActive   Boolean         @default(true)
   category   ProfileCategory
   icon       String?
@@ -436,7 +437,7 @@ model payments {
   payment_method      String?          @db.VarChar(50)
   status              payments_status?
   failure_reason      String?          @db.Text
-  gateway_response    Json?
+  gateway_response    String?          @db.LongText
   created_at          DateTime?        @default(now()) @db.Timestamp(0)
   updated_at          DateTime?        @default(now()) @db.Timestamp(0)
   planId              Int              @db.UnsignedInt
@@ -563,4 +564,186 @@ enum Reaction_type {
   LOVE
   SUPPORT
   THANK_YOU
+}
+//////////////////////////////////////////////////////
+// BABY PROFILE
+//////////////////////////////////////////////////////
+
+model BabyProfile {
+  id              BigInt    @id @default(autoincrement())
+  userId          Int
+
+  babyName        String    @db.VarChar(150)
+  gender          String?   @db.VarChar(20)
+
+  dob             DateTime
+
+  bloodGroup      String?   @db.VarChar(10)
+
+  birthWeight     Decimal?  @db.Decimal(5,2)
+  birthHeight     Decimal?  @db.Decimal(5,2)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  vaccinations    VaccinationLog[]
+  sleepLogs       SleepLog[]
+  feedLogs        FeedLog[]
+  milestones      MotorSkillLog[]
+  nutritionLogs   NutritionLog[]
+
+  @@index([userId])
+
+  @@map("baby_profiles")
+}
+
+//////////////////////////////////////////////////////
+// VACCINATION LOGS
+//////////////////////////////////////////////////////
+
+model VaccinationLog {
+  id              BigInt    @id @default(autoincrement())
+
+  babyId          BigInt
+
+  vaccineName     String
+  doseNumber      Int?
+
+  dueDate         DateTime?
+  takenDate       DateTime?
+
+  status          String    @default("pending")
+
+  notes           String?   @db.Text
+
+  createdAt       DateTime  @default(now())
+
+
+  baby            BabyProfile @relation(fields: [babyId], references: [id], onDelete: Cascade)
+
+  @@index([babyId])
+
+  @@map("vaccination_logs")
+}
+
+//////////////////////////////////////////////////////
+// MOTOR SKILL LOGS
+//////////////////////////////////////////////////////
+
+model MotorSkillLog {
+  id              BigInt    @id @default(autoincrement())
+
+  babyId          BigInt
+
+  title           String
+
+  achieved        Boolean   @default(false)
+
+  achievedDate    DateTime?
+
+  notes           String?   @db.Text
+
+  createdAt       DateTime  @default(now())
+
+  baby            BabyProfile @relation(fields: [babyId], references: [id], onDelete: Cascade)
+
+  @@index([babyId])
+
+  @@map("motor_skill_logs")
+}
+
+//////////////////////////////////////////////////////
+// NUTRITION LOGS
+//////////////////////////////////////////////////////
+
+model NutritionLog {
+  id              BigInt    @id @default(autoincrement())
+
+  babyId          BigInt
+
+  mealType        String
+  foodName        String
+
+  quantity        String?
+
+  feedingTime     DateTime
+
+  notes           String?   @db.Text
+
+  createdAt       DateTime  @default(now())
+
+  baby            BabyProfile @relation(fields: [babyId], references: [id], onDelete: Cascade)
+
+  @@index([babyId])
+
+  @@map("nutrition_logs")
+}
+
+//////////////////////////////////////////////////////
+// SLEEP LOGS
+//////////////////////////////////////////////////////
+
+model SleepLog {
+  id              BigInt    @id @default(autoincrement())
+
+  babyId          BigInt
+
+  sleepStart      DateTime
+  sleepEnd        DateTime?
+
+  durationMinutes Int?
+
+  sleepQuality    String?
+
+  notes           String?   @db.Text
+
+  createdAt       DateTime  @default(now())
+
+
+  baby            BabyProfile @relation(fields: [babyId], references: [id], onDelete: Cascade)
+
+  @@index([babyId])
+
+  @@map("sleep_logs")
+}
+
+//////////////////////////////////////////////////////
+// FEED TYPE ENUM
+//////////////////////////////////////////////////////
+
+enum FeedType {
+  BREAST_MILK
+  FORMULA_MILK
+  SOLID_FOOD
+  WATER
+}
+
+//////////////////////////////////////////////////////
+// FEED LOGS
+//////////////////////////////////////////////////////
+
+model FeedLog {
+  id              BigInt    @id @default(autoincrement())
+
+  babyId          BigInt
+
+  feedType        FeedType
+
+  quantity        String?
+
+  feedingTime     DateTime
+
+  durationMinutes Int?
+
+  notes           String?   @db.Text
+
+  createdAt       DateTime  @default(now())
+
+  baby            BabyProfile @relation(fields: [babyId], references: [id], onDelete: Cascade)
+
+  @@index([babyId])
+
+  @@map("feed_logs")
 }

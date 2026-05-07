@@ -54,34 +54,14 @@ const successArrayResponse = {
         data: { type: 'array', items: { type: 'object', additionalProperties: true } }
     }
 };
-const dietChartBodyProps = {
-    properties: {
-        heading: { type: 'string' },
-        weekId: { type: 'integer' },
-        category: { type: 'string' },
-        subheading: { type: 'string' },
-        content: { type: 'string' },
-        toolType: { type: 'string' },
-        icon: { type: 'string', format: 'binary' }
-    }
-};
-const nuskheBodyProps = {
-    properties: {
-        category: { type: 'string' },
-        heading: { type: 'string' },
-        subheading: { type: 'string' },
-        content: { type: 'string' },
-        icon: { type: 'string', format: 'binary' }
-    }
-};
 async function dietNuskhaRoute(app) {
     app.addHook('preHandler', auth_1.authMiddleware);
     app.post('/diet-chart', {
         schema: {
             tags: ['diet-chart'],
             summary: 'Create a diet chart entry',
-            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-            body: dietChartBodyProps,
+            consumes: ['multipart/form-data', 'application/json', 'application/x-www-form-urlencoded'],
+            body: (0, validations_1.zodToSwagger)(validations_1.dietChartMultipartSchema),
             response: { 200: successObjectResponse, 500: successObjectResponse }
         },
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
@@ -112,8 +92,8 @@ async function dietNuskhaRoute(app) {
         schema: {
             tags: ['diet-chart'],
             summary: 'Update a diet chart entry',
-            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-            body: dietChartBodyProps,
+            consumes: ['multipart/form-data', 'application/json', 'application/x-www-form-urlencoded'],
+            body: (0, validations_1.zodToSwagger)(validations_1.dietChartMultipartSchema),
             params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.dietToolIdParamsSchema, { target: 'openApi3' }),
             response: { 200: successObjectResponse, 500: successObjectResponse }
         },
@@ -207,8 +187,8 @@ async function dietNuskhaRoute(app) {
         schema: {
             tags: ['Dadi-nani-Nuskhe'],
             summary: 'Create a Dadi-Nani Nuskhe entry',
-            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-            body: nuskheBodyProps,
+            consumes: ['multipart/form-data', 'application/json', 'application/x-www-form-urlencoded'],
+            body: (0, validations_1.zodToSwagger)(validations_1.dietNuskheMultipartSchema),
             response: { 200: successObjectResponse, 500: successObjectResponse }
         },
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
@@ -237,8 +217,8 @@ async function dietNuskhaRoute(app) {
         schema: {
             tags: ['Dadi-nani-Nuskhe'],
             summary: 'Update a Dadi-Nani Nuskhe entry',
-            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-            body: nuskheBodyProps,
+            consumes: ['multipart/form-data', 'application/json', 'application/x-www-form-urlencoded'],
+            body: (0, validations_1.zodToSwagger)(validations_1.dietNuskheMultipartSchema),
             params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.dietToolIdParamsSchema, { target: 'openApi3' }),
             response: { 200: successObjectResponse, 500: successObjectResponse }
         },

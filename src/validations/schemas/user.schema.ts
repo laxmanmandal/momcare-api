@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 const startsWithLetterPattern = /^\p{L}/u;
-const startsWithLetterMsg = 'name must start with a letter';
+const startsWithLetterMsg = 'must start with a letter';
 
 export const usersListParamsSchema = z.object({
   entityId: z.coerce.number().int().positive()

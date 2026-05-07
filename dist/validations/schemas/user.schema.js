@@ -2,6 +2,8 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.userUpdateBodySchema = exports.userStatusParamsSchema = exports.usersByEntityParamsSchema = exports.usersListByRoleParamsSchema = exports.usersListQuerySchema = exports.usersListParamsSchema = void 0;
 const zod_1 = require("zod");
+const startsWithLetterPattern = /^\p{L}/u;
+const startsWithLetterMsg = 'must start with a letter';
 exports.usersListParamsSchema = zod_1.z.object({
     entityId: zod_1.z.coerce.number().int().positive()
 }).strict();
@@ -26,8 +28,8 @@ exports.userStatusParamsSchema = zod_1.z.object({
     uuid: zod_1.z.string().trim().min(1)
 }).strict();
 exports.userUpdateBodySchema = zod_1.z.object({
-    name: zod_1.z.string().trim().min(2).max(120).optional(),
-    email: zod_1.z.union([zod_1.z.string().trim().email('email must be a valid email address'), zod_1.z.literal(''), zod_1.z.null()]).optional(),
+    name: zod_1.z.string().trim().min(2).max(120).regex(startsWithLetterPattern, startsWithLetterMsg).optional(),
+    email: zod_1.z.union([zod_1.z.string().trim().pipe(zod_1.z.email({ error: 'email must be a valid email address' })), zod_1.z.literal(''), zod_1.z.null()]).optional(),
     phone: zod_1.z.string().trim().min(10).max(20).optional(),
     child_gender: zod_1.z.string().trim().optional(),
     location: zod_1.z.string().trim().optional(),

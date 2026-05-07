@@ -60,7 +60,7 @@ async function expertPost(app) {
         schema: {
             tags: ['Expert Posts'],
             consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.expertPostCreateMultipartSchema, { target: 'openApi3' }),
+            body: (0, validations_1.zodToSwagger)(validations_1.expertPostCreateMultipartSchema),
             summary: 'Create an expert post',
             response: { 200: successObjectResponse }
         }
@@ -88,7 +88,7 @@ async function expertPost(app) {
         schema: {
             tags: ['Expert Posts'],
             consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.expertPostUpdateMultipartSchema, { target: 'openApi3' }),
+            body: (0, validations_1.zodToSwagger)(validations_1.expertPostUpdateMultipartSchema),
             params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.expertPostIdParamsSchema, { target: 'openApi3' }),
             summary: 'Update an expert post',
             response: { 200: successObjectResponse }

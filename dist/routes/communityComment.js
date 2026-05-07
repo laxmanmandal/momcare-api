@@ -54,11 +54,6 @@ const successArrayResponse = {
         data: { type: 'array', items: { type: 'object', additionalProperties: true } }
     }
 };
-const commentUpdateProps = {
-    properties: {
-        content: { type: 'string' }
-    }
-};
 async function communityComment(app) {
     app.addHook('preHandler', auth_1.authMiddleware);
     app.post('/', {
@@ -88,7 +83,7 @@ async function communityComment(app) {
             tags: ['Community Comments'],
             summary: 'Update a community comment',
             consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-            body: commentUpdateProps,
+            body: (0, validations_1.zodToSwagger)(validations_1.communityCommentUpdateSchema),
             params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.communityCommentIdParamsSchema, { target: 'openApi3' }),
             response: { 200: successObjectResponse }
         }

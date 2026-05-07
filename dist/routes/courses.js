@@ -97,7 +97,7 @@ async function courseRoutes(app) {
             summary: 'Create a lesson',
             consumes: ['multipart/form-data', 'application/json', 'application/x-www-form-urlencoded'],
             response: { 201: successObjectResponse },
-            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.courseLessonBodySchema, { target: 'openApi3' })
+            body: (0, validations_1.zodToSwagger)(validations_1.courseLessonBodySchema)
         },
         preHandler: [auth_1.onlyOrg]
     }, async (req, reply) => {
@@ -115,7 +115,7 @@ async function courseRoutes(app) {
             consumes: ['multipart/form-data', 'application/json', 'application/x-www-form-urlencoded'],
             response: { 200: successObjectResponse },
             params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.courseUuidParamsSchema, { target: 'openApi3' }),
-            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.courseLessonBodySchema, { target: 'openApi3' })
+            body: (0, validations_1.zodToSwagger)(validations_1.courseLessonBodySchema)
         },
         preHandler: [auth_1.onlyOrg]
     }, async (req, reply) => {
@@ -171,7 +171,7 @@ async function courseRoutes(app) {
             summary: 'Create or update lesson medias',
             consumes: ['multipart/form-data', 'application/json', 'application/x-www-form-urlencoded'],
             response: { 201: successObjectResponse },
-            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.courseLessonMediaBodySchema, { target: 'openApi3' })
+            body: (0, validations_1.zodToSwagger)(validations_1.courseLessonMediaBodySchema)
         },
         preHandler: [auth_1.onlyOrg]
     }, async (req, reply) => {
@@ -241,7 +241,7 @@ async function courseRoutes(app) {
             summary: 'Create a course',
             consumes: ['multipart/form-data', 'application/json', 'application/x-www-form-urlencoded'],
             response: { 201: successObjectResponse },
-            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.courseCreateBodySchema, { target: 'openApi3' })
+            body: (0, validations_1.zodToSwagger)(validations_1.courseCreateBodySchema)
         },
         preHandler: [auth_1.onlyOrg]
     }, async (req, reply) => {
@@ -259,7 +259,7 @@ async function courseRoutes(app) {
             consumes: ['multipart/form-data', 'application/json', 'application/x-www-form-urlencoded'],
             response: { 200: successObjectResponse },
             params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.courseUuidParamsSchema, { target: 'openApi3' }),
-            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.courseUpdateBodySchema, { target: 'openApi3' })
+            body: (0, validations_1.zodToSwagger)(validations_1.courseUpdateBodySchema)
         },
         preHandler: [auth_1.onlyOrg]
     }, async (req, reply) => {

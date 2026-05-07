@@ -5,7 +5,7 @@ const phonePattern = /^[0-9+() -]{10,20}$/;
 const otpPattern = /^[0-9]{4,8}$/;
 
 const startsWithLetterPattern = /^\p{L}/u;
-const startsWithLetterMsg = 'name must start with a letter';
+const startsWithLetterMsg = 'ust start with a letter';
 
 export const requestOtpSchema = z.object({
   phone: z.string().trim().regex(phonePattern, 'phone must be a valid mobile number')
@@ -34,7 +34,7 @@ export const changePasswordSchema = z.object({
 export const signupSchema = z.object({
   name: z.string().trim().min(2).max(120).regex(startsWithLetterPattern, startsWithLetterMsg),
   type: z.string().trim().max(50).optional(),
-  location: z.string().trim().min(2).max(255).optional(),
+  location: z.string().trim().min(2).max(255).regex(startsWithLetterPattern, startsWithLetterMsg).optional(),
   email: z.string().trim().max(254).pipe(z.email({ error: 'email must be a valid email address' })).optional(),
   phone: z.string().trim().regex(phonePattern, 'phone must be a valid mobile number'),
   password: z.string().min(8).max(128).optional(),

@@ -5,6 +5,8 @@ const client_1 = require("@prisma/client");
 const zod_1 = require("zod");
 const phonePattern = /^[0-9+() -]{10,20}$/;
 const otpPattern = /^[0-9]{4,8}$/;
+const startsWithLetterPattern = /^\p{L}/u;
+const startsWithLetterMsg = 'ust start with a letter';
 exports.requestOtpSchema = zod_1.z.object({
     phone: zod_1.z.string().trim().regex(phonePattern, 'phone must be a valid mobile number')
 }).strict();
@@ -13,7 +15,7 @@ exports.verifyOtpSchema = zod_1.z.object({
     otp: zod_1.z.string().trim().regex(otpPattern, 'otp must be 4-8 numeric digits')
 }).strict();
 exports.loginSchema = zod_1.z.object({
-    email: zod_1.z.string().trim().email('email must be a valid email address'),
+    email: zod_1.z.string().trim().pipe(zod_1.z.email({ error: 'email must be a valid email address' })),
     password: zod_1.z.string().min(8).max(128)
 }).strict();
 exports.refreshTokenSchema = zod_1.z.object({
@@ -25,13 +27,13 @@ exports.changePasswordSchema = zod_1.z.object({
     new_password: zod_1.z.string().min(8).max(128)
 }).strict();
 exports.signupSchema = zod_1.z.object({
-    name: zod_1.z.string().trim().min(2).max(120),
+    name: zod_1.z.string().trim().min(2).max(120).regex(startsWithLetterPattern, startsWithLetterMsg),
     type: zod_1.z.string().trim().max(50).optional(),
-    location: zod_1.z.string().trim().min(2).max(255).optional(),
-    email: zod_1.z.string().trim().email('email must be a valid email address').max(254).optional(),
+    location: zod_1.z.string().trim().min(2).max(255).regex(startsWithLetterPattern, startsWithLetterMsg).optional(),
+    email: zod_1.z.string().trim().max(254).pipe(zod_1.z.email({ error: 'email must be a valid email address' })).optional(),
     phone: zod_1.z.string().trim().regex(phonePattern, 'phone must be a valid mobile number'),
     password: zod_1.z.string().min(8).max(128).optional(),
-    role: zod_1.z.nativeEnum(client_1.Role),
+    role: zod_1.z.enum(client_1.Role),
     belongsToId: zod_1.z.coerce.number().int().optional(),
     createdBy: zod_1.z.coerce.number().int().optional(),
     planId: zod_1.z.union([zod_1.z.coerce.number().int().positive(), zod_1.z.null()]).optional()

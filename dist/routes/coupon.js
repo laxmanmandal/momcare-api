@@ -61,7 +61,7 @@ async function CouponRoute(app) {
         schema: {
             tags: ['Coupon'],
             consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.couponCreateMultipartSchema, { target: 'openApi3' }),
+            body: (0, validations_1.zodToSwagger)(validations_1.couponCreateMultipartSchema),
             summary: 'Create a coupon',
             response: { 201: successObjectResponse }
         }
@@ -227,7 +227,7 @@ async function CouponRoute(app) {
         schema: {
             tags: ['Coupon'],
             consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.couponUpdateMultipartSchema, { target: 'openApi3' }),
+            body: (0, validations_1.zodToSwagger)(validations_1.couponUpdateMultipartSchema),
             params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.couponIdParamsSchema, { target: 'openApi3' }),
             summary: 'Update a coupon',
             response: { 200: successObjectResponse }

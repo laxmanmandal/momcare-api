@@ -47,6 +47,7 @@ import healthRoutes from './routes/health'
 import { errorHandler } from './utils/error'
 import universalUploadRoutes from './routes/universalUploadRoutes'
 import LoginLogsRoutes from './routes/loginLogs';
+import babyCareRoutes from './routes/babyCare'
 
 import fastifyRateLimit from '@fastify/rate-limit'
 
@@ -419,6 +420,7 @@ app.register(LogRoutes, { prefix: '/logs' })
 app.register(universalUploadRoutes, { prefix: '/api' })
 app.register(razorpayWebhook, { prefix: '/webhooks' });
 app.register(LoginLogsRoutes, { prefix: '/ip-logs' });
+app.register(babyCareRoutes, { prefix: '/baby-care' });
 /*............................. error handler .............................. */
 
 console.log('✅ All routes registered successfully');

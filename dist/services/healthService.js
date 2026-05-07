@@ -22,7 +22,7 @@ async function addSymptomEntry(userId, symptoms) {
     const entry = await client_1.default.symptomEntry.create({
         data: {
             userId,
-            symptoms: symptoms, // stored as JSON
+            symptoms: cleaned.join(','),
         },
     });
     return entry;

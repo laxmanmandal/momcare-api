@@ -39,42 +39,45 @@ const auth_1 = require("../middleware/auth");
 const zodOpenApi_1 = require("../utils/zodOpenApi");
 const validations_1 = require("../validations");
 const successObjectResponse = {
-    type: 'object',
+    type: "object",
     properties: {
-        success: { type: 'boolean' },
-        message: { type: 'string' },
-        data: { type: 'object', additionalProperties: true }
-    }
+        success: { type: "boolean" },
+        message: { type: "string" },
+        data: { type: "object", additionalProperties: true },
+    },
 };
 const successArrayResponse = {
-    type: 'object',
+    type: "object",
     properties: {
-        success: { type: 'boolean' },
-        message: { type: 'string' },
-        data: { type: 'array', items: { type: 'object', additionalProperties: true } }
-    }
+        success: { type: "boolean" },
+        message: { type: "string" },
+        data: {
+            type: "array",
+            items: { type: "object", additionalProperties: true },
+        },
+    },
 };
 const errorResponse = {
-    type: 'object',
+    type: "object",
     properties: {
-        success: { type: 'boolean' },
-        message: { type: 'string' }
-    }
+        success: { type: "boolean" },
+        message: { type: "string" },
+    },
 };
 async function entityRoutes(app) {
-    app.get('/channel/list', {
-        preHandler: [auth_1.authMiddleware, app.accessControl.check('LIST_CHANNEL')],
+    app.get("/channel/list", {
+        preHandler: [auth_1.authMiddleware, app.accessControl.check("LIST_CHANNEL")],
         schema: {
-            tags: ['Entities'],
-            summary: 'List channel entities',
-            response: { 200: successArrayResponse }
-        }
+            tags: ["Entities"],
+            summary: "List channel entities",
+            response: { 200: successArrayResponse },
+        },
     }, async (req, reply) => {
         try {
             const payload = await entityService.getChannelEntity(req.user.belongsToId);
             reply.code(200).send({
                 success: true,
-                message: 'Entity fetched successfully',
+                message: "Entity fetched successfully",
                 data: payload,
             });
         }
@@ -82,24 +85,24 @@ async function entityRoutes(app) {
             req.log.error(error);
             reply.send({
                 success: false,
-                message: 'Failed to fetch entity',
+                message: "Failed to fetch entity",
                 error: error.message,
             });
         }
     });
-    app.get('/partner/list', {
-        preHandler: [auth_1.authMiddleware, app.accessControl.check('LIST_PARTNER')],
+    app.get("/partner/list", {
+        preHandler: [auth_1.authMiddleware, app.accessControl.check("LIST_PARTNER")],
         schema: {
-            tags: ['Entities'],
-            summary: 'List partner entities',
-            response: { 200: successArrayResponse }
-        }
+            tags: ["Entities"],
+            summary: "List partner entities",
+            response: { 200: successArrayResponse },
+        },
     }, async (req, reply) => {
         try {
             const payload = await entityService.getPartnerEntity(req.user.belongsToId);
             reply.code(200).send({
                 success: true,
-                message: 'Entity fetched successfully',
+                message: "Entity fetched successfully",
                 data: payload,
             });
         }
@@ -107,26 +110,31 @@ async function entityRoutes(app) {
             req.log.error(error);
             reply.send({
                 success: false,
-                message: 'Failed to fetch entity',
+                message: "Failed to fetch entity",
                 error: error.message,
             });
         }
     });
-    app.get('/:id', {
-        preHandler: [auth_1.authMiddleware, app.accessControl.check('LIST_ENTITY')],
+    app.get("/:id", {
+        preHandler: [
+            auth_1.authMiddleware,
+            app.accessControl.check("BELONGS_TO_ENTITY"),
+        ],
         schema: {
-            tags: ['Entities'],
-            summary: 'Get entity by ID',
-            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.entityIdParamsSchema, { target: 'openApi3' }),
-            response: { 200: successObjectResponse }
-        }
+            tags: ["Entities"],
+            summary: "Get entity by ID",
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.entityIdParamsSchema, {
+                target: "openApi3",
+            }),
+            response: { 200: successObjectResponse },
+        },
     }, async (req, reply) => {
         const { id } = (0, validations_1.validateData)(validations_1.entityIdParamsSchema, req.params);
         try {
             const payload = await entityService.getentityTableById(id);
             reply.code(200).send({
                 success: true,
-                message: 'Entity fetched successfully',
+                message: "Entity fetched successfully",
                 data: payload,
             });
         }
@@ -134,24 +142,24 @@ async function entityRoutes(app) {
             req.log.error(error);
             reply.send({
                 success: false,
-                message: 'Failed to fetch entity',
+                message: "Failed to fetch entity",
                 error: error.message,
             });
         }
     });
-    app.get('/all', {
-        preHandler: [auth_1.authMiddleware, app.accessControl.check('LIST_ENTITY')],
+    app.get("/all", {
+        preHandler: [auth_1.authMiddleware, app.accessControl.check("LIST_ENTITY")],
         schema: {
-            tags: ['Entities'],
-            summary: 'List all entities',
-            response: { 200: successArrayResponse }
-        }
+            tags: ["Entities"],
+            summary: "List all entities",
+            response: { 200: successArrayResponse },
+        },
     }, async (req, reply) => {
         try {
             const payload = await entityService.getAllentities(req.user.belongsToId);
             reply.code(200).send({
                 success: true,
-                message: 'Entity fetched successfully',
+                message: "Entity fetched successfully",
                 data: payload,
             });
         }
@@ -159,130 +167,163 @@ async function entityRoutes(app) {
             req.log.error(error);
             reply.send({
                 success: false,
-                message: 'Failed to fetch entity',
+                message: "Failed to fetch entity",
                 error: error.message,
             });
         }
     });
-    app.post('/create', {
-        preHandler: [auth_1.authMiddleware, app.accessControl.check('CREATE_ENTITY')],
+    app.post("/create", {
+        preHandler: [auth_1.authMiddleware, app.accessControl.check("CREATE_ENTITY")],
         schema: {
-            tags: ['Entities'],
-            summary: 'Create an entity',
-            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.entityBodySchema, { target: 'openApi3' }),
-            response: { 201: successObjectResponse }
-        }
+            tags: ["Entities"],
+            summary: "Create an entity",
+            consumes: [
+                "application/json",
+                "multipart/form-data",
+                "application/x-www-form-urlencoded",
+            ],
+            body: (0, validations_1.zodToSwagger)(validations_1.entityCreateMultipartSchema),
+            response: { 201: successObjectResponse },
+        },
     }, async (req, reply) => {
-        const { fields, files } = await app.parseMultipartMemory(req);
-        const body = (0, validations_1.validateData)(validations_1.entityBodySchema, req.isMultipart() ? fields : req.body ?? fields);
-        const createdBy = (typeof req.body?.id === 'number' ? req.body.id : null) ?? req.user?.id;
+        const parsed = await app.parseMultipartMemory(req);
+        const { fields: body, files } = (0, validations_1.validateData)(validations_1.entityCreateMultipartSchema, parsed);
+        const createdBy = (typeof (req.body ?? parsed.fields)?.id === "number" ? (req.body ?? parsed.fields).id : null) ??
+            req.user?.id;
         const belongsToId = req.user?.belongsToId !== undefined && req.user?.belongsToId !== null
             ? Number(req.user.belongsToId)
             : null;
-        const isActive = body.isActive === undefined ? false : Boolean(body.isActive === 'true' || body.isActive === true);
+        const isActive = body.isActive === undefined
+            ? false
+            : Boolean(body.isActive === "true" || body.isActive === true);
         const createData = {
             type: body.type,
             name: body.name,
             email: body.email,
             phone: body.phone ?? null,
-            location: body.location ?? '',
+            location: body.location ?? "",
             description: body.description ?? null,
             imageUrl: null,
             createdBy,
             belongsToId,
-            isActive
+            isActive,
         };
-        const maybeFile = files.imageUrl ?? req.body.imageUrl;
+        const maybeFile = files.imageUrl ?? body.imageUrl;
         let channel = await entityService.creatEntityTable(createData);
         if (maybeFile) {
             const f = Array.isArray(maybeFile) ? maybeFile[0] : maybeFile;
-            if (typeof f === 'string') {
-                await entityService.updateEntityTable(Number(channel.id), { imageUrl: f });
+            if (typeof f === "string") {
+                await entityService.updateEntityTable(Number(channel.id), {
+                    imageUrl: f,
+                });
                 channel = { ...channel, imageUrl: f };
             }
             else {
-                const imageUrl = await app.saveFileBuffer(f, 'Entities');
-                await entityService.updateEntityTable(Number(channel.id), { imageUrl });
+                const imageUrl = await app.saveFileBuffer(f, "Entities");
+                await entityService.updateEntityTable(Number(channel.id), {
+                    imageUrl,
+                });
                 channel = { ...channel, imageUrl };
             }
         }
         return reply.code(201).send({
             success: true,
-            message: req.user ? 'Entity created successfully' : 'Registered Successfully will contact Soon!',
-            data: channel
+            message: req.user
+                ? "Entity created successfully"
+                : "Registered Successfully will contact Soon!",
+            data: channel,
         });
     });
-    app.post('/register', {
+    app.post("/register", {
         schema: {
-            tags: ['Entities'],
-            summary: 'Register a new entity (public)',
-            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.entityBodySchema, { target: 'openApi3' }),
-            response: { 201: successObjectResponse }
-        }
+            tags: ["Entities"],
+            summary: "Register a new entity (public)",
+            consumes: [
+                "application/json",
+                "multipart/form-data",
+                "application/x-www-form-urlencoded",
+            ],
+            body: (0, validations_1.zodToSwagger)(validations_1.entityCreateMultipartSchema),
+            response: { 201: successObjectResponse },
+        },
     }, async (req, reply) => {
-        const { fields, files } = await app.parseMultipartMemory(req);
-        const body = (0, validations_1.validateData)(validations_1.entityBodySchema, req.isMultipart() ? fields : req.body ?? fields);
-        const createdBy = (typeof req.body?.id === 'number' ? req.body.id : null) ?? req.user?.id;
+        const parsed = await app.parseMultipartMemory(req);
+        const { fields: body, files } = (0, validations_1.validateData)(validations_1.entityCreateMultipartSchema, parsed);
+        const createdBy = (typeof (req.body ?? parsed.fields)?.id === "number" ? (req.body ?? parsed.fields).id : null) ??
+            req.user?.id;
         const belongsToId = body.belongsToId !== undefined && body.belongsToId !== null
             ? Number(body.belongsToId)
             : null;
-        const isActive = body.isActive === undefined ? false : Boolean(body.isActive === 'true' || body.isActive === true);
+        const isActive = body.isActive === undefined
+            ? false
+            : Boolean(body.isActive === "true" || body.isActive === true);
         const createData = {
             type: body.type,
             name: body.name,
             email: body.email,
             phone: body.phone ?? null,
-            location: body.location ?? '',
+            location: body.location ?? "",
             description: body.description ?? null,
             imageUrl: null,
             createdBy,
             belongsToId,
-            isActive
+            isActive,
         };
-        const maybeFile = files.imageUrl ?? req.body.imageUrl;
+        const maybeFile = files.imageUrl ?? body.imageUrl;
         let channel = await entityService.creatEntityTable(createData);
         if (maybeFile) {
             const f = Array.isArray(maybeFile) ? maybeFile[0] : maybeFile;
-            if (typeof f === 'string') {
-                await entityService.updateEntityTable(Number(channel.id), { imageUrl: f });
+            if (typeof f === "string") {
+                await entityService.updateEntityTable(Number(channel.id), {
+                    imageUrl: f,
+                });
                 channel = { ...channel, imageUrl: f };
             }
             else {
-                const imageUrl = await app.saveFileBuffer(f, 'Entities');
-                await entityService.updateEntityTable(Number(channel.id), { imageUrl });
+                const imageUrl = await app.saveFileBuffer(f, "Entities");
+                await entityService.updateEntityTable(Number(channel.id), {
+                    imageUrl,
+                });
                 channel = { ...channel, imageUrl };
             }
         }
         return reply.code(201).send({
             success: true,
-            message: req.user ? 'Entity created successfully' : 'Registered Successfully will contact Soon!',
-            data: channel
+            message: req.user
+                ? "Entity created successfully"
+                : "Registered Successfully will contact Soon!",
+            data: channel,
         });
     });
-    app.patch('/:id/update', {
-        preHandler: [
-            auth_1.authMiddleware,
-            app.accessControl.check('UPDATE_ENTITY')
-        ],
+    app.patch("/:id/update", {
+        preHandler: [auth_1.authMiddleware, app.accessControl.check("UPDATE_ENTITY")],
         schema: {
-            tags: ['Entities'],
-            summary: 'Update an entity',
-            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.entityUpdateSchema, { target: 'openApi3' }),
-            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.entityIdParamsSchema, { target: 'openApi3' }),
-            response: { 200: successObjectResponse, 400: errorResponse }
-        }
+            tags: ["Entities"],
+            summary: "Update an entity",
+            consumes: [
+                "application/json",
+                "multipart/form-data",
+                "application/x-www-form-urlencoded",
+            ],
+            body: (0, validations_1.zodToSwagger)(validations_1.entityUpdateMultipartSchema),
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.entityIdParamsSchema, {
+                target: "openApi3",
+            }),
+            response: { 200: successObjectResponse, 400: errorResponse },
+        },
     }, async (req, reply) => {
         const { id } = (0, validations_1.validateData)(validations_1.entityIdParamsSchema, req.params);
-        const { fields, files } = await app.parseMultipartMemory(req);
-        const body = (0, validations_1.validateData)(validations_1.entityUpdateSchema, req.isMultipart() ? fields : req.body ?? fields);
-        const updated = await entityService.updateEntityTable(id, body);
+        const parsed = await app.parseMultipartMemory(req);
+        const { fields: body, files } = (0, validations_1.validateData)(validations_1.entityUpdateMultipartSchema, parsed);
         if (files.imageUrl?.length) {
-            updated.imageUrl = await app.saveFileBuffer(files.imageUrl[0], `Entities`);
+            body.imageUrl = await app.saveFileBuffer(files.imageUrl[0], `Entities`);
         }
-        return reply.send({ success: true, message: 'Entity updated successfully', data: updated });
+        const updated = await entityService.updateEntityTable(id, body);
+        return reply.send({
+            success: true,
+            message: "Entity updated successfully",
+            data: updated,
+        });
     });
 }
 //# sourceMappingURL=entityRoute.js.map

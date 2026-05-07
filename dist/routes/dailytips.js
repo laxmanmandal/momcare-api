@@ -59,15 +59,14 @@ async function dailytipsRoute(app) {
         schema: {
             tags: ['Dailytips'],
             summary: 'Create a daily tip',
-            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.dailyTipCreateMultipartSchema, { target: 'openApi3' }),
+            consumes: ['multipart/form-data', 'application/json', 'application/x-www-form-urlencoded'],
+            body: (0, validations_1.zodToSwagger)(validations_1.dailyTipCreateMultipartSchema),
             response: { 200: successObjectResponse }
         },
         preHandler: [auth_1.authMiddleware, auth_1.onlyOrg]
     }, async (req, reply) => {
         const { fields, files } = (0, validations_1.validateData)(validations_1.dailyTipCreateMultipartSchema, await app.parseMultipartMemory(req));
         const dailytipsData = {
-            title: fields.title,
             heading: fields.heading,
             subheading: fields.subheading,
             content: fields.content,
@@ -90,8 +89,8 @@ async function dailytipsRoute(app) {
         schema: {
             tags: ['Dailytips'],
             summary: 'Update a daily tip',
-            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.dailyTipUpdateMultipartSchema, { target: 'openApi3' }),
+            consumes: ['multipart/form-data', 'application/json', 'application/x-www-form-urlencoded'],
+            body: (0, validations_1.zodToSwagger)(validations_1.dailyTipUpdateMultipartSchema),
             params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.dailyTipIdParamsSchema, { target: 'openApi3' }),
             response: { 200: successObjectResponse }
         },
@@ -100,7 +99,6 @@ async function dailytipsRoute(app) {
         const { id } = (0, validations_1.validateData)(validations_1.dailyTipIdParamsSchema, req.params);
         const { fields, files } = (0, validations_1.validateData)(validations_1.dailyTipUpdateMultipartSchema, await app.parseMultipartMemory(req));
         const updateData = {
-            title: fields.title,
             heading: fields.heading,
             subheading: fields.subheading,
             content: fields.content,

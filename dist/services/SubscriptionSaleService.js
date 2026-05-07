@@ -21,17 +21,14 @@ async function getSaleTransaction(user, entityId, page = 1, limit = 10) {
     const sameEntity = entityId === user.belongsToId;
     const isAdmin = user.role === client_1.Role.SUPER_ADMIN || user.role === client_1.Role.ADMIN;
     // Get ALL transactions where entity is EITHER sender OR receiver
-    const whereClause = (isAdmin && sameEntity)
+    const whereClause = isAdmin && sameEntity
         ? {}
         : {
-            OR: [
-                { senderId: entityId },
-                { receiverId: entityId }
-            ]
+            OR: [{ senderId: entityId }, { receiverId: entityId }],
         };
     // Get total allocation count for pagination
     const totalAllocations = await prisma.planAllocation.count({
-        where: whereClause
+        where: whereClause,
     });
     const totalPages = Math.ceil(totalAllocations / limit);
     const skip = (page - 1) * limit;
@@ -43,11 +40,11 @@ async function getSaleTransaction(user, entityId, page = 1, limit = 10) {
             sender: { select: { id: true, name: true } },
             receiver: { select: { name: true } },
             user: { select: { name: true } },
-            allocatedBy: { select: { name: true } }
+            allocatedBy: { select: { name: true } },
         },
-        orderBy: { allocatedAt: 'desc' },
+        orderBy: { allocatedAt: "desc" },
         skip: skip,
-        take: limit
+        take: limit,
     });
     // Get ALL allocations for calculations
     const allAllocations = await prisma.planAllocation.findMany({
@@ -56,16 +53,16 @@ async function getSaleTransaction(user, entityId, page = 1, limit = 10) {
             plan: {
                 select: {
                     name: true,
-                    price: true
-                }
-            }
-        }
+                    price: true,
+                },
+            },
+        },
     });
     const planMap = new Map();
     // First, process all allocations
     for (const alloc of allAllocations) {
         const planId = alloc.planId ?? -1;
-        const name = alloc.plan?.name ?? 'Unknown';
+        const name = alloc.plan?.name ?? "Unknown";
         const price = alloc.plan?.price ?? 0;
         const qty = alloc.quantity ?? 0;
         const t = alloc.type;
@@ -84,18 +81,18 @@ async function getSaleTransaction(user, entityId, page = 1, limit = 10) {
             balance: 0,
             subtotal: 0,
             discount: 0,
-            total: 0
+            total: 0,
         };
         // Adjust quantity calculations based on direction and type
-        if (t === 'ALLOCATE') {
+        if (t === "ALLOCATE") {
             entry.allocated += Math.abs(qty);
         }
-        else if (t === 'SELL') {
+        else if (t === "SELL") {
             if (!isIncoming) {
                 entry.sold += qty;
             }
         }
-        else if (t === 'REVOKE') {
+        else if (t === "REVOKE") {
             entry.revoked += qty;
         }
         // Add to subtotal and discount from ALL transactions
@@ -121,7 +118,7 @@ async function getSaleTransaction(user, entityId, page = 1, limit = 10) {
     const totalDiscount = allPlans.reduce((s, p) => s + p.discount, 0);
     const grandTotal = allPlans.reduce((s, p) => s + p.total, 0);
     // Add discount details to sales items for display
-    const salesWithDiscount = sales.map(sale => {
+    const salesWithDiscount = sales.map((sale) => {
         const price = sale.amount || 0;
         const quantity = sale.quantity || 0;
         // Use stored amount if available, otherwise calculate
@@ -132,7 +129,7 @@ async function getSaleTransaction(user, entityId, page = 1, limit = 10) {
             ...sale,
             subtotal: subtotal,
             discount: discount,
-            total: subtotal
+            total: subtotal,
         };
     });
     // Return in your desired format
@@ -152,18 +149,21 @@ async function getSaleTransaction(user, entityId, page = 1, limit = 10) {
             balance: totalBalance,
             subtotal: totalSubtotal,
             discount: totalDiscount,
-            grandTotal: grandTotal
+            grandTotal: grandTotal,
         },
-        allocationCount: totalAllocations
+        allocationCount: totalAllocations,
     };
 }
 async function getPlanWiseBalance(entityId, planId) {
     // Fetch all rows for this sender + plan
     const rows = await prisma.planAllocation.findMany({
-        where: { receiverId: entityId, planId },
+        where: {
+            planId,
+            OR: [{ receiverId: entityId }, { senderId: entityId }],
+        },
         include: {
-            plan: { select: { id: true, name: true, price: true } }
-        }
+            plan: { select: { id: true, name: true, price: true } },
+        },
     });
     if (rows.length === 0) {
         return {
@@ -173,7 +173,7 @@ async function getPlanWiseBalance(entityId, planId) {
             allocated: 0,
             sold: 0,
             revoked: 0,
-            balance: 0
+            balance: 0,
         };
     }
     const planInfo = rows[0].plan;
@@ -181,15 +181,27 @@ async function getPlanWiseBalance(entityId, planId) {
     let sold = 0;
     let revoked = 0;
     for (const row of rows) {
-        if (row.type === "ALLOCATE")
-            allocated += row.quantity;
-        else if (row.type === "SELL")
-            sold += row.quantity;
-        else if (row.type === "REVOKE")
-            revoked += row.quantity;
+        const isIncoming = row.receiverId === entityId;
+        const isOutgoing = row.senderId === entityId;
+        const qty = Math.abs(row.quantity || 0);
+        if (row.type === "ALLOCATE") {
+            if (isIncoming)
+                allocated += qty;
+            if (isOutgoing && !isIncoming)
+                sold += qty;
+        }
+        else if (row.type === "SELL") {
+            if (isOutgoing)
+                sold += qty;
+        }
+        else if (row.type === "REVOKE") {
+            if (isIncoming)
+                revoked += qty;
+            if (isOutgoing && !isIncoming)
+                allocated += qty;
+        }
     }
-    const netAllocated = allocated - revoked;
-    const balance = netAllocated - sold;
+    const balance = allocated - sold - revoked;
     return {
         planId,
         name: planInfo.name,
@@ -197,7 +209,7 @@ async function getPlanWiseBalance(entityId, planId) {
         allocated,
         sold,
         revoked,
-        balance
+        balance,
     };
 }
 async function createPlanAllocation(input, user) {
@@ -211,22 +223,26 @@ async function createPlanAllocation(input, user) {
     const type = String(input.type).toUpperCase();
     if (!["ALLOCATE", "SELL", "REVOKE"].includes(type))
         throw new Error("Invalid transaction type");
-    const senderId = input.senderId !== undefined ? Number(input.senderId) : Number(user?.belongsToId ?? null);
+    const senderId = input.senderId !== undefined
+        ? Number(input.senderId)
+        : Number(user?.belongsToId ?? null);
     const receiverId = input.receiverId !== undefined ? Number(input.receiverId) : null;
-    return await prisma.$transaction?.(async (tx) => { }) ?? await prisma.$transaction(async (tx) => {
-        const entity = await prisma.entityTable.findFirst({
-            where: { belongsToId: senderId }
-        });
-        if (!entity) {
-            throw new Error("Entity not found!");
-        }
+    return await prisma.$transaction(async (tx) => {
         if (user.role === client_1.Role.USER) {
             throw new Error("User cannot perform this operation!");
         }
-        if (entity.belongsToId !== user.belongsToId) {
-            throw new Error("Entity doesnt belong to you!");
+        if (senderId) {
+            const entity = await tx.entityTable.findUnique({
+                where: { id: senderId },
+            });
+            if (!entity) {
+                throw new Error("Sender Entity not found!");
+            }
+            if (!isOrgAdmin(user) && entity.id !== user.belongsToId) {
+                throw new Error("Entity doesnt belong to you!");
+            }
         }
-        if (input.type === 'SELL') {
+        if (input.type === "SELL") {
             const alreadyPurchased = await hasAlreadyPurchased(planId, input.userId);
             if (alreadyPurchased) {
                 throw new Error("Subscription plan already exists for this user.");
@@ -252,6 +268,16 @@ async function createPlanAllocation(input, user) {
         if (type === "REVOKE") {
             if (!receiverId)
                 throw new Error("ReceiverId required for REVOKE operation");
+            if (!isOrgAdmin(user)) {
+                const receiverEntity = await tx.entityTable.findUnique({
+                    where: { id: receiverId },
+                });
+                if (!receiverEntity)
+                    throw new Error("Receiver entity not found");
+                if (receiverEntity.belongsToId !== senderId) {
+                    throw new Error("Unauthorized to revoke from this entity");
+                }
+            }
             const balance = await getPlanWiseBalance(receiverId, planId);
             if (qty > balance.balance) {
                 throw new Error(`Insufficient Balance to return.`);
@@ -262,9 +288,10 @@ async function createPlanAllocation(input, user) {
         // SAFE extraction
         const calculation = await (0, couponService_1.calculateFinalPrice)({
             userId: userID,
-            planId
+            planId,
         });
-        if (!calculation.finalAmount) {
+        if (calculation.finalAmount === null ||
+            calculation.finalAmount === undefined) {
             throw new Error("Price calculation failed");
         }
         // Create record
@@ -276,10 +303,10 @@ async function createPlanAllocation(input, user) {
                 receiverId: receiverId ?? null,
                 userId: input.userId ?? null,
                 allocatedById: user.id,
-                quantity: user.role === 'USER' ? 1 : qty,
+                quantity: qty,
                 type: type ?? "SELL",
-                amount: calculation.finalAmount * (user.role === 'USER' ? 1 : qty),
-                discount: calculation.discountAmount * (user.role === 'USER' ? 1 : qty),
+                amount: calculation.finalAmount * qty,
+                discount: (calculation.discountAmount ?? 0) * qty,
                 coupon_code: calculation.coupon?.code ?? null,
             },
         });
@@ -289,16 +316,18 @@ async function createPlanAllocation(input, user) {
 function isOrgAdmin(user) {
     if (!user)
         return false;
-    if (typeof user.role === 'string' && ['SUPER_ADMIN', 'ADMIN'].includes(user.role.toUpperCase()))
+    if (typeof user.role === "string" &&
+        ["SUPER_ADMIN", "ADMIN"].includes(user.role.toUpperCase()))
         return true;
-    if (Array.isArray(user.roles) && user.roles.some((r) => ['SUPER_ADMIN', 'ADMIN'].includes(String(r).toUpperCase())))
+    if (Array.isArray(user.roles) &&
+        user.roles.some((r) => ["SUPER_ADMIN", "ADMIN"].includes(String(r).toUpperCase())))
         return true;
     if (user.isAdmin === true || user.isSuperAdmin === true)
         return true;
     return false;
 }
 async function hasAlreadyPurchased(planId, userId) {
-    console.log(planId, 'and', userId);
+    console.log(planId, "and", userId);
     const existing = await prisma.planAllocation.findFirst({
         where: {
             planId,
@@ -312,7 +341,7 @@ async function hasAlreadyPurchased(planId, userId) {
 }
 const razorpay = new razorpay_1.default({
     key_id: process.env.RAZORPAY_KEY_ID,
-    key_secret: process.env.RAZORPAY_KEY_SECRET
+    key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 async function appAllotment(userId, amount, planId, coupon_code) {
     // 1️⃣ Validate input early
@@ -328,9 +357,10 @@ async function appAllotment(userId, amount, planId, coupon_code) {
     const calculation = await (0, couponService_1.calculateFinalPrice)({
         couponCode: coupon_code ?? undefined,
         planId,
-        userId
+        userId,
     });
-    if (!calculation.finalAmount) {
+    if (calculation.finalAmount === null ||
+        calculation.finalAmount === undefined) {
         throw new http_errors_1.BadRequest("Price calculation failed");
     }
     // 4️⃣ Amount tampering check
@@ -354,13 +384,13 @@ async function appAllotment(userId, amount, planId, coupon_code) {
                 amount: calculation.finalAmount,
                 discount: calculation.discountAmount ?? 0,
                 coupon_code: calculation.coupon?.code ?? null,
-            }
+            },
         });
     });
     return {
         success: true,
         transactionId,
-        message: "Plan allocated successfully"
+        message: "Plan allocated successfully",
     };
 }
 async function createPaymentOrder(userId, amount, planId, coupon_code) {
@@ -368,7 +398,7 @@ async function createPaymentOrder(userId, amount, planId, coupon_code) {
     const razorpayOrder = await razorpay.orders.create({
         amount: Math.round(amount * 100), // INR → paise
         currency: "INR",
-        receipt: `rcpt_${Date.now()}`
+        receipt: `rcpt_${Date.now()}`,
     });
     if (userId && planId) {
         const alreadyPurchased = await hasAlreadyPurchased(planId, userId);
@@ -376,7 +406,11 @@ async function createPaymentOrder(userId, amount, planId, coupon_code) {
             throw new http_errors_1.BadRequest("Subscription plan already exists for this user.");
         }
     }
-    const calculation = await (0, couponService_1.calculateFinalPrice)({ couponCode: coupon_code, planId, userId });
+    const calculation = await (0, couponService_1.calculateFinalPrice)({
+        couponCode: coupon_code,
+        planId,
+        userId,
+    });
     if (calculation.finalAmount !== amount) {
         throw new Error(`Amount mismatch, could be altered! Expected ${calculation.finalAmount}, got ${razorpayOrder.amount},parameter amount ${amount} `);
     }
@@ -389,13 +423,13 @@ async function createPaymentOrder(userId, amount, planId, coupon_code) {
             razorpay_order_id: razorpayOrder.id,
             amount,
             status: "created",
-        }
+        },
     });
     return {
         razorpay_order_id: razorpayOrder.id,
         amount: razorpayOrder.amount,
         currency: razorpayOrder.currency,
-        key: process.env.RAZORPAY_KEY_ID
+        key: process.env.RAZORPAY_KEY_ID,
     };
 }
 async function confirmPayment(razorpay_order_id, razorpay_payment_id, razorpay_signature, req) {
@@ -417,13 +451,14 @@ async function confirmPayment(razorpay_order_id, razorpay_payment_id, razorpay_s
     }
     /* ────────────── 3️⃣ Fetch payment from DB ────────────── */
     const payment = await prisma.payments.findUnique({
-        where: { razorpay_order_id }
+        where: { razorpay_order_id },
     });
     const calculation = await (0, couponService_1.calculateFinalPrice)({
         userId: req.user?.id,
         planId: Number(payment?.planId),
     });
-    if (!calculation.finalAmount) {
+    if (calculation.finalAmount === null ||
+        calculation.finalAmount === undefined) {
         throw new http_errors_1.BadRequest("Price calculation failed");
     }
     // 4️⃣ Amount tampering check
@@ -439,7 +474,7 @@ async function confirmPayment(razorpay_order_id, razorpay_payment_id, razorpay_s
     if (razorpayPayment.status !== "captured") {
         return {
             success: false,
-            message: `Payment not successful yet (status: ${razorpayPayment.status})`
+            message: `Payment not successful yet (status: ${razorpayPayment.status})`,
         };
     }
     /* ────────────── 5️⃣ TRANSACTION: payment + allocation ────────────── */
@@ -452,13 +487,13 @@ async function confirmPayment(razorpay_order_id, razorpay_payment_id, razorpay_s
                     razorpay_payment_id,
                     razorpay_signature,
                     payment_method: razorpayPayment.method,
-                    status: "captured"
-                }
+                    status: "captured",
+                },
             });
         }
         /* 5.2 Allocation idempotency */
         const existingAllocation = await tx.planAllocation.findFirst({
-            where: { transactionId: razorpay_payment_id }
+            where: { transactionId: razorpay_payment_id },
         });
         if (!existingAllocation) {
             await tx.planAllocation.create({
@@ -473,14 +508,14 @@ async function confirmPayment(razorpay_order_id, razorpay_payment_id, razorpay_s
                     type: "SELL",
                     amount: calculation.finalAmount,
                     discount: calculation.discountAmount ?? 0,
-                }
+                },
             });
         }
         return {
             success: true,
             message: existingAllocation
                 ? "Payment already confirmed, allocation exists"
-                : "Payment confirmed & plan allocated"
+                : "Payment confirmed & plan allocated",
         };
     });
 }

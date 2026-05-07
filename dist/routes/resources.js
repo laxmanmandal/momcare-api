@@ -52,7 +52,7 @@ async function resourceRoutes(app) {
         schema: {
             tags: ['Resources'],
             consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.conceiveCreateMultipartSchema, { target: 'openApi3' }),
+            body: (0, validations_1.zodToSwagger)(validations_1.conceiveCreateMultipartSchema),
             summary: 'Create a conceive resource',
             response: { 200: successObjectResponse }
         }
@@ -79,7 +79,7 @@ async function resourceRoutes(app) {
             tags: ['Resources'],
             consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
             params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.conceiveIdParamsSchema, { target: 'openApi3' }),
-            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.conceiveUpdateMultipartSchema, { target: 'openApi3' }),
+            body: (0, validations_1.zodToSwagger)(validations_1.conceiveUpdateMultipartSchema),
             summary: 'Update a conceive resource',
             response: { 200: successObjectResponse }
         },

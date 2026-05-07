@@ -54,21 +54,6 @@ const successArrayResponse = {
         data: { type: 'array', items: { type: 'object', additionalProperties: true } }
     }
 };
-const planBodyProps = {
-    properties: {
-        name: { type: 'string' },
-        price: { type: 'number' },
-        courseIds: { type: 'string', description: 'Comma-separated course IDs or array' },
-        thumbnail: { type: 'string', format: 'binary' }
-    }
-};
-function normalizeBoolean(value) {
-    if (value === 'true')
-        return true;
-    if (value === 'false')
-        return false;
-    return value;
-}
 async function subscriptionRoutes(app) {
     app.addHook('preHandler', auth_1.authMiddleware);
     app.get('/plans', {
@@ -156,19 +141,33 @@ async function subscriptionRoutes(app) {
             tags: ['Subscription Plans'],
             summary: 'Create a subscription plan',
             description: 'Creates a new subscription plan. Supports multipart for thumbnail upload.',
-            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-            body: planBodyProps,
+            consumes: ['multipart/form-data', 'application/json', 'application/x-www-form-urlencoded'],
+            body: (0, validations_1.zodToSwagger)(validations_1.subscriptionPlanCreateSchema),
             response: { 201: successObjectResponse, 400: successObjectResponse }
         },
         preHandler: [auth_1.onlyOrg]
     }, async (req, reply) => {
-        const { fields, files } = (0, validations_1.validateData)(validations_1.subscriptionPlanCreateSchema, await app.parseMultipartMemory(req));
+        const parsed = await app.parseMultipartMemory(req);
+        if (parsed.fields) {
+            if (typeof parsed.fields.courseIds === 'string') {
+                parsed.fields.courseIds = parsed.fields.courseIds
+                    .split(',')
+                    .map((id) => Number(id.trim()))
+                    .filter((id) => !isNaN(id) && id > 0);
+            }
+            if (typeof parsed.fields.price === 'string') {
+                parsed.fields.price = Number(parsed.fields.price);
+            }
+            if (typeof parsed.fields.isVisible === 'string') {
+                parsed.fields.isVisible = parsed.fields.isVisible === 'true';
+            }
+        }
+        const { fields, files } = (0, validations_1.validateData)(validations_1.subscriptionPlanCreateSchema, parsed);
         try {
             let uuid = await app.uid('plan', 'subscriptionPlan');
             const planData = {
                 name: fields.name,
                 price: fields.price,
-                isVisible: normalizeBoolean(fields.isVisible),
                 uuid: uuid,
                 courseIds: fields.courseIds
             };
@@ -186,6 +185,9 @@ async function subscriptionRoutes(app) {
         }
         catch (error) {
             req.log.error(error);
+            if (error.code === 'VALIDATION_ERROR') {
+                throw error;
+            }
             return reply.code(400).send({
                 success: false,
                 message: 'Failed to create subscription plan',
@@ -197,8 +199,8 @@ async function subscriptionRoutes(app) {
         schema: {
             tags: ['Subscription Plans'],
             summary: 'Update a subscription plan',
-            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.subscriptionPlanUpdateSchema, { target: 'openApi3' }),
+            consumes: ['multipart/form-data', 'application/json', 'application/x-www-form-urlencoded'],
+            body: (0, validations_1.zodToSwagger)(validations_1.subscriptionPlanUpdateSchema),
             params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.subscriptionUuidParamsSchema, { target: 'openApi3' }),
             response: { 200: successObjectResponse, 400: successObjectResponse }
         },
@@ -206,10 +208,30 @@ async function subscriptionRoutes(app) {
     }, async (req, reply) => {
         try {
             const { uuid } = (0, validations_1.validateData)(validations_1.subscriptionUuidParamsSchema, req.params);
-            const { fields, files } = req.isMultipart() ? await app.parseMultipartMemory(req) : { fields: req.body ?? {}, files: {} };
-            const updateData = (0, validations_1.validateData)(validations_1.subscriptionPlanUpdateSchema, fields);
-            if (updateData.isVisible !== undefined) {
-                updateData.isVisible = normalizeBoolean(updateData.isVisible);
+            const parsed = await app.parseMultipartMemory(req);
+            if (parsed.fields) {
+                if (typeof parsed.fields.courseIds === 'string') {
+                    parsed.fields.courseIds = parsed.fields.courseIds
+                        .split(',')
+                        .map((id) => Number(id.trim()))
+                        .filter((id) => !isNaN(id) && id > 0);
+                }
+                if (typeof parsed.fields.price === 'string') {
+                    parsed.fields.price = Number(parsed.fields.price);
+                }
+                if (typeof parsed.fields.isVisible === 'string') {
+                    parsed.fields.isVisible = parsed.fields.isVisible === 'true';
+                }
+            }
+            const fields = (0, validations_1.validateData)(validations_1.subscriptionPlanUpdateSchema, parsed.fields);
+            const files = parsed.files;
+            const updateData = {
+                name: fields.name,
+                price: fields.price,
+                courseIds: fields.courseIds
+            };
+            if (fields.isVisible !== undefined) {
+                updateData.isVisible = fields.isVisible === 'true' || fields.isVisible === true;
             }
             if (files.thumbnail?.length) {
                 updateData.thumbnail = await app.saveFileBuffer(files.thumbnail[0], 'subscription-plans');
@@ -222,6 +244,9 @@ async function subscriptionRoutes(app) {
             });
         }
         catch (error) {
+            if (error.code === 'VALIDATION_ERROR') {
+                throw error;
+            }
             return reply.code(400).send({
                 success: false,
                 message: 'Failed to update subscription plan',

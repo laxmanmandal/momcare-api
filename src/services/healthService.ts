@@ -17,7 +17,7 @@ export async function addSymptomEntry(userId: number, symptoms: string[]) {
   const entry = await prisma.symptomEntry.create({
     data: {
       userId,
-      symptoms: symptoms, // stored as JSON
+      symptoms: cleaned.join(','),
     },
   });
 

@@ -56,7 +56,7 @@ async function community(app) {
         schema: {
             tags: ["Community"],
             consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.communityCreateMultipartSchema, { target: 'openApi3' }),
+            body: (0, validations_1.zodToSwagger)(validations_1.communityCreateMultipartSchema),
             response: {
                 201: {
                     type: "object",
@@ -93,8 +93,8 @@ async function community(app) {
         schema: {
             tags: ["Community"],
             consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
-            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.communityIdParamsSchema, { target: 'openApi3' }),
-            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.communityUpdateMultipartSchema, { target: 'openApi3' }),
+            params: (0, validations_1.zodToSwagger)(validations_1.communityIdParamsSchema),
+            body: (0, validations_1.zodToSwagger)(validations_1.communityUpdateMultipartSchema),
             response: {
                 200: {
                     type: "object",
@@ -130,13 +130,6 @@ async function community(app) {
     app.get("/", {
         schema: {
             tags: ["Community"],
-            params: {
-                type: "object",
-                properties: {
-                    id: { type: "integer", description: "Community ID" },
-                },
-                required: ["id"],
-            },
             response: {
                 200: {
                     type: "object",
@@ -159,13 +152,7 @@ async function community(app) {
     app.get("/:id", {
         schema: {
             tags: ["Community"],
-            params: {
-                type: "object",
-                properties: {
-                    id: { type: "integer", description: "Community ID" },
-                },
-                required: ["id"],
-            },
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.communityIdParamsSchema, { target: 'openApi3' }),
             response: {
                 200: {
                     type: "object",
@@ -190,6 +177,7 @@ async function community(app) {
         schema: {
             tags: ["Community"],
             consumes: ['application/json', 'application/x-www-form-urlencoded'],
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.communityIdParamsSchema, { target: 'openApi3' }),
             response: {
                 200: {
                     type: "object",
@@ -215,7 +203,7 @@ async function community(app) {
         schema: {
             tags: ["Community"],
             consumes: ['application/json', 'application/x-www-form-urlencoded'],
-            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.communityJoinSchema, { target: 'openApi3' }),
+            body: (0, validations_1.zodToSwagger)(validations_1.communityJoinSchema),
             response: {
                 200: {
                     type: "object",
