@@ -20,18 +20,80 @@ function stripSchemaMeta(schema: JsonSchema): JsonSchema {
   return schema;
 }
 
+function inferEmptyPropertySchema(name: string): JsonSchema | undefined {
+  if (/id$/i.test(name)) {
+    return { type: 'string', pattern: '^[0-9]+$' };
+  }
+
+  if (/(date|time|dob|sleepStart|sleepEnd|From|To)$/i.test(name)) {
+    return { type: 'string', format: 'date-time' };
+  }
+
+  return undefined;
+}
+
+function applyNamedEmptyPropertyFallbacks(schema: JsonSchema): JsonSchema {
+  if (!schema || typeof schema !== 'object') return schema;
+
+  if (schema.properties && typeof schema.properties === 'object') {
+    for (const [name, property] of Object.entries(schema.properties)) {
+      if (!property || typeof property !== 'object') continue;
+
+      if (Object.keys(property as JsonSchema).length === 0) {
+        const fallback = inferEmptyPropertySchema(name);
+        if (fallback) {
+          schema.properties[name] = fallback;
+        }
+        continue;
+      }
+
+      applyNamedEmptyPropertyFallbacks(property as JsonSchema);
+    }
+  }
+
+  return schema;
+}
+
+function getObjectShape(schema: unknown): Record<string, any> | undefined {
+  if (!isZodSchema(schema)) return undefined;
+
+  const definition = (schema as any)._zod?.def;
+  const shape = definition?.shape;
+
+  return shape && typeof shape === 'object' ? shape : undefined;
+}
+
+function syncRequiredProperties(schema: unknown, jsonSchema: JsonSchema): JsonSchema {
+  const shape = getObjectShape(schema);
+  if (!shape || !jsonSchema || typeof jsonSchema !== 'object') return jsonSchema;
+
+  const required = Object.entries(shape)
+    .filter(([, value]) => typeof (value as any)?.isOptional !== 'function' || !(value as any).isOptional())
+    .map(([key]) => key);
+
+  if (required.length) {
+    jsonSchema.required = required;
+  } else {
+    delete jsonSchema.required;
+  }
+
+  return jsonSchema;
+}
+
 export function zodToJsonSchema(schema: unknown, _options?: unknown): JsonSchema {
   if (!isZodSchema(schema)) {
     return stripSchemaMeta({ ...((schema as JsonSchema) ?? {}) });
   }
 
-  const jsonSchema = stripSchemaMeta(
+  const jsonSchema = applyNamedEmptyPropertyFallbacks(stripSchemaMeta(
     z.toJSONSchema(schema, {
       io: 'input',
       target: 'draft-7',
       unrepresentable: 'any',
     } as any) as JsonSchema,
-  );
+  ));
+
+  syncRequiredProperties(schema, jsonSchema);
 
   Object.defineProperty(jsonSchema, ZOD_DOCS_ONLY, {
     value: true,

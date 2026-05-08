@@ -121,6 +121,93 @@ export const babyLogBabyIdParamsSchema = z
   })
   .strict();
 
+function babyListQuerySchema(sortFields: [string, ...string[]]) {
+  return z
+    .object({
+      page: z.coerce.number().int().positive().default(1),
+      limit: z.coerce.number().int().positive().max(100).default(10),
+      search: optionalTrimmedString(255),
+      sortField: z.enum(sortFields).optional(),
+      sortOrder: z.enum(["asc", "desc"]).optional(),
+    })
+    .strict();
+}
+
+export const babyProfileListQuerySchema = babyListQuerySchema([
+  "id",
+  "userId",
+  "babyName",
+  "gender",
+  "dob",
+  "bloodGroup",
+  "birthWeight",
+  "birthHeight",
+  "createdAt",
+  "updatedAt",
+]);
+
+export const babyProfileByUserListQuerySchema = babyListQuerySchema([
+  "id",
+  "babyName",
+  "gender",
+  "dob",
+  "bloodGroup",
+  "birthWeight",
+  "birthHeight",
+  "createdAt",
+  "updatedAt",
+]);
+
+export const babyVaccinationListQuerySchema = babyListQuerySchema([
+  "id",
+  "babyId",
+  "vaccineName",
+  "doseNumber",
+  "dueDate",
+  "takenDate",
+  "status",
+  "createdAt",
+]);
+
+export const babyMotorSkillListQuerySchema = babyListQuerySchema([
+  "id",
+  "babyId",
+  "title",
+  "achieved",
+  "achievedDate",
+  "createdAt",
+]);
+
+export const babyNutritionListQuerySchema = babyListQuerySchema([
+  "id",
+  "babyId",
+  "mealType",
+  "foodName",
+  "quantity",
+  "feedingTime",
+  "createdAt",
+]);
+
+export const babySleepListQuerySchema = babyListQuerySchema([
+  "id",
+  "babyId",
+  "sleepStart",
+  "sleepEnd",
+  "durationMinutes",
+  "sleepQuality",
+  "createdAt",
+]);
+
+export const babyFeedListQuerySchema = babyListQuerySchema([
+  "id",
+  "babyId",
+  "feedType",
+  "quantity",
+  "feedingTime",
+  "durationMinutes",
+  "createdAt",
+]);
+
 export const babyProfileCreateSchema = z
   .object({
     userId: babyPositiveIntSchema.optional(),

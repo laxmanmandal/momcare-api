@@ -3,12 +3,19 @@ import * as babyCareService from "../services/babyCareService";
 import { authMiddleware } from "../middleware/auth";
 import { zodToJsonSchema } from "../utils/zodOpenApi";
 import {
+  babyFeedListQuerySchema,
   babyIdParamsSchema,
   babyLogBabyIdParamsSchema,
   babyLogIdParamsSchema,
+  babyMotorSkillListQuerySchema,
+  babyNutritionListQuerySchema,
   babyProfileCreateSchema,
+  babyProfileByUserListQuerySchema,
+  babyProfileListQuerySchema,
   babyProfileUpdateSchema,
   babyProfileUserIdParamsSchema,
+  babySleepListQuerySchema,
+  babyVaccinationListQuerySchema,
   feedLogCreateSchema,
   feedLogUpdateSchema,
   motorSkillLogCreateSchema,
@@ -42,6 +49,10 @@ const successArrayResponse = {
       type: "array",
       items: { type: "object", additionalProperties: true },
     },
+    total: { type: "integer" },
+    page: { type: "integer" },
+    limit: { type: "integer" },
+    totalPages: { type: "integer" },
   },
 } as const;
 
@@ -54,6 +65,25 @@ const successDeleteResponse = {
   },
 } as const;
 
+function omitRequestBodyProperties(schema: Record<string, any>, keys: string[]) {
+  const next = {
+    ...schema,
+    properties: { ...(schema.properties ?? {}) },
+    required: Array.isArray(schema.required) ? [...schema.required] : schema.required,
+  };
+
+  for (const key of keys) {
+    delete next.properties[key];
+  }
+
+  if (Array.isArray(next.required)) {
+    next.required = next.required.filter((key: string) => !keys.includes(key));
+    if (next.required.length === 0) delete next.required;
+  }
+
+  return next;
+}
+
 export default async function babyCareRoutes(app: FastifyInstance) {
   app.addHook("preHandler", authMiddleware);
 
@@ -63,14 +93,20 @@ export default async function babyCareRoutes(app: FastifyInstance) {
       schema: {
         tags: ["Baby Care"],
         summary: "List all baby profiles",
+        querystring: zodToJsonSchema(babyProfileListQuerySchema as any, { target: "openApi3" }),
         response: { 200: successArrayResponse },
       },
     },
-    async () => ({
-      success: true,
-      message: "Baby profiles fetched successfully",
-      data: await babyCareService.getBabyProfiles(),
-    }),
+    async (req) => {
+      const query = validateData(babyProfileListQuerySchema, req.query ?? {});
+      const result = await babyCareService.getBabyProfiles(query);
+
+      return {
+        success: true,
+        message: "Baby profiles fetched successfully",
+        ...result,
+      };
+    },
   );
 
   app.get(
@@ -80,16 +116,18 @@ export default async function babyCareRoutes(app: FastifyInstance) {
         tags: ["Baby Care"],
         summary: "List baby profiles by user ID",
         params: zodToJsonSchema(babyProfileUserIdParamsSchema as any, { target: "openApi3" }),
+        querystring: zodToJsonSchema(babyProfileByUserListQuerySchema as any, { target: "openApi3" }),
         response: { 200: successArrayResponse },
       },
     },
     async (req) => {
       const { userId } = validateData(babyProfileUserIdParamsSchema, req.params);
+      const query = validateData(babyProfileByUserListQuerySchema, req.query ?? {});
 
       return {
         success: true,
         message: "Baby profiles fetched successfully",
-        data: await babyCareService.getBabyProfilesByUserId(userId),
+        ...(await babyCareService.getBabyProfilesByUserId(userId, query)),
       };
     },
   );
@@ -195,6 +233,7 @@ export default async function babyCareRoutes(app: FastifyInstance) {
     itemPath: "vaccination-logs",
     createSchema: vaccinationLogCreateSchema,
     updateSchema: vaccinationLogUpdateSchema,
+    querySchema: babyVaccinationListQuerySchema,
     createMessage: "Vaccination log created successfully",
     updateMessage: "Vaccination log updated successfully",
     deleteMessage: "Vaccination log deleted successfully",
@@ -213,6 +252,7 @@ export default async function babyCareRoutes(app: FastifyInstance) {
     itemPath: "motor-skill-logs",
     createSchema: motorSkillLogCreateSchema,
     updateSchema: motorSkillLogUpdateSchema,
+    querySchema: babyMotorSkillListQuerySchema,
     createMessage: "Motor skill log created successfully",
     updateMessage: "Motor skill log updated successfully",
     deleteMessage: "Motor skill log deleted successfully",
@@ -231,6 +271,7 @@ export default async function babyCareRoutes(app: FastifyInstance) {
     itemPath: "nutrition-logs",
     createSchema: nutritionLogCreateSchema,
     updateSchema: nutritionLogUpdateSchema,
+    querySchema: babyNutritionListQuerySchema,
     createMessage: "Nutrition log created successfully",
     updateMessage: "Nutrition log updated successfully",
     deleteMessage: "Nutrition log deleted successfully",
@@ -249,6 +290,7 @@ export default async function babyCareRoutes(app: FastifyInstance) {
     itemPath: "sleep-logs",
     createSchema: sleepLogCreateSchema,
     updateSchema: sleepLogUpdateSchema,
+    querySchema: babySleepListQuerySchema,
     createMessage: "Sleep log created successfully",
     updateMessage: "Sleep log updated successfully",
     deleteMessage: "Sleep log deleted successfully",
@@ -267,6 +309,7 @@ export default async function babyCareRoutes(app: FastifyInstance) {
     itemPath: "feed-logs",
     createSchema: feedLogCreateSchema,
     updateSchema: feedLogUpdateSchema,
+    querySchema: babyFeedListQuerySchema,
     createMessage: "Feed log created successfully",
     updateMessage: "Feed log updated successfully",
     deleteMessage: "Feed log deleted successfully",
@@ -286,11 +329,12 @@ function registerBabyLogRoutes(options: {
   itemPath: string;
   createSchema: any;
   updateSchema: any;
+  querySchema: any;
   createMessage: string;
   updateMessage: string;
   deleteMessage: string;
   fetchMessage: string;
-  getByBabyId: (babyId: bigint) => Promise<unknown>;
+  getByBabyId: (babyId: bigint, query?: any) => Promise<any>;
   getById: (id: bigint) => Promise<unknown>;
   create: (data: any) => Promise<unknown>;
   update: (id: bigint, data: any) => Promise<unknown>;
@@ -303,6 +347,7 @@ function registerBabyLogRoutes(options: {
     itemPath,
     createSchema,
     updateSchema,
+    querySchema,
     createMessage,
     updateMessage,
     deleteMessage,
@@ -321,16 +366,18 @@ function registerBabyLogRoutes(options: {
         tags: [tag],
         summary: `List ${childPath} by baby profile ID`,
         params: zodToJsonSchema(babyLogBabyIdParamsSchema as any, { target: "openApi3" }),
+        querystring: zodToJsonSchema(querySchema as any, { target: "openApi3" }),
         response: { 200: successArrayResponse },
       },
     },
     async (req) => {
       const { babyId } = validateData(babyLogBabyIdParamsSchema, req.params);
+      const query = validateData(querySchema, req.query ?? {});
 
       return {
         success: true,
         message: fetchMessage,
-        data: await getByBabyId(babyId),
+        ...((await getByBabyId(babyId, query)) as Record<string, unknown>),
       };
     },
   );
@@ -364,7 +411,7 @@ function registerBabyLogRoutes(options: {
         summary: `Create ${itemPath}`,
         consumes: ["application/json", "application/x-www-form-urlencoded"],
         params: zodToJsonSchema(babyLogBabyIdParamsSchema as any, { target: "openApi3" }),
-        body: zodToSwagger(createSchema),
+        body: omitRequestBodyProperties(zodToSwagger(createSchema), ["babyId"]),
         response: { 201: successObjectResponse },
       },
     },

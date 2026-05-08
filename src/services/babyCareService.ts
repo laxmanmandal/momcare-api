@@ -8,7 +8,23 @@ type BabyLogModel =
   | "sleepLog"
   | "feedLog";
 
+type SortOrder = "asc" | "desc";
+
+type BabyCareListQuery = {
+  page?: number;
+  limit?: number;
+  search?: string;
+  sortField?: string;
+  sortOrder?: SortOrder;
+  userId?: number;
+};
+
 const babyProfileInclude = {
+  user: {
+    select: {
+      uuid: true,
+    },
+  },
   _count: {
     select: {
       vaccinations: true,
@@ -28,23 +44,14 @@ export function serializeBabyData<T>(data: T): T {
   );
 }
 
-export async function getBabyProfiles() {
-  const data = await prisma.babyProfile.findMany({
-    include: babyProfileInclude,
-    orderBy: { id: "desc" },
-  });
-
-  return serializeBabyData(data);
+export async function getBabyProfiles(query: BabyCareListQuery = {}) {
+  const where = buildBabyProfileWhere(query);
+  return getPaginatedBabyProfiles(where, query);
 }
 
-export async function getBabyProfilesByUserId(userId: number) {
-  const data = await prisma.babyProfile.findMany({
-    where: { userId },
-    include: babyProfileInclude,
-    orderBy: { id: "desc" },
-  });
-
-  return serializeBabyData(data);
+export async function getBabyProfilesByUserId(userId: number, query: BabyCareListQuery = {}) {
+  const where = buildBabyProfileWhere({ ...query, userId });
+  return getPaginatedBabyProfiles(where, query);
 }
 
 export async function getBabyProfileById(id: bigint) {
@@ -90,8 +97,8 @@ export async function createVaccinationLog(data: Prisma.VaccinationLogUncheckedC
   return createBabyLog("vaccinationLog", data);
 }
 
-export async function getVaccinationLogsByBabyId(babyId: bigint) {
-  return getBabyLogs("vaccinationLog", babyId, { dueDate: "asc" });
+export async function getVaccinationLogsByBabyId(babyId: bigint, query: BabyCareListQuery = {}) {
+  return getBabyLogs("vaccinationLog", babyId, { dueDate: "asc" }, query);
 }
 
 export async function getVaccinationLogById(id: bigint) {
@@ -110,8 +117,8 @@ export async function createMotorSkillLog(data: Prisma.MotorSkillLogUncheckedCre
   return createBabyLog("motorSkillLog", data);
 }
 
-export async function getMotorSkillLogsByBabyId(babyId: bigint) {
-  return getBabyLogs("motorSkillLog", babyId, { createdAt: "desc" });
+export async function getMotorSkillLogsByBabyId(babyId: bigint, query: BabyCareListQuery = {}) {
+  return getBabyLogs("motorSkillLog", babyId, { createdAt: "desc" }, query);
 }
 
 export async function getMotorSkillLogById(id: bigint) {
@@ -130,8 +137,8 @@ export async function createNutritionLog(data: Prisma.NutritionLogUncheckedCreat
   return createBabyLog("nutritionLog", data);
 }
 
-export async function getNutritionLogsByBabyId(babyId: bigint) {
-  return getBabyLogs("nutritionLog", babyId, { feedingTime: "desc" });
+export async function getNutritionLogsByBabyId(babyId: bigint, query: BabyCareListQuery = {}) {
+  return getBabyLogs("nutritionLog", babyId, { feedingTime: "desc" }, query);
 }
 
 export async function getNutritionLogById(id: bigint) {
@@ -150,8 +157,8 @@ export async function createSleepLog(data: Prisma.SleepLogUncheckedCreateInput) 
   return createBabyLog("sleepLog", data);
 }
 
-export async function getSleepLogsByBabyId(babyId: bigint) {
-  return getBabyLogs("sleepLog", babyId, { sleepStart: "desc" });
+export async function getSleepLogsByBabyId(babyId: bigint, query: BabyCareListQuery = {}) {
+  return getBabyLogs("sleepLog", babyId, { sleepStart: "desc" }, query);
 }
 
 export async function getSleepLogById(id: bigint) {
@@ -170,8 +177,8 @@ export async function createFeedLog(data: Prisma.FeedLogUncheckedCreateInput) {
   return createBabyLog("feedLog", data);
 }
 
-export async function getFeedLogsByBabyId(babyId: bigint) {
-  return getBabyLogs("feedLog", babyId, { feedingTime: "desc" });
+export async function getFeedLogsByBabyId(babyId: bigint, query: BabyCareListQuery = {}) {
+  return getBabyLogs("feedLog", babyId, { feedingTime: "desc" }, query);
 }
 
 export async function getFeedLogById(id: bigint) {
@@ -201,6 +208,83 @@ function model(modelName: BabyLogModel) {
   return prisma[modelName] as any;
 }
 
+function normalizePagination(query: BabyCareListQuery) {
+  const page = Math.max(1, Number(query.page) || 1);
+  const limit = Math.min(100, Math.max(1, Number(query.limit) || 10));
+  return { page, limit, skip: (page - 1) * limit };
+}
+
+function numericSearch(search?: string) {
+  if (!search || !/^[0-9]+$/.test(search)) return undefined;
+
+  try {
+    return BigInt(search);
+  } catch {
+    return undefined;
+  }
+}
+
+function buildBabyProfileWhere(query: BabyCareListQuery): Prisma.BabyProfileWhereInput {
+  const where: Prisma.BabyProfileWhereInput = {};
+  const idSearch = numericSearch(query.search);
+
+  if (query.userId) where.userId = query.userId;
+
+  if (query.search) {
+    where.OR = [
+      ...(idSearch ? [{ id: idSearch }] : []),
+      { babyName: { contains: query.search } },
+      { gender: { contains: query.search } },
+      { bloodGroup: { contains: query.search } },
+      { user: { uuid: { contains: query.search } } },
+    ];
+  }
+
+  return where;
+}
+
+async function getPaginatedBabyProfiles(
+  where: Prisma.BabyProfileWhereInput,
+  query: BabyCareListQuery,
+) {
+  const { page, limit, skip } = normalizePagination(query);
+  const allowedSortFields = [
+    "id",
+    "userId",
+    "babyName",
+    "gender",
+    "dob",
+    "bloodGroup",
+    "birthWeight",
+    "birthHeight",
+    "createdAt",
+    "updatedAt",
+  ];
+  const sortField = query.sortField && allowedSortFields.includes(query.sortField)
+    ? query.sortField
+    : "id";
+  const orderBy = { [sortField]: query.sortOrder ?? "desc" };
+
+  const [data, total] = await prisma.$transaction([
+    prisma.babyProfile.findMany({
+      where,
+      include: babyProfileInclude,
+      orderBy,
+      skip,
+      take: limit,
+    }),
+    prisma.babyProfile.count({ where }),
+  ]);
+
+  return serializeBabyData({
+    data,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  });
+}
+
 async function createBabyLog(modelName: BabyLogModel, data: Record<string, unknown>) {
   await ensureBabyProfileExists(data.babyId as bigint);
   const log = await model(modelName).create({ data });
@@ -211,15 +295,73 @@ async function getBabyLogs(
   modelName: BabyLogModel,
   babyId: bigint,
   orderBy: Record<string, "asc" | "desc">,
+  query: BabyCareListQuery = {},
 ) {
   await ensureBabyProfileExists(babyId);
+  const { page, limit, skip } = normalizePagination(query);
+  const where = buildBabyLogWhere(modelName, babyId, query.search);
+  const resolvedOrderBy = buildBabyLogOrderBy(modelName, query, orderBy);
 
-  const logs = await model(modelName).findMany({
-    where: { babyId },
-    orderBy,
+  const [data, total] = await prisma.$transaction([
+    model(modelName).findMany({
+      where,
+      orderBy: resolvedOrderBy,
+      skip,
+      take: limit,
+    }),
+    model(modelName).count({ where }),
+  ]);
+
+  return serializeBabyData({
+    data,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
   });
+}
 
-  return serializeBabyData(logs);
+function buildBabyLogWhere(modelName: BabyLogModel, babyId: bigint, search?: string) {
+  const where: Record<string, unknown> = { babyId };
+  const idSearch = numericSearch(search);
+
+  if (search) {
+    const searchableFields: Record<BabyLogModel, string[]> = {
+      vaccinationLog: ["vaccineName", "status", "notes"],
+      motorSkillLog: ["title", "notes"],
+      nutritionLog: ["mealType", "foodName", "quantity", "notes"],
+      sleepLog: ["sleepQuality", "notes"],
+      feedLog: ["quantity", "notes"],
+    };
+
+    where.OR = [
+      ...(idSearch ? [{ id: idSearch }] : []),
+      ...searchableFields[modelName].map((field) => ({ [field]: { contains: search } })),
+      ...(modelName === "feedLog" && ["BREAST_MILK", "FORMULA_MILK", "SOLID_FOOD", "WATER"].includes(search)
+        ? [{ feedType: search }]
+        : []),
+    ];
+  }
+
+  return where;
+}
+
+function buildBabyLogOrderBy(
+  modelName: BabyLogModel,
+  query: BabyCareListQuery,
+  defaultOrderBy: Record<string, SortOrder>,
+) {
+  const allowedSortFields: Record<BabyLogModel, string[]> = {
+    vaccinationLog: ["id", "babyId", "vaccineName", "doseNumber", "dueDate", "takenDate", "status", "createdAt"],
+    motorSkillLog: ["id", "babyId", "title", "achieved", "achievedDate", "createdAt"],
+    nutritionLog: ["id", "babyId", "mealType", "foodName", "quantity", "feedingTime", "createdAt"],
+    sleepLog: ["id", "babyId", "sleepStart", "sleepEnd", "durationMinutes", "sleepQuality", "createdAt"],
+    feedLog: ["id", "babyId", "feedType", "quantity", "feedingTime", "durationMinutes", "createdAt"],
+  };
+
+  return query.sortField && allowedSortFields[modelName].includes(query.sortField)
+    ? { [query.sortField]: query.sortOrder ?? "asc" }
+    : defaultOrderBy;
 }
 
 async function getBabyLogById(modelName: BabyLogModel, id: bigint) {

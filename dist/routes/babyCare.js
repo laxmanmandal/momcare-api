@@ -55,6 +55,10 @@ const successArrayResponse = {
             type: "array",
             items: { type: "object", additionalProperties: true },
         },
+        total: { type: "integer" },
+        page: { type: "integer" },
+        limit: { type: "integer" },
+        totalPages: { type: "integer" },
     },
 };
 const successDeleteResponse = {
@@ -65,32 +69,55 @@ const successDeleteResponse = {
         data: { type: "object", additionalProperties: true },
     },
 };
+function omitRequestBodyProperties(schema, keys) {
+    const next = {
+        ...schema,
+        properties: { ...(schema.properties ?? {}) },
+        required: Array.isArray(schema.required) ? [...schema.required] : schema.required,
+    };
+    for (const key of keys) {
+        delete next.properties[key];
+    }
+    if (Array.isArray(next.required)) {
+        next.required = next.required.filter((key) => !keys.includes(key));
+        if (next.required.length === 0)
+            delete next.required;
+    }
+    return next;
+}
 async function babyCareRoutes(app) {
     app.addHook("preHandler", auth_1.authMiddleware);
     app.get("/profiles", {
         schema: {
             tags: ["Baby Care"],
             summary: "List all baby profiles",
+            querystring: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.babyProfileListQuerySchema, { target: "openApi3" }),
             response: { 200: successArrayResponse },
         },
-    }, async () => ({
-        success: true,
-        message: "Baby profiles fetched successfully",
-        data: await babyCareService.getBabyProfiles(),
-    }));
+    }, async (req) => {
+        const query = (0, validations_1.validateData)(validations_1.babyProfileListQuerySchema, req.query ?? {});
+        const result = await babyCareService.getBabyProfiles(query);
+        return {
+            success: true,
+            message: "Baby profiles fetched successfully",
+            ...result,
+        };
+    });
     app.get("/profiles/user/:userId", {
         schema: {
             tags: ["Baby Care"],
             summary: "List baby profiles by user ID",
             params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.babyProfileUserIdParamsSchema, { target: "openApi3" }),
+            querystring: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.babyProfileByUserListQuerySchema, { target: "openApi3" }),
             response: { 200: successArrayResponse },
         },
     }, async (req) => {
         const { userId } = (0, validations_1.validateData)(validations_1.babyProfileUserIdParamsSchema, req.params);
+        const query = (0, validations_1.validateData)(validations_1.babyProfileByUserListQuerySchema, req.query ?? {});
         return {
             success: true,
             message: "Baby profiles fetched successfully",
-            data: await babyCareService.getBabyProfilesByUserId(userId),
+            ...(await babyCareService.getBabyProfilesByUserId(userId, query)),
         };
     });
     app.get("/profiles/:id", {
@@ -169,6 +196,7 @@ async function babyCareRoutes(app) {
         itemPath: "vaccination-logs",
         createSchema: validations_1.vaccinationLogCreateSchema,
         updateSchema: validations_1.vaccinationLogUpdateSchema,
+        querySchema: validations_1.babyVaccinationListQuerySchema,
         createMessage: "Vaccination log created successfully",
         updateMessage: "Vaccination log updated successfully",
         deleteMessage: "Vaccination log deleted successfully",
@@ -186,6 +214,7 @@ async function babyCareRoutes(app) {
         itemPath: "motor-skill-logs",
         createSchema: validations_1.motorSkillLogCreateSchema,
         updateSchema: validations_1.motorSkillLogUpdateSchema,
+        querySchema: validations_1.babyMotorSkillListQuerySchema,
         createMessage: "Motor skill log created successfully",
         updateMessage: "Motor skill log updated successfully",
         deleteMessage: "Motor skill log deleted successfully",
@@ -203,6 +232,7 @@ async function babyCareRoutes(app) {
         itemPath: "nutrition-logs",
         createSchema: validations_1.nutritionLogCreateSchema,
         updateSchema: validations_1.nutritionLogUpdateSchema,
+        querySchema: validations_1.babyNutritionListQuerySchema,
         createMessage: "Nutrition log created successfully",
         updateMessage: "Nutrition log updated successfully",
         deleteMessage: "Nutrition log deleted successfully",
@@ -220,6 +250,7 @@ async function babyCareRoutes(app) {
         itemPath: "sleep-logs",
         createSchema: validations_1.sleepLogCreateSchema,
         updateSchema: validations_1.sleepLogUpdateSchema,
+        querySchema: validations_1.babySleepListQuerySchema,
         createMessage: "Sleep log created successfully",
         updateMessage: "Sleep log updated successfully",
         deleteMessage: "Sleep log deleted successfully",
@@ -237,6 +268,7 @@ async function babyCareRoutes(app) {
         itemPath: "feed-logs",
         createSchema: validations_1.feedLogCreateSchema,
         updateSchema: validations_1.feedLogUpdateSchema,
+        querySchema: validations_1.babyFeedListQuerySchema,
         createMessage: "Feed log created successfully",
         updateMessage: "Feed log updated successfully",
         deleteMessage: "Feed log deleted successfully",
@@ -249,20 +281,22 @@ async function babyCareRoutes(app) {
     });
 }
 function registerBabyLogRoutes(options) {
-    const { app, tag, childPath, itemPath, createSchema, updateSchema, createMessage, updateMessage, deleteMessage, fetchMessage, getByBabyId, getById, create, update, remove, } = options;
+    const { app, tag, childPath, itemPath, createSchema, updateSchema, querySchema, createMessage, updateMessage, deleteMessage, fetchMessage, getByBabyId, getById, create, update, remove, } = options;
     app.get(`/profiles/:babyId/${childPath}`, {
         schema: {
             tags: [tag],
             summary: `List ${childPath} by baby profile ID`,
             params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.babyLogBabyIdParamsSchema, { target: "openApi3" }),
+            querystring: (0, zodOpenApi_1.zodToJsonSchema)(querySchema, { target: "openApi3" }),
             response: { 200: successArrayResponse },
         },
     }, async (req) => {
         const { babyId } = (0, validations_1.validateData)(validations_1.babyLogBabyIdParamsSchema, req.params);
+        const query = (0, validations_1.validateData)(querySchema, req.query ?? {});
         return {
             success: true,
             message: fetchMessage,
-            data: await getByBabyId(babyId),
+            ...(await getByBabyId(babyId, query)),
         };
     });
     app.get(`/${itemPath}/:id`, {
@@ -286,7 +320,7 @@ function registerBabyLogRoutes(options) {
             summary: `Create ${itemPath}`,
             consumes: ["application/json", "application/x-www-form-urlencoded"],
             params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.babyLogBabyIdParamsSchema, { target: "openApi3" }),
-            body: (0, validations_1.zodToSwagger)(createSchema),
+            body: omitRequestBodyProperties((0, validations_1.zodToSwagger)(createSchema), ["babyId"]),
             response: { 201: successObjectResponse },
         },
     }, async (req, reply) => {

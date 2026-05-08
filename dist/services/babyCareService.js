@@ -50,20 +50,13 @@ const babyProfileInclude = {
 function serializeBabyData(data) {
     return JSON.parse(JSON.stringify(data, (_key, value) => typeof value === "bigint" ? value.toString() : value));
 }
-async function getBabyProfiles() {
-    const data = await client_1.default.babyProfile.findMany({
-        include: babyProfileInclude,
-        orderBy: { id: "desc" },
-    });
-    return serializeBabyData(data);
+async function getBabyProfiles(query = {}) {
+    const where = buildBabyProfileWhere(query);
+    return getPaginatedBabyProfiles(where, query);
 }
-async function getBabyProfilesByUserId(userId) {
-    const data = await client_1.default.babyProfile.findMany({
-        where: { userId },
-        include: babyProfileInclude,
-        orderBy: { id: "desc" },
-    });
-    return serializeBabyData(data);
+async function getBabyProfilesByUserId(userId, query = {}) {
+    const where = buildBabyProfileWhere({ ...query, userId });
+    return getPaginatedBabyProfiles(where, query);
 }
 async function getBabyProfileById(id) {
     const data = await client_1.default.babyProfile.findUnique({
@@ -99,8 +92,8 @@ async function deleteBabyProfile(id) {
 async function createVaccinationLog(data) {
     return createBabyLog("vaccinationLog", data);
 }
-async function getVaccinationLogsByBabyId(babyId) {
-    return getBabyLogs("vaccinationLog", babyId, { dueDate: "asc" });
+async function getVaccinationLogsByBabyId(babyId, query = {}) {
+    return getBabyLogs("vaccinationLog", babyId, { dueDate: "asc" }, query);
 }
 async function getVaccinationLogById(id) {
     return getBabyLogById("vaccinationLog", id);
@@ -114,8 +107,8 @@ async function deleteVaccinationLog(id) {
 async function createMotorSkillLog(data) {
     return createBabyLog("motorSkillLog", data);
 }
-async function getMotorSkillLogsByBabyId(babyId) {
-    return getBabyLogs("motorSkillLog", babyId, { createdAt: "desc" });
+async function getMotorSkillLogsByBabyId(babyId, query = {}) {
+    return getBabyLogs("motorSkillLog", babyId, { createdAt: "desc" }, query);
 }
 async function getMotorSkillLogById(id) {
     return getBabyLogById("motorSkillLog", id);
@@ -129,8 +122,8 @@ async function deleteMotorSkillLog(id) {
 async function createNutritionLog(data) {
     return createBabyLog("nutritionLog", data);
 }
-async function getNutritionLogsByBabyId(babyId) {
-    return getBabyLogs("nutritionLog", babyId, { feedingTime: "desc" });
+async function getNutritionLogsByBabyId(babyId, query = {}) {
+    return getBabyLogs("nutritionLog", babyId, { feedingTime: "desc" }, query);
 }
 async function getNutritionLogById(id) {
     return getBabyLogById("nutritionLog", id);
@@ -144,8 +137,8 @@ async function deleteNutritionLog(id) {
 async function createSleepLog(data) {
     return createBabyLog("sleepLog", data);
 }
-async function getSleepLogsByBabyId(babyId) {
-    return getBabyLogs("sleepLog", babyId, { sleepStart: "desc" });
+async function getSleepLogsByBabyId(babyId, query = {}) {
+    return getBabyLogs("sleepLog", babyId, { sleepStart: "desc" }, query);
 }
 async function getSleepLogById(id) {
     return getBabyLogById("sleepLog", id);
@@ -159,8 +152,8 @@ async function deleteSleepLog(id) {
 async function createFeedLog(data) {
     return createBabyLog("feedLog", data);
 }
-async function getFeedLogsByBabyId(babyId) {
-    return getBabyLogs("feedLog", babyId, { feedingTime: "desc" });
+async function getFeedLogsByBabyId(babyId, query = {}) {
+    return getBabyLogs("feedLog", babyId, { feedingTime: "desc" }, query);
 }
 async function getFeedLogById(id) {
     return getBabyLogById("feedLog", id);
@@ -183,18 +176,131 @@ async function ensureBabyProfileExists(id) {
 function model(modelName) {
     return client_1.default[modelName];
 }
+function normalizePagination(query) {
+    const page = Math.max(1, Number(query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(query.limit) || 10));
+    return { page, limit, skip: (page - 1) * limit };
+}
+function numericSearch(search) {
+    if (!search || !/^[0-9]+$/.test(search))
+        return undefined;
+    try {
+        return BigInt(search);
+    }
+    catch {
+        return undefined;
+    }
+}
+function buildBabyProfileWhere(query) {
+    const where = {};
+    const idSearch = numericSearch(query.search);
+    if (query.userId)
+        where.userId = query.userId;
+    if (query.search) {
+        where.OR = [
+            ...(idSearch ? [{ id: idSearch }] : []),
+            { babyName: { contains: query.search } },
+            { gender: { contains: query.search } },
+            { bloodGroup: { contains: query.search } },
+        ];
+    }
+    return where;
+}
+async function getPaginatedBabyProfiles(where, query) {
+    const { page, limit, skip } = normalizePagination(query);
+    const allowedSortFields = [
+        "id",
+        "userId",
+        "babyName",
+        "gender",
+        "dob",
+        "bloodGroup",
+        "birthWeight",
+        "birthHeight",
+        "createdAt",
+        "updatedAt",
+    ];
+    const sortField = query.sortField && allowedSortFields.includes(query.sortField)
+        ? query.sortField
+        : "id";
+    const orderBy = { [sortField]: query.sortOrder ?? "desc" };
+    const [data, total] = await client_1.default.$transaction([
+        client_1.default.babyProfile.findMany({
+            where,
+            include: babyProfileInclude,
+            orderBy,
+            skip,
+            take: limit,
+        }),
+        client_1.default.babyProfile.count({ where }),
+    ]);
+    return serializeBabyData({
+        data,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+    });
+}
 async function createBabyLog(modelName, data) {
     await ensureBabyProfileExists(data.babyId);
     const log = await model(modelName).create({ data });
     return serializeBabyData(log);
 }
-async function getBabyLogs(modelName, babyId, orderBy) {
+async function getBabyLogs(modelName, babyId, orderBy, query = {}) {
     await ensureBabyProfileExists(babyId);
-    const logs = await model(modelName).findMany({
-        where: { babyId },
-        orderBy,
+    const { page, limit, skip } = normalizePagination(query);
+    const where = buildBabyLogWhere(modelName, babyId, query.search);
+    const resolvedOrderBy = buildBabyLogOrderBy(modelName, query, orderBy);
+    const [data, total] = await client_1.default.$transaction([
+        model(modelName).findMany({
+            where,
+            orderBy: resolvedOrderBy,
+            skip,
+            take: limit,
+        }),
+        model(modelName).count({ where }),
+    ]);
+    return serializeBabyData({
+        data,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
     });
-    return serializeBabyData(logs);
+}
+function buildBabyLogWhere(modelName, babyId, search) {
+    const where = { babyId };
+    const idSearch = numericSearch(search);
+    if (search) {
+        const searchableFields = {
+            vaccinationLog: ["vaccineName", "status", "notes"],
+            motorSkillLog: ["title", "notes"],
+            nutritionLog: ["mealType", "foodName", "quantity", "notes"],
+            sleepLog: ["sleepQuality", "notes"],
+            feedLog: ["quantity", "notes"],
+        };
+        where.OR = [
+            ...(idSearch ? [{ id: idSearch }] : []),
+            ...searchableFields[modelName].map((field) => ({ [field]: { contains: search } })),
+            ...(modelName === "feedLog" && ["BREAST_MILK", "FORMULA_MILK", "SOLID_FOOD", "WATER"].includes(search)
+                ? [{ feedType: search }]
+                : []),
+        ];
+    }
+    return where;
+}
+function buildBabyLogOrderBy(modelName, query, defaultOrderBy) {
+    const allowedSortFields = {
+        vaccinationLog: ["id", "babyId", "vaccineName", "doseNumber", "dueDate", "takenDate", "status", "createdAt"],
+        motorSkillLog: ["id", "babyId", "title", "achieved", "achievedDate", "createdAt"],
+        nutritionLog: ["id", "babyId", "mealType", "foodName", "quantity", "feedingTime", "createdAt"],
+        sleepLog: ["id", "babyId", "sleepStart", "sleepEnd", "durationMinutes", "sleepQuality", "createdAt"],
+        feedLog: ["id", "babyId", "feedType", "quantity", "feedingTime", "durationMinutes", "createdAt"],
+    };
+    return query.sortField && allowedSortFields[modelName].includes(query.sortField)
+        ? { [query.sortField]: query.sortOrder ?? "asc" }
+        : defaultOrderBy;
 }
 async function getBabyLogById(modelName, id) {
     const log = await model(modelName).findUnique({ where: { id } });

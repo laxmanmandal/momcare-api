@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.feedLogUpdateSchema = exports.feedLogCreateSchema = exports.sleepLogUpdateSchema = exports.sleepLogCreateSchema = exports.nutritionLogUpdateSchema = exports.nutritionLogCreateSchema = exports.motorSkillLogUpdateSchema = exports.motorSkillLogCreateSchema = exports.vaccinationLogUpdateSchema = exports.vaccinationLogCreateSchema = exports.babyProfileUpdateSchema = exports.babyProfileCreateSchema = exports.babyLogBabyIdParamsSchema = exports.babyLogIdParamsSchema = exports.babyProfileUserIdParamsSchema = exports.babyIdParamsSchema = exports.babyPositiveIntSchema = exports.babyBigIntIdSchema = void 0;
+exports.feedLogUpdateSchema = exports.feedLogCreateSchema = exports.sleepLogUpdateSchema = exports.sleepLogCreateSchema = exports.nutritionLogUpdateSchema = exports.nutritionLogCreateSchema = exports.motorSkillLogUpdateSchema = exports.motorSkillLogCreateSchema = exports.vaccinationLogUpdateSchema = exports.vaccinationLogCreateSchema = exports.babyProfileUpdateSchema = exports.babyProfileCreateSchema = exports.babyFeedListQuerySchema = exports.babySleepListQuerySchema = exports.babyNutritionListQuerySchema = exports.babyMotorSkillListQuerySchema = exports.babyVaccinationListQuerySchema = exports.babyProfileByUserListQuerySchema = exports.babyProfileListQuerySchema = exports.babyLogBabyIdParamsSchema = exports.babyLogIdParamsSchema = exports.babyProfileUserIdParamsSchema = exports.babyIdParamsSchema = exports.babyPositiveIntSchema = exports.babyBigIntIdSchema = void 0;
 const zod_1 = require("zod");
 const startsWithLetterPattern = /^\p{L}/u;
 const startsWithLetterMsg = "must start with a letter";
@@ -113,6 +113,85 @@ exports.babyLogBabyIdParamsSchema = zod_1.z
     babyId: exports.babyBigIntIdSchema,
 })
     .strict();
+function babyListQuerySchema(sortFields) {
+    return zod_1.z
+        .object({
+        page: zod_1.z.coerce.number().int().positive().default(1),
+        limit: zod_1.z.coerce.number().int().positive().max(100).default(10),
+        search: optionalTrimmedString(255),
+        sortField: zod_1.z.enum(sortFields).optional(),
+        sortOrder: zod_1.z.enum(["asc", "desc"]).optional(),
+    })
+        .strict();
+}
+exports.babyProfileListQuerySchema = babyListQuerySchema([
+    "id",
+    "userId",
+    "babyName",
+    "gender",
+    "dob",
+    "bloodGroup",
+    "birthWeight",
+    "birthHeight",
+    "createdAt",
+    "updatedAt",
+]);
+exports.babyProfileByUserListQuerySchema = babyListQuerySchema([
+    "id",
+    "babyName",
+    "gender",
+    "dob",
+    "bloodGroup",
+    "birthWeight",
+    "birthHeight",
+    "createdAt",
+    "updatedAt",
+]);
+exports.babyVaccinationListQuerySchema = babyListQuerySchema([
+    "id",
+    "babyId",
+    "vaccineName",
+    "doseNumber",
+    "dueDate",
+    "takenDate",
+    "status",
+    "createdAt",
+]);
+exports.babyMotorSkillListQuerySchema = babyListQuerySchema([
+    "id",
+    "babyId",
+    "title",
+    "achieved",
+    "achievedDate",
+    "createdAt",
+]);
+exports.babyNutritionListQuerySchema = babyListQuerySchema([
+    "id",
+    "babyId",
+    "mealType",
+    "foodName",
+    "quantity",
+    "feedingTime",
+    "createdAt",
+]);
+exports.babySleepListQuerySchema = babyListQuerySchema([
+    "id",
+    "babyId",
+    "sleepStart",
+    "sleepEnd",
+    "durationMinutes",
+    "sleepQuality",
+    "createdAt",
+]);
+exports.babyFeedListQuerySchema = babyListQuerySchema([
+    "id",
+    "babyId",
+    "feedType",
+    "quantity",
+    "feedingTime",
+    "durationMinutes",
+    "createdAt",
+]);
 exports.babyProfileCreateSchema = zod_1.z
     .object({
     userId: exports.babyPositiveIntSchema.optional(),

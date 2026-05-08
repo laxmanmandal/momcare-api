@@ -607,7 +607,6 @@ model VaccinationLog {
   id              BigInt    @id @default(autoincrement())
 
   babyId          BigInt
-
   vaccineName     String
   doseNumber      Int?
 

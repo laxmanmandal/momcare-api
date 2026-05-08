@@ -35,8 +35,11 @@ function zodToSwagger(schema) {
             const val = value;
             const isEmpty = Object.keys(val).length === 0;
             const isKnownFile = ['icon', 'image', 'thumbnail', 'media', 'file', 'url'].includes(key);
-            if (isEmpty || isKnownFile) {
+            if (isKnownFile) {
                 result.properties[key] = { type: 'string', format: 'binary' };
+            }
+            else if (isEmpty) {
+                result.properties[key] = { type: 'string' };
             }
         }
     }
