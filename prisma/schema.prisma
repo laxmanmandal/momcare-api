@@ -609,7 +609,6 @@ model VaccinationLog {
   babyId          BigInt
   vaccineName     String
   doseNumber      Int?
-
   dueDate         DateTime?
   takenDate       DateTime?
 

@@ -160,9 +160,8 @@ export async function getUser(uuid: string) {
   return prisma.user.findUnique({
     where: { uuid },
     include: {
-      belongsToEntity: { select: { id: true, name: true } },
+      belongsToEntity: true,
       createdByUser: true,
-
     }
   });
 }

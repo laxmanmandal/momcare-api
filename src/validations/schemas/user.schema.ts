@@ -40,7 +40,8 @@ export const userUpdateBodySchema = z.object({
   type: z.string().trim().optional(),
   expectedDate: z.string().trim().optional(),
   dob: z.string().trim().optional(),
-  dom: z.string().trim().optional()
+  dom: z.string().trim().optional(),
+  imageUrl: z.string().trim().optional()
 }).strict();
 
 export type UsersListParams = z.infer<typeof usersListParamsSchema>;

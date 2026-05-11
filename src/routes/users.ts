@@ -51,7 +51,7 @@ export default async function userRoutes(app: FastifyInstance) {
         const user = await prisma.user.findUnique({
           where: { id: decoded.id },
           include: {
-            belongsToEntity: { select: { name: true } },
+            belongsToEntity: true,
             userPurchase: {
               select: {
                 id: true,

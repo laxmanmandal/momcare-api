@@ -117,12 +117,14 @@ export async function getCourses() {
 
   const coursesWithLessons = await Promise.all(
     courses.map(async (course) => {
-      const lessonIds = course.lessonIds as number[] | null;
+      const lessonIds = Array.isArray(course.lessonIds)
+        ? (course.lessonIds as number[])
+        : [];
 
       // ✅ Explicitly type this as Lesson[]
       let lessons: Lesson[] = [];
 
-      if (lessonIds && lessonIds.length > 0) {
+      if (lessonIds.length > 0) {
         lessons = await prisma.lesson.findMany({
           where: { id: { in: lessonIds } },
           include: { mediaRef: true }, // optional

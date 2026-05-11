@@ -1,11 +1,11 @@
-import { Role } from '@prisma/client';
-import { generateOTP } from './otpUtils';
-import { generateCustomId } from '../../utils/roles';
-import { signToken, signRefreshToken } from '../../utils/jwt';
-import prisma from '../../prisma/client';
-import { BadRequest } from 'http-errors';
-import { recordLastLogin } from '../loginActivity';
-import { randomUUID } from 'crypto';
+import { Role } from "@prisma/client";
+import { generateOTP } from "./otpUtils";
+import { generateCustomId } from "../../utils/roles";
+import { signToken, signRefreshToken } from "../../utils/jwt";
+import prisma from "../../prisma/client";
+import { BadRequest } from "http-errors";
+import { recordLastLogin } from "../loginActivity";
+import { randomUUID } from "crypto";
 function normalizePhone(phone: string) {
   phone = phone.replace(/^\+/, "").replace(/\s+/g, "");
 
@@ -21,7 +21,7 @@ function normalizePhone(phone: string) {
 }
 
 export async function createAndSendOtpForPhone(phone: string) {
-  const uuid = await generateCustomId('USER');
+  const uuid = await generateCustomId("USER");
   const otp = generateOTP(4);
   const otpHash = otp;
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
@@ -30,7 +30,7 @@ export async function createAndSendOtpForPhone(phone: string) {
   const user = await prisma.user.upsert({
     where: { phone },
     update: { otpHash, otpExpires: expiresAt },
-    create: { role: Role.USER, uuid, phone, otpHash, otpExpires: expiresAt }
+    create: { role: Role.USER, uuid, phone, otpHash, otpExpires: expiresAt },
     //
   });
 }
@@ -38,7 +38,7 @@ export async function createAndSendOtpForPhone(phone: string) {
 export async function verifyOtpForPhone(
   phone: string,
   otp: string,
-  ip: string
+  ip: string,
 ) {
   const user = await prisma.user.findUnique({ where: { phone } });
 
@@ -104,7 +104,7 @@ export async function verifyOtpForPhone(
     recordLastLogin({
       userId: user.id,
       uuid: user.uuid,
-      ip: ip// IP can be passed from request context if needed
+      ip: ip, // IP can be passed from request context if needed
     });
   }
   return {
@@ -118,4 +118,3 @@ export async function verifyOtpForPhone(
     },
   };
 }
-
