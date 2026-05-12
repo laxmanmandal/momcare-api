@@ -626,6 +626,10 @@ export const expertCreateMultipartSchema = z
         profession_id: positiveIntSchema,
         name_org: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
         qualification: optionalTrimmedString(255),
+        bio: optionalTrimmedString(2000),
+        certifications: optionalTrimmedString(10000),
+        availability: optionalTrimmedString(10000),
+        languages: optionalTrimmedString(10000),
       })
       .strict(),
     files: z
@@ -644,6 +648,10 @@ export const expertUpdateMultipartSchema = z
         profession_id: positiveIntSchema.optional(),
         name_org: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
         qualification: optionalTrimmedString(255),
+        bio: optionalTrimmedString(2000),
+        certifications: optionalTrimmedString(10000),
+        availability: optionalTrimmedString(10000),
+        languages: optionalTrimmedString(10000),
       })
       .strict(),
     files: z
@@ -682,6 +690,7 @@ export const expertPostCreateMultipartSchema = z
         title: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
         content: requiredTrimmedString(1, 10000),
         expert_id: positiveIntSchema,
+         communityId: positiveIntSchema,
         mediaType: optionalTrimmedString(255),
       })
       .strict(),

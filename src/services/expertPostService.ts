@@ -1,4 +1,5 @@
 import prisma from '../prisma/client'
+import { Prisma } from '@prisma/client';
 import { deleteFileIfExists } from '../utils/fileUploads'
 import { BadRequest } from 'http-errors';
 function toValidInt(v: any): number | null | undefined {
@@ -8,76 +9,95 @@ function toValidInt(v: any): number | null | undefined {
     if (!Number.isFinite(n)) return undefined;
     return Math.trunc(n);
 }
-export async function getExpertPost() {
-    const posts = await prisma.expertPosts.findMany({
-        orderBy: { created_at: "desc" },
-        include: {
-            Reaction: {
-                select: {
-                    type: true
-                }
-            },
-            _count: {
-                select: {
-                    Reaction: true,
-                }
-            },
-            Expert: {
-                select: {
-                    id: true,
-                    name: true,
-                    Professions: true
 
-                }
-            }
-        }
-    });
+export async function getExpertPost(query: any = {}) {
+    const {
+        page = 1,
+        limit = 10,
+        search,
+        communityId,
+        professionId,
+        isFeatured,
+        isActive,
+        expert_id,
+        mediaType,
+        sortField,
+        sortOrder
+    } = query;
 
-    return posts.map(post => {
-        const reactionCounts: Record<string, number> = {};
+    const pageNumber = Math.max(1, Number(page) || 1);
+    const pageSize = Math.min(100, Math.max(1, Number(limit) || 10));
+    const skip = (pageNumber - 1) * pageSize;
 
-        post.Reaction.forEach(r => {
-            reactionCounts[r.type] = (reactionCounts[r.type] || 0) + 1;
-        });
+    const whereClause: any = {};
 
-        return {
-            ...post,
-            reactionCounts,
-            userReaction: null
+    if (search) {
+        whereClause.OR = [
+            { title: { contains: search } },
+            { content: { contains: search } },
+            { Expert: { name: { contains: search } } }
+        ];
+    }
+
+    if (communityId !== undefined) whereClause.communityId = Number(communityId);
+    if (isFeatured !== undefined) whereClause.isFeatured = String(isFeatured) === 'true';
+    if (isActive !== undefined) whereClause.is_active = String(isActive) === 'true';
+    if (expert_id !== undefined) whereClause.expert_id = Number(expert_id);
+    if (mediaType !== undefined) whereClause.mediaType = mediaType;
+    
+    if (professionId !== undefined) {
+        whereClause.Expert = {
+            Professions: { is: { id: Number(professionId) } }
         };
-    });
-}
-export async function getExpertPostByProfessionId(professionId: number) {
-    const posts = await prisma.expertPosts.findMany({
-        where: {
-            Expert: {
-                Professions: {
-                    is: {
-                        id: professionId
+    }
+
+    const allowedSortFields = [
+        'id',
+        'title',
+        'mediaType',
+        'is_active',
+        'isFeatured',
+        'share_count',
+        'view_count',
+        'created_at',
+        'updated_at'
+    ];
+
+    const orderBy: Prisma.expertPostsOrderByWithRelationInput =
+        sortField && allowedSortFields.includes(sortField)
+            ? { [sortField]: sortOrder === 'asc' ? 'asc' : 'desc' }
+            : { created_at: 'desc' };
+
+    const [posts, total] = await prisma.$transaction([
+        prisma.expertPosts.findMany({
+            where: whereClause,
+            skip,
+            take: pageSize,
+            orderBy,
+            include: {
+                Reaction: {
+                    select: {
+                        type: true
+                    }
+                },
+                _count: {
+                    select: {
+                        Reaction: true,
+                    }
+                },
+                Expert: {
+                    select: {
+                        id: true,
+                        name: true,
+                        Professions: true
                     }
                 }
             }
-        }
-        ,
-        orderBy: { created_at: 'desc' },
-        include: {
-            Reaction: {
-                select: { type: true }
-            },
-            _count: {
-                select: { Reaction: true }
-            },
-            Expert: {
-                select: {
-                    id: true,
-                    name: true,
-                    Professions: true
-                }
-            }
-        }
-    });
+        }),
+        prisma.expertPosts.count({ where: whereClause })
+    ]);
 
-    return posts.map(post => {
+    const data = posts.map(post => {
         const reactionCounts: Record<string, number> = {};
 
         post.Reaction.forEach(r => {
@@ -90,6 +110,21 @@ export async function getExpertPostByProfessionId(professionId: number) {
             userReaction: null
         };
     });
+
+    return {
+        data,
+        total,
+        page: pageNumber,
+        limit: pageSize,
+        totalPages: Math.ceil(total / pageSize)
+    };
+}
+export async function getExpertPostByProfessionId(professionId: number, query: any = {}) {
+    return getExpertPost({ ...query, professionId });
+}
+
+export async function getExpertPostByCommunityId(communityId: number, query: any = {}) {
+    return getExpertPost({ ...query, communityId });
 }
 
 export async function getExpertPostById(id: number) {
@@ -146,10 +181,10 @@ export async function updateExpertPost(id: any, payload: any) {
     if (payload.mediaType !== undefined) data.mediaType = payload.mediaType === null ? null : String(payload.mediaType);
 
     if (payload.type !== undefined) data.type = payload.type;
+    if (payload.isFeatured !== undefined) data.isFeatured = Boolean(payload.isFeatured);
     // Scalar foreign keys
     const communityId = toValidInt(payload.communityId);
     if (communityId !== undefined) {
-        if (communityId === null) throw new BadRequest('communityId cannot be null (field is required in model)');
         data.communityId = communityId;
     }
 
@@ -233,6 +268,19 @@ export async function getProfessions() {
     return prisma.professions.findMany();
 }
 
+export async function getProfessionById(id: number) {
+    return prisma.professions.findUnique({
+        where: { id }
+    });
+}
+
 export async function createProfessions(data: any) {
     return prisma.professions.create({ data })
+}
+
+export async function updateProfession(id: number, data: any) {
+    return prisma.professions.update({
+        where: { id },
+        data
+    });
 }

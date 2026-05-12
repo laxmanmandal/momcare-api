@@ -51,6 +51,10 @@ export default async function ExpertRoutes(app: FastifyInstance) {
                 profession_id: fields.profession_id,
                 name_org: fields.name_org,
                 qualification: fields.qualification,
+                bio: fields.bio,
+                certifications: fields.certifications,
+                availability: fields.availability,
+                languages: fields.languages,
             };
 
             const expert = await expertService.createExperts(expertsData);
@@ -93,6 +97,10 @@ export default async function ExpertRoutes(app: FastifyInstance) {
                 profession_id: fields.profession_id,
                 name_org: fields.name_org,
                 qualification: fields.qualification,
+                bio: fields.bio,
+                certifications: fields.certifications,
+                availability: fields.availability,
+                languages: fields.languages,
             };
 
             if (files.image?.length) {

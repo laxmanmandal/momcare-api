@@ -1,0 +1,5 @@
+ALTER TABLE `Expert`
+  ADD COLUMN `bio` TEXT NULL,
+  ADD COLUMN `certifications` LONGTEXT NULL,
+  ADD COLUMN `availability` LONGTEXT NULL,
+  ADD COLUMN `languages` LONGTEXT NULL;
