@@ -221,8 +221,8 @@ export const communityPostCreateMultipartSchema = z
         content: requiredTrimmedString(2, 10000),
         communityId: positiveIntSchema,
         userId: positiveIntSchema.optional(),
-        mediaType: optionalTrimmedString(50),
-        type: communityPostTypeSchema.optional(),
+        mediaType: requiredTrimmedString(1, 50),
+        type: communityPostTypeSchema,
       })
       .strict(),
     files: communityPostFileSchema,
@@ -690,7 +690,7 @@ export const expertPostCreateMultipartSchema = z
         title: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
         content: requiredTrimmedString(1, 10000),
         expert_id: positiveIntSchema,
-         communityId: positiveIntSchema,
+        communityId: positiveIntSchema,
         mediaType: optionalTrimmedString(255),
       })
       .strict(),
