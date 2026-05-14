@@ -123,10 +123,12 @@ async function getCourses() {
         include: { mediaRef: true, subscriptions: true },
     });
     const coursesWithLessons = await Promise.all(courses.map(async (course) => {
-        const lessonIds = course.lessonIds;
+        const lessonIds = Array.isArray(course.lessonIds)
+            ? course.lessonIds
+            : [];
         // ✅ Explicitly type this as Lesson[]
         let lessons = [];
-        if (lessonIds && lessonIds.length > 0) {
+        if (lessonIds.length > 0) {
             lessons = await client_1.default.lesson.findMany({
                 where: { id: { in: lessonIds } },
                 include: { mediaRef: true }, // optional

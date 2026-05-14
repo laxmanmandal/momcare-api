@@ -22,7 +22,16 @@ exports.refreshTokenSchema = zod_1.z.object({
     refreshToken: zod_1.z.string().min(1, 'refreshToken is required')
 }).strict();
 exports.changePasswordSchema = zod_1.z.object({
-    userId: zod_1.z.coerce.number().int().positive('userId must be a positive integer'),
+    userId: zod_1.z.preprocess((val) => {
+        if (val === undefined || val === null || (typeof val === "string" && val.trim() === "")) {
+            return undefined;
+        }
+        const num = Number(val);
+        return isNaN(num) ? val : num;
+    }, zod_1.z.number({
+        required_error: "is required",
+        invalid_type_error: "must be a number",
+    }).int().positive('userId must be a positive integer')),
     old_password: zod_1.z.string().min(8).max(128),
     new_password: zod_1.z.string().min(8).max(128)
 }).strict();

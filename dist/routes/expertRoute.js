@@ -71,6 +71,10 @@ async function ExpertRoutes(app) {
             profession_id: fields.profession_id,
             name_org: fields.name_org,
             qualification: fields.qualification,
+            bio: fields.bio,
+            certifications: fields.certifications,
+            availability: fields.availability,
+            languages: fields.languages,
         };
         const expert = await expertService.createExperts(expertsData);
         if (files.image?.length) {
@@ -105,6 +109,10 @@ async function ExpertRoutes(app) {
             profession_id: fields.profession_id,
             name_org: fields.name_org,
             qualification: fields.qualification,
+            bio: fields.bio,
+            certifications: fields.certifications,
+            availability: fields.availability,
+            languages: fields.languages,
         };
         if (files.image?.length) {
             updateData.image = await app.saveFileBuffer(files.image[0], `_experts`);

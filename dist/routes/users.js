@@ -67,7 +67,7 @@ async function userRoutes(app) {
             const user = await client_1.default.user.findUnique({
                 where: { id: decoded.id },
                 include: {
-                    belongsToEntity: { select: { name: true } },
+                    belongsToEntity: true,
                     userPurchase: {
                         select: {
                             id: true,

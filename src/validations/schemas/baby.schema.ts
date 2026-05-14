@@ -188,9 +188,8 @@ export const babyProfileByUserListQuerySchema = babyListQuerySchema([
 export const babyVaccinationListQuerySchema = babyListQuerySchema([
   "id",
   "babyId",
-  "vaccineName",
+  "week",
   "doseNumber",
-  "dueDate",
   "takenDate",
   "status",
   "createdAt",
@@ -199,29 +198,30 @@ export const babyVaccinationListQuerySchema = babyListQuerySchema([
 export const babyMotorSkillListQuerySchema = babyListQuerySchema([
   "id",
   "babyId",
-  "title",
-  "achieved",
+  "week",
+  "status",
   "achievedDate",
+  "skillNo",
   "createdAt",
 ]);
 
 export const babyNutritionListQuerySchema = babyListQuerySchema([
   "id",
   "babyId",
+  "week",
   "mealType",
-  "foodName",
-  "quantity",
-  "feedingTime",
+  "nutritionNo",
   "createdAt",
 ]);
 
 export const babySleepListQuerySchema = babyListQuerySchema([
   "id",
   "babyId",
+  "week",
   "sleepStart",
   "sleepEnd",
   "durationMinutes",
-  "sleepQuality",
+  "notes",
   "createdAt",
 ]);
 
@@ -254,12 +254,10 @@ export const babyProfileUpdateSchema = babyProfileCreateSchema
 export const vaccinationLogCreateSchema = z
   .object({
     babyId: optionalBigInt(),
-    vaccineName: requiredTrimmedString(1, 255),
+    week: requiredTrimmedString(1, 50),
     doseNumber: optionalNumber({ min: 1, integer: true }),
-    dueDate: optionalDate(),
     takenDate: optionalDate(),
-    status: optionalTrimmedString(50),
-    notes: optionalTrimmedString(5000),
+    status: optionalBoolean(),
   })
   .strict();
 
@@ -270,10 +268,10 @@ export const vaccinationLogUpdateSchema = vaccinationLogCreateSchema
 export const motorSkillLogCreateSchema = z
   .object({
     babyId: optionalBigInt(),
-    title: requiredTrimmedString(1, 255),
-    achieved: optionalBoolean(),
+    week: requiredTrimmedString(1, 50),
+    status: optionalBoolean(),
     achievedDate: optionalDate(),
-    notes: optionalTrimmedString(5000),
+    skillNo: optionalNumber({ min: 1, integer: true }),
   })
   .strict();
 
@@ -284,11 +282,9 @@ export const motorSkillLogUpdateSchema = motorSkillLogCreateSchema
 export const nutritionLogCreateSchema = z
   .object({
     babyId: optionalBigInt(),
+    week: requiredTrimmedString(1, 50),
     mealType: requiredTrimmedString(1, 100),
-    foodName: requiredTrimmedString(1, 255),
-    quantity: optionalTrimmedString(100),
-    feedingTime: requiredDate(),
-    notes: optionalTrimmedString(5000),
+    nutritionNo: optionalNumber({ min: 1, integer: true }),
   })
   .strict();
 
@@ -299,10 +295,10 @@ export const nutritionLogUpdateSchema = nutritionLogCreateSchema
 export const sleepLogCreateSchema = z
   .object({
     babyId: optionalBigInt(),
+    week: requiredTrimmedString(1, 50),
     sleepStart: requiredDate(),
     sleepEnd: optionalDate(),
     durationMinutes: optionalNumber({ min: 0, integer: true }),
-    sleepQuality: optionalTrimmedString(100),
     notes: optionalTrimmedString(5000),
   })
   .strict();

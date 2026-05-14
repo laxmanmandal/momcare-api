@@ -24,7 +24,7 @@ function normalizePhone(phone) {
     throw new http_errors_1.BadRequest("Invalid Indian phone number");
 }
 async function createAndSendOtpForPhone(phone) {
-    const uuid = await (0, roles_1.generateCustomId)('USER');
+    const uuid = await (0, roles_1.generateCustomId)("USER");
     const otp = (0, otpUtils_1.generateOTP)(4);
     const otpHash = otp;
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
@@ -32,7 +32,7 @@ async function createAndSendOtpForPhone(phone) {
     const user = await client_2.default.user.upsert({
         where: { phone },
         update: { otpHash, otpExpires: expiresAt },
-        create: { role: client_1.Role.USER, uuid, phone, otpHash, otpExpires: expiresAt }
+        create: { role: client_1.Role.USER, uuid, phone, otpHash, otpExpires: expiresAt },
         //
     });
 }
@@ -93,7 +93,7 @@ async function verifyOtpForPhone(phone, otp, ip) {
         (0, loginActivity_1.recordLastLogin)({
             userId: user.id,
             uuid: user.uuid,
-            ip: ip // IP can be passed from request context if needed
+            ip: ip, // IP can be passed from request context if needed
         });
     }
     return {

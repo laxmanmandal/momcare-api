@@ -5,11 +5,32 @@ const zod_1 = require("zod");
 const startsWithLetterPattern = /^\p{L}/u;
 const startsWithLetterMsg = 'must start with a letter';
 exports.usersListParamsSchema = zod_1.z.object({
-    entityId: zod_1.z.coerce.number().int().positive()
+    entityId: zod_1.z.preprocess((val) => {
+        if (val === undefined || val === null || (typeof val === "string" && val.trim() === "")) {
+            return undefined;
+        }
+        const num = Number(val);
+        return isNaN(num) ? val : num;
+    }, zod_1.z.number({
+        required_error: "is required",
+        invalid_type_error: "must be a number",
+    }).int().positive())
 }).strict();
 exports.usersListQuerySchema = zod_1.z.object({
-    page: zod_1.z.coerce.number().int().positive().optional(),
-    limit: zod_1.z.coerce.number().int().positive().max(100).optional(),
+    page: zod_1.z.preprocess((val) => {
+        if (val === undefined || val === null || (typeof val === "string" && val.trim() === "")) {
+            return undefined;
+        }
+        const num = Number(val);
+        return isNaN(num) ? val : num;
+    }, zod_1.z.number().int().positive().optional()),
+    limit: zod_1.z.preprocess((val) => {
+        if (val === undefined || val === null || (typeof val === "string" && val.trim() === "")) {
+            return undefined;
+        }
+        const num = Number(val);
+        return isNaN(num) ? val : num;
+    }, zod_1.z.number().int().positive().max(100).optional()),
     search: zod_1.z.string().trim().optional(),
     role: zod_1.z.string().trim().optional(),
     type: zod_1.z.string().trim().optional(),
@@ -18,11 +39,29 @@ exports.usersListQuerySchema = zod_1.z.object({
     sortOrder: zod_1.z.enum(['asc', 'desc']).optional()
 }).strict();
 exports.usersListByRoleParamsSchema = zod_1.z.object({
-    entityId: zod_1.z.coerce.number().int().positive(),
+    entityId: zod_1.z.preprocess((val) => {
+        if (val === undefined || val === null || (typeof val === "string" && val.trim() === "")) {
+            return undefined;
+        }
+        const num = Number(val);
+        return isNaN(num) ? val : num;
+    }, zod_1.z.number({
+        required_error: "is required",
+        invalid_type_error: "must be a number",
+    }).int().positive()),
     role: zod_1.z.string().trim().min(1)
 }).strict();
 exports.usersByEntityParamsSchema = zod_1.z.object({
-    entityId: zod_1.z.coerce.number().int().positive()
+    entityId: zod_1.z.preprocess((val) => {
+        if (val === undefined || val === null || (typeof val === "string" && val.trim() === "")) {
+            return undefined;
+        }
+        const num = Number(val);
+        return isNaN(num) ? val : num;
+    }, zod_1.z.number({
+        required_error: "is required",
+        invalid_type_error: "must be a number",
+    }).int().positive())
 }).strict();
 exports.userStatusParamsSchema = zod_1.z.object({
     uuid: zod_1.z.string().trim().min(1)
@@ -36,6 +75,7 @@ exports.userUpdateBodySchema = zod_1.z.object({
     type: zod_1.z.string().trim().optional(),
     expectedDate: zod_1.z.string().trim().optional(),
     dob: zod_1.z.string().trim().optional(),
-    dom: zod_1.z.string().trim().optional()
+    dom: zod_1.z.string().trim().optional(),
+    imageUrl: zod_1.z.string().trim().optional()
 }).strict();
 //# sourceMappingURL=user.schema.js.map

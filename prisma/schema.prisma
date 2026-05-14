@@ -616,22 +616,13 @@ model VaccinationLog {
   id              BigInt    @id @default(autoincrement())
 
   babyId          BigInt
-  vaccineName     String
+  week            String
   doseNumber      Int?
-  dueDate         DateTime?
   takenDate       DateTime?
-
-  status          String    @default("pending")
-
-  notes           String?   @db.Text
-
   createdAt       DateTime  @default(now())
-
-
+  status          Boolean   @default(true)
   baby            BabyProfile @relation(fields: [babyId], references: [id], onDelete: Cascade)
-
   @@index([babyId])
-
   @@map("vaccination_logs")
 }
 
@@ -643,21 +634,13 @@ model MotorSkillLog {
   id              BigInt    @id @default(autoincrement())
 
   babyId          BigInt
-
-  title           String
-
-  achieved        Boolean   @default(false)
-
+  week            String
+  status          Boolean   @default(true)
   achievedDate    DateTime?
-
-  notes           String?   @db.Text
-
+  skillNo         Int?
   createdAt       DateTime  @default(now())
-
   baby            BabyProfile @relation(fields: [babyId], references: [id], onDelete: Cascade)
-
   @@index([babyId])
-
   @@map("motor_skill_logs")
 }
 
@@ -669,16 +652,9 @@ model NutritionLog {
   id              BigInt    @id @default(autoincrement())
 
   babyId          BigInt
-
+  week            String
   mealType        String
-  foodName        String
-
-  quantity        String?
-
-  feedingTime     DateTime
-
-  notes           String?   @db.Text
-
+  nutritionNo     Int
   createdAt       DateTime  @default(now())
 
   baby            BabyProfile @relation(fields: [babyId], references: [id], onDelete: Cascade)
@@ -696,18 +672,15 @@ model SleepLog {
   id              BigInt    @id @default(autoincrement())
 
   babyId          BigInt
-
+  week            String
   sleepStart      DateTime
   sleepEnd        DateTime?
 
   durationMinutes Int?
 
-  sleepQuality    String?
-
   notes           String?   @db.Text
 
   createdAt       DateTime  @default(now())
-
 
   baby            BabyProfile @relation(fields: [babyId], references: [id], onDelete: Cascade)
 

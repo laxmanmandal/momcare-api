@@ -4,10 +4,19 @@ exports.validateData = validateData;
 exports.validateRequest = validateRequest;
 const error_1 = require("./error");
 function formatIssues(error) {
-    return error.issues.map((issue) => ({
-        field: issue.path.length ? issue.path.map(String).join('.') : 'root',
-        message: issue.message
-    }));
+    return error.issues.map((issue) => {
+        let field = issue.path.length ? issue.path.map(String).join('.') : 'root';
+        if (field.startsWith('fields.')) {
+            field = field.substring(7);
+        }
+        else if (field.startsWith('files.')) {
+            field = field.substring(6);
+        }
+        return {
+            field,
+            message: issue.message
+        };
+    });
 }
 function validateData(schema, data) {
     const result = schema.safeParse(data);

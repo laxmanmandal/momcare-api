@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getExpertPost = getExpertPost;
 exports.getExpertPostByProfessionId = getExpertPostByProfessionId;
+exports.getExpertPostByCommunityId = getExpertPostByCommunityId;
 exports.getExpertPostById = getExpertPostById;
 exports.createExpertPost = createExpertPost;
 exports.updateExpertPost = updateExpertPost;
@@ -12,7 +13,9 @@ exports.incrementShareCount = incrementShareCount;
 exports.incrementViewCount = incrementViewCount;
 exports.expertPostStatus = expertPostStatus;
 exports.getProfessions = getProfessions;
+exports.getProfessionById = getProfessionById;
 exports.createProfessions = createProfessions;
+exports.updateProfession = updateProfession;
 const client_1 = __importDefault(require("../prisma/client"));
 const fileUploads_1 = require("../utils/fileUploads");
 const http_errors_1 = require("http-errors");
@@ -26,70 +29,77 @@ function toValidInt(v) {
         return undefined;
     return Math.trunc(n);
 }
-async function getExpertPost() {
-    const posts = await client_1.default.expertPosts.findMany({
-        orderBy: { created_at: "desc" },
-        include: {
-            Reaction: {
-                select: {
-                    type: true
-                }
-            },
-            _count: {
-                select: {
-                    Reaction: true,
-                }
-            },
-            Expert: {
-                select: {
-                    id: true,
-                    name: true,
-                    Professions: true
-                }
-            }
-        }
-    });
-    return posts.map(post => {
-        const reactionCounts = {};
-        post.Reaction.forEach(r => {
-            reactionCounts[r.type] = (reactionCounts[r.type] || 0) + 1;
-        });
-        return {
-            ...post,
-            reactionCounts,
-            userReaction: null
+async function getExpertPost(query = {}) {
+    const { page = 1, limit = 10, search, communityId, professionId, isFeatured, isActive, expert_id, mediaType, sortField, sortOrder } = query;
+    const pageNumber = Math.max(1, Number(page) || 1);
+    const pageSize = Math.min(100, Math.max(1, Number(limit) || 10));
+    const skip = (pageNumber - 1) * pageSize;
+    const whereClause = {};
+    if (search) {
+        whereClause.OR = [
+            { title: { contains: search } },
+            { content: { contains: search } },
+            { Expert: { name: { contains: search } } }
+        ];
+    }
+    if (communityId !== undefined)
+        whereClause.communityId = Number(communityId);
+    if (isFeatured !== undefined)
+        whereClause.isFeatured = String(isFeatured) === 'true';
+    if (isActive !== undefined)
+        whereClause.is_active = String(isActive) === 'true';
+    if (expert_id !== undefined)
+        whereClause.expert_id = Number(expert_id);
+    if (mediaType !== undefined)
+        whereClause.mediaType = mediaType;
+    if (professionId !== undefined) {
+        whereClause.Expert = {
+            Professions: { is: { id: Number(professionId) } }
         };
-    });
-}
-async function getExpertPostByProfessionId(professionId) {
-    const posts = await client_1.default.expertPosts.findMany({
-        where: {
-            Expert: {
-                Professions: {
-                    is: {
-                        id: professionId
+    }
+    const allowedSortFields = [
+        'id',
+        'title',
+        'mediaType',
+        'is_active',
+        'isFeatured',
+        'share_count',
+        'view_count',
+        'created_at',
+        'updated_at'
+    ];
+    const orderBy = sortField && allowedSortFields.includes(sortField)
+        ? { [sortField]: sortOrder === 'asc' ? 'asc' : 'desc' }
+        : { created_at: 'desc' };
+    const [posts, total] = await client_1.default.$transaction([
+        client_1.default.expertPosts.findMany({
+            where: whereClause,
+            skip,
+            take: pageSize,
+            orderBy,
+            include: {
+                Reaction: {
+                    select: {
+                        type: true
+                    }
+                },
+                _count: {
+                    select: {
+                        Reaction: true,
+                    }
+                },
+                Expert: {
+                    select: {
+                        id: true,
+                        name: true,
+                        Professions: true
                     }
                 }
             }
-        },
-        orderBy: { created_at: 'desc' },
-        include: {
-            Reaction: {
-                select: { type: true }
-            },
-            _count: {
-                select: { Reaction: true }
-            },
-            Expert: {
-                select: {
-                    id: true,
-                    name: true,
-                    Professions: true
-                }
-            }
-        }
-    });
-    return posts.map(post => {
+        }),
+        client_1.default.expertPosts.count({ where: whereClause })
+    ]);
+    const data = posts.map(post => {
         const reactionCounts = {};
         post.Reaction.forEach(r => {
             reactionCounts[r.type] = (reactionCounts[r.type] || 0) + 1;
@@ -100,6 +110,19 @@ async function getExpertPostByProfessionId(professionId) {
             userReaction: null
         };
     });
+    return {
+        data,
+        total,
+        page: pageNumber,
+        limit: pageSize,
+        totalPages: Math.ceil(total / pageSize)
+    };
+}
+async function getExpertPostByProfessionId(professionId, query = {}) {
+    return getExpertPost({ ...query, professionId });
+}
+async function getExpertPostByCommunityId(communityId, query = {}) {
+    return getExpertPost({ ...query, communityId });
 }
 async function getExpertPostById(id) {
     return await client_1.default.expertPosts.findFirst({
@@ -156,11 +179,11 @@ async function updateExpertPost(id, payload) {
         data.mediaType = payload.mediaType === null ? null : String(payload.mediaType);
     if (payload.type !== undefined)
         data.type = payload.type;
+    if (payload.isFeatured !== undefined)
+        data.isFeatured = Boolean(payload.isFeatured);
     // Scalar foreign keys
     const communityId = toValidInt(payload.communityId);
     if (communityId !== undefined) {
-        if (communityId === null)
-            throw new http_errors_1.BadRequest('communityId cannot be null (field is required in model)');
         data.communityId = communityId;
     }
     const userId = toValidInt(payload.userId);
@@ -234,7 +257,18 @@ async function expertPostStatus(id) {
 async function getProfessions() {
     return client_1.default.professions.findMany();
 }
+async function getProfessionById(id) {
+    return client_1.default.professions.findUnique({
+        where: { id }
+    });
+}
 async function createProfessions(data) {
     return client_1.default.professions.create({ data });
+}
+async function updateProfession(id, data) {
+    return client_1.default.professions.update({
+        where: { id },
+        data
+    });
 }
 //# sourceMappingURL=expertPostService.js.map

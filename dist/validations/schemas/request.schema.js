@@ -15,7 +15,16 @@ exports.multipartFileSchema = zod_1.z.object({
     mimetype: zod_1.z.string(),
     buffer: zod_1.z.instanceof(Buffer),
 });
-exports.positiveIntSchema = zod_1.z.coerce.number().int().positive();
+exports.positiveIntSchema = zod_1.z.preprocess((val) => {
+    if (val === undefined || val === null || (typeof val === "string" && val.trim() === "")) {
+        return undefined;
+    }
+    const num = Number(val);
+    return isNaN(num) ? val : num;
+}, zod_1.z.number({
+    required_error: "is required",
+    invalid_type_error: "must be a number",
+}).int().positive());
 function optionalTrimmedString(maxLength, pattern, message) {
     let schema = zod_1.z.string().trim();
     if (maxLength !== undefined) {
@@ -33,7 +42,7 @@ function optionalTrimmedString(maxLength, pattern, message) {
     }, schema.optional());
 }
 function requiredTrimmedString(minLength = 1, maxLength, pattern, message) {
-    let schema = zod_1.z.string().trim().min(minLength);
+    let schema = zod_1.z.string({ required_error: "is required", invalid_type_error: "is required" }).trim().min(minLength, "is required");
     if (maxLength !== undefined) {
         schema = schema.max(maxLength);
     }
@@ -190,8 +199,8 @@ exports.communityPostCreateMultipartSchema = zod_1.z
         content: requiredTrimmedString(2, 10000),
         communityId: exports.positiveIntSchema,
         userId: exports.positiveIntSchema.optional(),
-        mediaType: optionalTrimmedString(50),
-        type: communityPostTypeSchema.optional(),
+        mediaType: requiredTrimmedString(1, 50),
+        type: communityPostTypeSchema,
     })
         .strict(),
     files: communityPostFileSchema,
@@ -544,6 +553,10 @@ exports.expertCreateMultipartSchema = zod_1.z
         profession_id: exports.positiveIntSchema,
         name_org: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
         qualification: optionalTrimmedString(255),
+        bio: optionalTrimmedString(2000),
+        certifications: optionalTrimmedString(10000),
+        availability: optionalTrimmedString(10000),
+        languages: optionalTrimmedString(10000),
     })
         .strict(),
     files: zod_1.z
@@ -561,6 +574,10 @@ exports.expertUpdateMultipartSchema = zod_1.z
         profession_id: exports.positiveIntSchema.optional(),
         name_org: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
         qualification: optionalTrimmedString(255),
+        bio: optionalTrimmedString(2000),
+        certifications: optionalTrimmedString(10000),
+        availability: optionalTrimmedString(10000),
+        languages: optionalTrimmedString(10000),
     })
         .strict(),
     files: zod_1.z
@@ -595,6 +612,7 @@ exports.expertPostCreateMultipartSchema = zod_1.z
         title: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
         content: requiredTrimmedString(1, 10000),
         expert_id: exports.positiveIntSchema,
+        communityId: exports.positiveIntSchema,
         mediaType: optionalTrimmedString(255),
     })
         .strict(),

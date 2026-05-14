@@ -54,21 +54,24 @@ async function resourceRoutes(app) {
             consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
             body: (0, validations_1.zodToSwagger)(validations_1.conceiveCreateMultipartSchema),
             summary: 'Create a conceive resource',
-            response: { 200: successObjectResponse }
+            response: { 201: successObjectResponse }
         }
     }, async (req, reply) => {
         const { fields, files } = (0, validations_1.validateData)(validations_1.conceiveCreateMultipartSchema, await app.parseMultipartMemory(req));
         const conceiveData = fields;
         const conceive = await resourceService.createConceive(conceiveData);
-        if (files.thumbnail?.length && files.image?.length) {
-            const [thumbnail, image] = await Promise.all([
-                app.saveFileBuffer(files.thumbnail[0], 'conceive'),
-                app.saveFileBuffer(files.image[0], 'conceive')
-            ]);
-            await resourceService.updateConceive(conceive.id, { thumbnail, image });
-            Object.assign(conceive, { thumbnail, image });
+        const updatePayload = {};
+        if (files.thumbnail?.length) {
+            updatePayload.thumbnail = await app.saveFileBuffer(files.thumbnail[0], 'conceive');
         }
-        reply.code(200).send({
+        if (files.image?.length) {
+            updatePayload.image = await app.saveFileBuffer(files.image[0], 'conceive');
+        }
+        if (Object.keys(updatePayload).length > 0) {
+            await resourceService.updateConceive(conceive.id, updatePayload);
+            Object.assign(conceive, updatePayload);
+        }
+        reply.code(201).send({
             success: true,
             message: 'Resource created successfully',
             data: conceive

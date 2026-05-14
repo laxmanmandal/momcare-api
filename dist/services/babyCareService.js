@@ -37,6 +37,11 @@ exports.updateFeedLog = updateFeedLog;
 exports.deleteFeedLog = deleteFeedLog;
 const client_1 = __importDefault(require("../prisma/client"));
 const babyProfileInclude = {
+    user: {
+        select: {
+            uuid: true,
+        },
+    },
     _count: {
         select: {
             vaccinations: true,
@@ -63,11 +68,11 @@ async function getBabyProfileById(id) {
         where: { id },
         include: {
             ...babyProfileInclude,
-            vaccinations: { orderBy: { dueDate: "asc" } },
-            sleepLogs: { orderBy: { sleepStart: "desc" } },
-            feedLogs: { orderBy: { feedingTime: "desc" } },
+            vaccinations: { orderBy: { createdAt: "desc" } },
+            sleepLogs: { orderBy: { createdAt: "desc" } },
+            feedLogs: { orderBy: { createdAt: "desc" } },
             milestones: { orderBy: { createdAt: "desc" } },
-            nutritionLogs: { orderBy: { feedingTime: "desc" } },
+            nutritionLogs: { orderBy: { createdAt: "desc" } },
         },
     });
     return serializeBabyData(data);
@@ -93,7 +98,7 @@ async function createVaccinationLog(data) {
     return createBabyLog("vaccinationLog", data);
 }
 async function getVaccinationLogsByBabyId(babyId, query = {}) {
-    return getBabyLogs("vaccinationLog", babyId, { dueDate: "asc" }, query);
+    return getBabyLogs("vaccinationLog", babyId, { createdAt: "desc" }, query);
 }
 async function getVaccinationLogById(id) {
     return getBabyLogById("vaccinationLog", id);
@@ -123,7 +128,7 @@ async function createNutritionLog(data) {
     return createBabyLog("nutritionLog", data);
 }
 async function getNutritionLogsByBabyId(babyId, query = {}) {
-    return getBabyLogs("nutritionLog", babyId, { feedingTime: "desc" }, query);
+    return getBabyLogs("nutritionLog", babyId, { createdAt: "desc" }, query);
 }
 async function getNutritionLogById(id) {
     return getBabyLogById("nutritionLog", id);
@@ -202,6 +207,7 @@ function buildBabyProfileWhere(query) {
             { babyName: { contains: query.search } },
             { gender: { contains: query.search } },
             { bloodGroup: { contains: query.search } },
+            { user: { uuid: { contains: query.search } } },
         ];
     }
     return where;
@@ -274,10 +280,10 @@ function buildBabyLogWhere(modelName, babyId, search) {
     const idSearch = numericSearch(search);
     if (search) {
         const searchableFields = {
-            vaccinationLog: ["vaccineName", "status", "notes"],
-            motorSkillLog: ["title", "notes"],
-            nutritionLog: ["mealType", "foodName", "quantity", "notes"],
-            sleepLog: ["sleepQuality", "notes"],
+            vaccinationLog: ["week", "status"],
+            motorSkillLog: ["week", "status"],
+            nutritionLog: ["week", "mealType"],
+            sleepLog: ["week", "notes"],
             feedLog: ["quantity", "notes"],
         };
         where.OR = [
@@ -292,10 +298,10 @@ function buildBabyLogWhere(modelName, babyId, search) {
 }
 function buildBabyLogOrderBy(modelName, query, defaultOrderBy) {
     const allowedSortFields = {
-        vaccinationLog: ["id", "babyId", "vaccineName", "doseNumber", "dueDate", "takenDate", "status", "createdAt"],
-        motorSkillLog: ["id", "babyId", "title", "achieved", "achievedDate", "createdAt"],
-        nutritionLog: ["id", "babyId", "mealType", "foodName", "quantity", "feedingTime", "createdAt"],
-        sleepLog: ["id", "babyId", "sleepStart", "sleepEnd", "durationMinutes", "sleepQuality", "createdAt"],
+        vaccinationLog: ["id", "babyId", "week", "doseNumber", "takenDate", "status", "createdAt"],
+        motorSkillLog: ["id", "babyId", "week", "status", "achievedDate", "skillNo", "createdAt"],
+        nutritionLog: ["id", "babyId", "week", "mealType", "nutritionNo", "createdAt"],
+        sleepLog: ["id", "babyId", "week", "sleepStart", "sleepEnd", "durationMinutes", "notes", "createdAt"],
         feedLog: ["id", "babyId", "feedType", "quantity", "feedingTime", "durationMinutes", "createdAt"],
     };
     return query.sortField && allowedSortFields[modelName].includes(query.sortField)

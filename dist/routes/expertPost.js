@@ -38,6 +38,7 @@ const expertPostService = __importStar(require("../services/expertPostService"))
 const auth_1 = require("../middleware/auth");
 const zodOpenApi_1 = require("../utils/zodOpenApi");
 const validations_1 = require("../validations");
+const zod_1 = require("zod");
 const successObjectResponse = {
     type: 'object',
     properties: {
@@ -54,6 +55,33 @@ const successArrayResponse = {
         data: { type: 'array', items: { type: 'object', additionalProperties: true } }
     }
 };
+const paginatedResponse = {
+    type: 'object',
+    properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+        data: { type: 'array', items: { type: 'object', additionalProperties: true } },
+        total: { type: 'integer' },
+        page: { type: 'integer' },
+        limit: { type: 'integer' },
+        totalPages: { type: 'integer' }
+    }
+};
+const paginationQuerySchema = zod_1.z.object({
+    page: zod_1.z.coerce.number().min(1).optional(),
+    limit: zod_1.z.coerce.number().min(1).max(100).optional(),
+});
+const expertPostQuerySchema = paginationQuerySchema.extend({
+    search: zod_1.z.string().optional(),
+    communityId: zod_1.z.coerce.number().optional(),
+    professionId: zod_1.z.coerce.number().optional(),
+    isFeatured: zod_1.z.enum(['true', 'false']).optional(),
+    isActive: zod_1.z.enum(['true', 'false']).optional(),
+    expert_id: zod_1.z.coerce.number().optional(),
+    mediaType: zod_1.z.string().optional(),
+    sortField: zod_1.z.string().optional(),
+    sortOrder: zod_1.z.enum(['asc', 'desc']).optional(),
+});
 async function expertPost(app) {
     app.addHook('preHandler', auth_1.authMiddleware);
     app.post('/', {
@@ -70,7 +98,9 @@ async function expertPost(app) {
             title: fields.title,
             content: fields.content,
             expert_id: fields.expert_id,
-            mediaType: fields.mediaType
+            mediaType: fields.mediaType,
+            communityId: fields.communityId ? Number(fields.communityId) : undefined,
+            isFeatured: fields.isFeatured !== undefined ? String(fields.isFeatured) === 'true' : false
         };
         const postData = await expertPostService.createExpertPost(post);
         if (files.media?.length) {
@@ -103,7 +133,9 @@ async function expertPost(app) {
             content: fields.content,
             expert_id: Number(fields.expert_id),
             mediaType: fields.mediaType,
-            media: undefined
+            media: undefined,
+            communityId: fields.communityId ? Number(fields.communityId) : undefined,
+            isFeatured: fields.isFeatured !== undefined ? String(fields.isFeatured) === 'true' : undefined
         };
         if (files.media?.length) {
             payload.media = await app.saveFileBuffer(files.media[0], `_expert_posts`);
@@ -153,30 +185,34 @@ async function expertPost(app) {
         schema: {
             tags: ['Expert Posts'],
             summary: 'List expert posts',
-            response: { 200: successArrayResponse }
+            querystring: (0, zodOpenApi_1.zodToJsonSchema)(expertPostQuerySchema, { target: 'openApi3' }),
+            response: { 200: paginatedResponse }
         }
-    }, async () => {
-        const communities = await expertPostService.getExpertPost();
-        return {
+    }, async (req, reply) => {
+        const query = (0, validations_1.validateData)(expertPostQuerySchema, req.query ?? {});
+        const result = await expertPostService.getExpertPost(query);
+        return reply.code(200).send({
             success: true,
             message: 'Expert Posts fetched successfully',
-            data: communities,
-        };
+            ...result,
+        });
     });
     app.get('/profession/:professionId', {
         schema: {
             tags: ['Expert Posts'],
             params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.expertProfessionParamsSchema, { target: 'openApi3' }),
+            querystring: (0, zodOpenApi_1.zodToJsonSchema)(paginationQuerySchema, { target: 'openApi3' }),
             summary: 'List expert posts by profession ID',
-            response: { 200: successArrayResponse }
+            response: { 200: paginatedResponse }
         }
     }, async (req, reply) => {
         const { professionId } = (0, validations_1.validateData)(validations_1.expertProfessionParamsSchema, req.params);
-        const posts = await expertPostService.getExpertPostByProfessionId(professionId);
+        const query = (0, validations_1.validateData)(paginationQuerySchema, req.query ?? {});
+        const posts = await expertPostService.getExpertPostByProfessionId(professionId, query);
         reply.code(200).send({
             success: true,
             message: 'Expert Posts fetched successfully',
-            data: posts
+            ...posts
         });
     });
     app.get('/:id', {
@@ -193,6 +229,24 @@ async function expertPost(app) {
             success: true,
             message: 'Expert Post fetched successfully',
             data: community,
+        });
+    });
+    app.get('/community/:id', {
+        schema: {
+            tags: ['Expert Posts'],
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.expertPostIdParamsSchema, { target: 'openApi3' }),
+            querystring: (0, zodOpenApi_1.zodToJsonSchema)(paginationQuerySchema, { target: 'openApi3' }),
+            summary: 'List expert posts by community ID',
+            response: { 200: paginatedResponse }
+        }
+    }, async (req, reply) => {
+        const { id } = (0, validations_1.validateData)(validations_1.expertPostIdParamsSchema, req.params);
+        const query = (0, validations_1.validateData)(paginationQuerySchema, req.query ?? {});
+        const posts = await expertPostService.getExpertPostByCommunityId(id, query);
+        return reply.code(200).send({
+            success: true,
+            message: 'Expert Posts fetched successfully',
+            ...posts
         });
     });
     app.patch('/:id/status', {
@@ -242,6 +296,45 @@ async function expertPost(app) {
             message: 'Expert Posts fetched successfully',
             data: professons,
         };
+    });
+    app.get('/professions/:id', {
+        schema: {
+            tags: ['Expert Posts'],
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.expertPostIdParamsSchema, { target: 'openApi3' }),
+            summary: 'Get profession by ID',
+            response: { 200: successObjectResponse }
+        }
+    }, async (req, reply) => {
+        const { id } = (0, validations_1.validateData)(validations_1.expertPostIdParamsSchema, req.params);
+        const profession = await expertPostService.getProfessionById(id);
+        reply.code(200).send({
+            success: true,
+            message: 'Profession fetched successfully',
+            data: profession,
+        });
+    });
+    app.patch('/professions/:id', {
+        preHandler: [auth_1.onlyOrg],
+        schema: {
+            tags: ['Expert Posts'],
+            consumes: ['application/json', 'multipart/form-data', 'application/x-www-form-urlencoded'],
+            params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.expertPostIdParamsSchema, { target: 'openApi3' }),
+            body: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.professionCreateSchema, { target: 'openApi3' }),
+            summary: 'Update a profession',
+            response: { 200: successObjectResponse }
+        }
+    }, async (req, reply) => {
+        const { id } = (0, validations_1.validateData)(validations_1.expertPostIdParamsSchema, req.params);
+        const { fields } = req.isMultipart()
+            ? await app.parseMultipartMemory(req)
+            : { fields: req.body ?? {} };
+        const { name } = (0, validations_1.validateData)(validations_1.professionCreateSchema, fields);
+        const profession = await expertPostService.updateProfession(id, { name });
+        reply.code(200).send({
+            success: true,
+            message: 'Profession updated successfully',
+            data: profession,
+        });
     });
 }
 //# sourceMappingURL=expertPost.js.map

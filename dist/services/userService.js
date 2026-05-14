@@ -126,7 +126,7 @@ async function getUser(uuid) {
     return client_1.default.user.findUnique({
         where: { uuid },
         include: {
-            belongsToEntity: { select: { id: true, name: true } },
+            belongsToEntity: true,
             createdByUser: true,
         }
     });

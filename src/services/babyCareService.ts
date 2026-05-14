@@ -59,11 +59,11 @@ export async function getBabyProfileById(id: bigint) {
     where: { id },
     include: {
       ...babyProfileInclude,
-      vaccinations: { orderBy: { dueDate: "asc" } },
-      sleepLogs: { orderBy: { sleepStart: "desc" } },
-      feedLogs: { orderBy: { feedingTime: "desc" } },
+      vaccinations: { orderBy: { createdAt: "desc" } },
+      sleepLogs: { orderBy: { createdAt: "desc" } },
+      feedLogs: { orderBy: { createdAt: "desc" } },
       milestones: { orderBy: { createdAt: "desc" } },
-      nutritionLogs: { orderBy: { feedingTime: "desc" } },
+      nutritionLogs: { orderBy: { createdAt: "desc" } },
     },
   });
 
@@ -98,7 +98,7 @@ export async function createVaccinationLog(data: Prisma.VaccinationLogUncheckedC
 }
 
 export async function getVaccinationLogsByBabyId(babyId: bigint, query: BabyCareListQuery = {}) {
-  return getBabyLogs("vaccinationLog", babyId, { dueDate: "asc" }, query);
+  return getBabyLogs("vaccinationLog", babyId, { createdAt: "desc" }, query);
 }
 
 export async function getVaccinationLogById(id: bigint) {
@@ -138,7 +138,7 @@ export async function createNutritionLog(data: Prisma.NutritionLogUncheckedCreat
 }
 
 export async function getNutritionLogsByBabyId(babyId: bigint, query: BabyCareListQuery = {}) {
-  return getBabyLogs("nutritionLog", babyId, { feedingTime: "desc" }, query);
+  return getBabyLogs("nutritionLog", babyId, { createdAt: "desc" }, query);
 }
 
 export async function getNutritionLogById(id: bigint) {
@@ -327,10 +327,10 @@ function buildBabyLogWhere(modelName: BabyLogModel, babyId: bigint, search?: str
 
   if (search) {
     const searchableFields: Record<BabyLogModel, string[]> = {
-      vaccinationLog: ["vaccineName", "status", "notes"],
-      motorSkillLog: ["title", "notes"],
-      nutritionLog: ["mealType", "foodName", "quantity", "notes"],
-      sleepLog: ["sleepQuality", "notes"],
+      vaccinationLog: ["week", "status"],
+      motorSkillLog: ["week", "status"],
+      nutritionLog: ["week", "mealType"],
+      sleepLog: ["week", "notes"],
       feedLog: ["quantity", "notes"],
     };
 
@@ -352,10 +352,10 @@ function buildBabyLogOrderBy(
   defaultOrderBy: Record<string, SortOrder>,
 ) {
   const allowedSortFields: Record<BabyLogModel, string[]> = {
-    vaccinationLog: ["id", "babyId", "vaccineName", "doseNumber", "dueDate", "takenDate", "status", "createdAt"],
-    motorSkillLog: ["id", "babyId", "title", "achieved", "achievedDate", "createdAt"],
-    nutritionLog: ["id", "babyId", "mealType", "foodName", "quantity", "feedingTime", "createdAt"],
-    sleepLog: ["id", "babyId", "sleepStart", "sleepEnd", "durationMinutes", "sleepQuality", "createdAt"],
+    vaccinationLog: ["id", "babyId", "week", "doseNumber", "takenDate", "status", "createdAt"],
+    motorSkillLog: ["id", "babyId", "week", "status", "achievedDate", "skillNo", "createdAt"],
+    nutritionLog: ["id", "babyId", "week", "mealType", "nutritionNo", "createdAt"],
+    sleepLog: ["id", "babyId", "week", "sleepStart", "sleepEnd", "durationMinutes", "notes", "createdAt"],
     feedLog: ["id", "babyId", "feedType", "quantity", "feedingTime", "durationMinutes", "createdAt"],
   };
 
