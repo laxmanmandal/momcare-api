@@ -15,7 +15,19 @@ export const multipartFileSchema = z.object({
   buffer: z.instanceof(Buffer),
 });
 
-export const positiveIntSchema = z.coerce.number().int().positive();
+export const positiveIntSchema = z.preprocess(
+  (val) => {
+    if (val === undefined || val === null || (typeof val === "string" && val.trim() === "")) {
+      return undefined;
+    }
+    const num = Number(val);
+    return isNaN(num) ? val : num;
+  },
+  z.number({
+    required_error: "is required",
+    invalid_type_error: "must be a number",
+  }).int().positive()
+);
 
 function optionalTrimmedString(maxLength?: number, pattern?: RegExp, message?: string) {
   let schema = z.string().trim();
@@ -36,7 +48,7 @@ function optionalTrimmedString(maxLength?: number, pattern?: RegExp, message?: s
 }
 
 function requiredTrimmedString(minLength = 1, maxLength?: number, pattern?: RegExp, message?: string) {
-  let schema = z.string().trim().min(minLength);
+  let schema = z.string({ required_error: "is required", invalid_type_error: "is required" }).trim().min(minLength, "is required");
 
   if (maxLength !== undefined) {
     schema = schema.max(maxLength);

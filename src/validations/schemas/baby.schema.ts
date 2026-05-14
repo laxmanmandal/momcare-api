@@ -3,11 +3,38 @@ import { z } from "zod";
 const startsWithLetterPattern = /^\p{L}/u;
 const startsWithLetterMsg = "must start with a letter";
 
-export const babyBigIntIdSchema = z.coerce.bigint().positive();
-export const babyPositiveIntSchema = z.coerce.number().int().positive();
+export const babyBigIntIdSchema = z.preprocess(
+  (val) => {
+    if (val === undefined || val === null || (typeof val === "string" && val.trim() === "")) {
+      return undefined;
+    }
+    try {
+      return BigInt(val as any);
+    } catch {
+      return val;
+    }
+  },
+  z.bigint({
+    required_error: "is required",
+    invalid_type_error: "must be a valid ID",
+  }).positive()
+);
+export const babyPositiveIntSchema = z.preprocess(
+  (val) => {
+    if (val === undefined || val === null || (typeof val === "string" && val.trim() === "")) {
+      return undefined;
+    }
+    const num = Number(val);
+    return isNaN(num) ? val : num;
+  },
+  z.number({
+    required_error: "is required",
+    invalid_type_error: "must be a number",
+  }).int().positive()
+);
 
 function requiredTrimmedString(minLength = 1, maxLength?: number, pattern?: RegExp, message?: string) {
-  let schema = z.string().trim().min(minLength);
+  let schema = z.string({ required_error: "is required", invalid_type_error: "is required" }).trim().min(minLength, "is required");
 
   if (maxLength !== undefined) {
     schema = schema.max(maxLength);

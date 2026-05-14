@@ -26,7 +26,19 @@ export const refreshTokenSchema = z.object({
 }).strict();
 
 export const changePasswordSchema = z.object({
-  userId: z.coerce.number().int().positive('userId must be a positive integer'),
+  userId: z.preprocess(
+    (val) => {
+      if (val === undefined || val === null || (typeof val === "string" && val.trim() === "")) {
+        return undefined;
+      }
+      const num = Number(val);
+      return isNaN(num) ? val : num;
+    },
+    z.number({
+      required_error: "is required",
+      invalid_type_error: "must be a number",
+    }).int().positive('userId must be a positive integer')
+  ),
   old_password: z.string().min(8).max(128),
   new_password: z.string().min(8).max(128)
 }).strict();

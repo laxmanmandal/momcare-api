@@ -4,12 +4,42 @@ const startsWithLetterPattern = /^\p{L}/u;
 const startsWithLetterMsg = 'must start with a letter';
 
 export const usersListParamsSchema = z.object({
-  entityId: z.coerce.number().int().positive()
+  entityId: z.preprocess(
+    (val) => {
+      if (val === undefined || val === null || (typeof val === "string" && val.trim() === "")) {
+        return undefined;
+      }
+      const num = Number(val);
+      return isNaN(num) ? val : num;
+    },
+    z.number({
+      required_error: "is required",
+      invalid_type_error: "must be a number",
+    }).int().positive()
+  )
 }).strict();
 
 export const usersListQuerySchema = z.object({
-  page: z.coerce.number().int().positive().optional(),
-  limit: z.coerce.number().int().positive().max(100).optional(),
+  page: z.preprocess(
+    (val) => {
+      if (val === undefined || val === null || (typeof val === "string" && val.trim() === "")) {
+        return undefined;
+      }
+      const num = Number(val);
+      return isNaN(num) ? val : num;
+    },
+    z.number().int().positive().optional()
+  ),
+  limit: z.preprocess(
+    (val) => {
+      if (val === undefined || val === null || (typeof val === "string" && val.trim() === "")) {
+        return undefined;
+      }
+      const num = Number(val);
+      return isNaN(num) ? val : num;
+    },
+    z.number().int().positive().max(100).optional()
+  ),
   search: z.string().trim().optional(),
   role: z.string().trim().optional(),
   type: z.string().trim().optional(),
@@ -19,12 +49,36 @@ export const usersListQuerySchema = z.object({
 }).strict();
 
 export const usersListByRoleParamsSchema = z.object({
-  entityId: z.coerce.number().int().positive(),
+  entityId: z.preprocess(
+    (val) => {
+      if (val === undefined || val === null || (typeof val === "string" && val.trim() === "")) {
+        return undefined;
+      }
+      const num = Number(val);
+      return isNaN(num) ? val : num;
+    },
+    z.number({
+      required_error: "is required",
+      invalid_type_error: "must be a number",
+    }).int().positive()
+  ),
   role: z.string().trim().min(1)
 }).strict();
 
 export const usersByEntityParamsSchema = z.object({
-  entityId: z.coerce.number().int().positive()
+  entityId: z.preprocess(
+    (val) => {
+      if (val === undefined || val === null || (typeof val === "string" && val.trim() === "")) {
+        return undefined;
+      }
+      const num = Number(val);
+      return isNaN(num) ? val : num;
+    },
+    z.number({
+      required_error: "is required",
+      invalid_type_error: "must be a number",
+    }).int().positive()
+  )
 }).strict();
 
 export const userStatusParamsSchema = z.object({

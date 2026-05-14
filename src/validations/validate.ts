@@ -12,10 +12,20 @@ export type ValidatedRequestData = {
 };
 
 function formatIssues(error: ZodError): ValidationFieldError[] {
-  return error.issues.map((issue) => ({
-    field: issue.path.length ? issue.path.map(String).join('.') : 'root',
-    message: issue.message
-  }));
+  return error.issues.map((issue) => {
+    let field = issue.path.length ? issue.path.map(String).join('.') : 'root';
+
+    if (field.startsWith('fields.')) {
+      field = field.substring(7);
+    } else if (field.startsWith('files.')) {
+      field = field.substring(6);
+    }
+
+    return {
+      field,
+      message: issue.message
+    };
+  });
 }
 
 export function validateData<TSchema extends ZodTypeAny>(
