@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.subscriptionAllocationCreateSchema = exports.subscriptionPlanUpdateSchema = exports.subscriptionPlanCreateSchema = exports.subscriptionIdsParamsSchema = exports.subscriptionUuidParamsSchema = exports.loginLogParamsSchema = exports.loginLogQuerySchema = exports.healthSymptomsSchema = exports.professionCreateSchema = exports.expertPostUpdateMultipartSchema = exports.expertPostCreateMultipartSchema = exports.expertProfessionParamsSchema = exports.expertPostShareParamsSchema = exports.expertPostIdParamsSchema = exports.expertUpdateMultipartSchema = exports.expertCreateMultipartSchema = exports.expertIdParamsSchema = exports.conceiveTypeParamsSchema = exports.conceiveIdParamsSchema = exports.conceiveUpdateMultipartSchema = exports.conceiveCreateMultipartSchema = exports.dailyTipUpdateMultipartSchema = exports.dailyTipCreateMultipartSchema = exports.dailyTipIdParamsSchema = exports.communityCommentPostParamsSchema = exports.communityCommentIdParamsSchema = exports.communityCommentUpdateSchema = exports.communityCommentCreateSchema = exports.communityReactionQuerySchema = exports.communityReactionBodySchema = exports.couponProcessSchema = exports.couponUpdateMultipartSchema = exports.couponCreateMultipartSchema = exports.couponCodeParamsSchema = exports.couponIdParamsSchema = exports.mediaUpdateMultipartSchema = exports.mediaCreateMultipartSchema = exports.mediaSearchQuerySchema = exports.mediaIdParamsSchema = exports.mediaParamsSchema = exports.communityPostTypeParamsSchema = exports.communityPostIdParamsSchema = exports.communityPostUpdateMultipartSchema = exports.communityPostCreateMultipartSchema = exports.communityIdParamsSchema = exports.communityJoinSchema = exports.communityUpdateMultipartSchema = exports.communityCreateMultipartSchema = exports.positiveIntSchema = exports.multipartFileSchema = void 0;
-exports.weekBodySchema = exports.dietNuskheMultipartSchema = exports.dietChartMultipartSchema = exports.dietToolIdParamsSchema = exports.courseUpdateBodySchema = exports.courseCreateBodySchema = exports.courseLessonMediaBodySchema = exports.courseLessonBodySchema = exports.courseLessonQuerySchema = exports.courseIdsParamsSchema = exports.courseIdParamsSchema = exports.courseLessonUuidParamsSchema = exports.courseUuidParamsSchema = exports.entityUpdateMultipartSchema = exports.entityCreateMultipartSchema = exports.entityUpdateSchema = exports.entityBodySchema = exports.entityIdParamsSchema = exports.uploadTableQuerySchema = exports.subscriptionConfirmPaymentSchema = exports.subscriptionPaymentSchema = exports.subscriptionAllotmentSchema = void 0;
+exports.subscriptionPlanUpdateSchema = exports.subscriptionPlanCreateSchema = exports.subscriptionIdsParamsSchema = exports.subscriptionUuidParamsSchema = exports.loginLogParamsSchema = exports.loginLogQuerySchema = exports.healthSymptomsSchema = exports.professionCreateSchema = exports.expertPostUpdateMultipartSchema = exports.expertPostCreateMultipartSchema = exports.expertProfessionParamsSchema = exports.expertPostShareParamsSchema = exports.expertPostIdParamsSchema = exports.expertUpdateMultipartSchema = exports.expertCreateMultipartSchema = exports.expertIdParamsSchema = exports.conceiveTypeParamsSchema = exports.conceiveIdParamsSchema = exports.conceiveUpdateMultipartSchema = exports.conceiveCreateMultipartSchema = exports.contentToolListQuerySchema = exports.dailyTipUpdateMultipartSchema = exports.dailyTipCreateMultipartSchema = exports.dailyTipIdParamsSchema = exports.communityCommentPostParamsSchema = exports.communityCommentIdParamsSchema = exports.communityCommentUpdateSchema = exports.communityCommentCreateSchema = exports.communityReactionQuerySchema = exports.communityReactionBodySchema = exports.couponProcessSchema = exports.couponUpdateMultipartSchema = exports.couponCreateMultipartSchema = exports.couponCodeParamsSchema = exports.couponIdParamsSchema = exports.mediaUpdateMultipartSchema = exports.mediaCreateMultipartSchema = exports.mediaSearchQuerySchema = exports.mediaIdParamsSchema = exports.mediaParamsSchema = exports.communityPostTypeParamsSchema = exports.communityPostIdParamsSchema = exports.communityPostUpdateMultipartSchema = exports.communityPostCreateMultipartSchema = exports.communityIdParamsSchema = exports.communityJoinSchema = exports.communityUpdateMultipartSchema = exports.communityCreateMultipartSchema = exports.positiveIntSchema = exports.multipartFileSchema = void 0;
+exports.weekBodySchema = exports.dietNuskheUpdateMultipartSchema = exports.dietNuskheMultipartSchema = exports.dietChartUpdateMultipartSchema = exports.dietChartMultipartSchema = exports.dietToolIdParamsSchema = exports.courseUpdateBodySchema = exports.courseCreateBodySchema = exports.courseLessonMediaBodySchema = exports.courseLessonBodySchema = exports.courseLessonQuerySchema = exports.courseIdsParamsSchema = exports.courseIdParamsSchema = exports.courseLessonUuidParamsSchema = exports.courseUuidParamsSchema = exports.entityUpdateMultipartSchema = exports.entityCreateMultipartSchema = exports.entityUpdateSchema = exports.entityBodySchema = exports.entityIdParamsSchema = exports.uploadTableQuerySchema = exports.subscriptionConfirmPaymentSchema = exports.subscriptionPaymentSchema = exports.subscriptionAllotmentSchema = exports.subscriptionAllocationCreateSchema = void 0;
 const client_1 = require("@prisma/client");
 const zod_1 = require("zod");
 const httpUrlPattern = /^https?:\/\/[^\s]+$/i;
@@ -21,10 +21,7 @@ exports.positiveIntSchema = zod_1.z.preprocess((val) => {
     }
     const num = Number(val);
     return isNaN(num) ? val : num;
-}, zod_1.z.number({
-    required_error: "is required",
-    invalid_type_error: "must be a number",
-}).int().positive());
+}, zod_1.z.coerce.number().int().positive());
 function optionalTrimmedString(maxLength, pattern, message) {
     let schema = zod_1.z.string().trim();
     if (maxLength !== undefined) {
@@ -41,8 +38,31 @@ function optionalTrimmedString(maxLength, pattern, message) {
         return value;
     }, schema.optional());
 }
+function optionalBooleanQuery() {
+    return zod_1.z.preprocess((value) => {
+        if (value === undefined || value === null)
+            return undefined;
+        if (typeof value === "boolean")
+            return value;
+        if (typeof value === "string") {
+            const normalized = value.trim().toLowerCase();
+            if (!normalized)
+                return undefined;
+            if (normalized === "true" || normalized === "1")
+                return true;
+            if (normalized === "false" || normalized === "0")
+                return false;
+        }
+        return value;
+    }, zod_1.z.boolean().optional());
+}
+function hasMeaningfulValueExcept(value, ignoredKeys = []) {
+    return Object.entries(value).some(([key, entry]) => {
+        return !ignoredKeys.includes(key) && entry !== undefined;
+    });
+}
 function requiredTrimmedString(minLength = 1, maxLength, pattern, message) {
-    let schema = zod_1.z.string({ required_error: "is required", invalid_type_error: "is required" }).trim().min(minLength, "is required");
+    let schema = zod_1.z.string().trim().min(minLength, "is required");
     if (maxLength !== undefined) {
         schema = schema.max(maxLength);
     }
@@ -50,6 +70,26 @@ function requiredTrimmedString(minLength = 1, maxLength, pattern, message) {
         schema = schema.regex(pattern, message);
     }
     return schema;
+}
+function profileCategoryField(options = {}) {
+    const schema = zod_1.z.nativeEnum(client_1.ProfileCategory, {
+        error: "must be one of TTC, PREG, or MOTHER",
+    });
+    return zod_1.z.preprocess((value) => {
+        if (value === undefined || value === null)
+            return undefined;
+        if (typeof value !== "string")
+            return value;
+        const normalized = value.trim().toUpperCase();
+        if (!normalized)
+            return undefined;
+        const aliases = {
+            CONCEIVE: client_1.ProfileCategory.TTC,
+            PREGNANCY: client_1.ProfileCategory.PREG,
+            MOTHERHOOD: client_1.ProfileCategory.MOTHER,
+        };
+        return aliases[normalized] ?? normalized;
+    }, options.optional ? schema.optional() : schema);
 }
 function optionalAssetReference() {
     return zod_1.z.preprocess((value) => {
@@ -451,16 +491,17 @@ exports.dailyTipCreateMultipartSchema = zod_1.z
     fields: zod_1.z
         .object({
         heading: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
-        category: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
-        subheading: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
-        content: optionalTrimmedString(10000),
+        category: profileCategoryField(),
+        subheading: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
+        content: requiredTrimmedString(1, 10000),
+        icon: optionalTrimmedString(2048),
     })
         .strict(),
     files: zod_1.z
         .object({
         icon: fileField(),
     })
-        .strict(),
+        .optional(),
 })
     .strict();
 exports.dailyTipUpdateMultipartSchema = zod_1.z
@@ -468,21 +509,34 @@ exports.dailyTipUpdateMultipartSchema = zod_1.z
     fields: zod_1.z
         .object({
         heading: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
-        category: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
+        category: profileCategoryField({ optional: true }),
         subheading: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
         content: optionalTrimmedString(10000),
+        icon: optionalTrimmedString(2048),
     })
         .strict(),
     files: zod_1.z
         .object({
         icon: fileField(),
     })
-        .strict(),
+        .optional(),
 })
     .strict()
     .refine(({ fields, files }) => {
-    return hasMeaningfulValue(fields) || (files.icon?.length ?? 0) > 0;
+    return hasMeaningfulValueExcept(fields, ["icon"]) || (files?.icon?.length ?? 0) > 0;
 }, "At least one field is required");
+exports.contentToolListQuerySchema = zod_1.z
+    .object({
+    search: optionalTrimmedString(255),
+    category: profileCategoryField({ optional: true }),
+    isActive: optionalBooleanQuery(),
+    weekId: exports.positiveIntSchema.optional(),
+    page: zod_1.z.coerce.number().int().positive().default(1),
+    limit: zod_1.z.coerce.number().int().positive().max(100).default(10),
+    sortField: zod_1.z.enum(["id", "heading", "category", "created_at", "updated_at"]).default("id"),
+    sortOrder: zod_1.z.enum(["asc", "desc"]).default("asc"),
+})
+    .strict();
 exports.conceiveCreateMultipartSchema = zod_1.z
     .object({
     fields: zod_1.z
@@ -872,39 +926,85 @@ exports.dietChartMultipartSchema = zod_1.z
     fields: zod_1.z
         .object({
         creator: optionalTrimmedString(255),
-        heading: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
+        heading: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
         weekId: zod_1.z.coerce.number().int().positive().optional(),
-        category: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
-        subheading: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
-        content: optionalTrimmedString(5000),
-        toolType: optionalTrimmedString(255),
+        category: profileCategoryField(),
+        subheading: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
+        content: requiredTrimmedString(1, 5000),
+        icon: optionalTrimmedString(2048),
     })
         .strict(),
     files: zod_1.z
         .object({
         icon: fileField(),
     })
-        .strict(),
+        .optional(),
 })
     .strict();
+exports.dietChartUpdateMultipartSchema = zod_1.z
+    .object({
+    fields: zod_1.z
+        .object({
+        creator: optionalTrimmedString(255),
+        heading: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
+        weekId: zod_1.z.coerce.number().int().positive().optional(),
+        category: profileCategoryField({ optional: true }),
+        subheading: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
+        content: optionalTrimmedString(5000),
+        icon: optionalTrimmedString(2048),
+    })
+        .strict(),
+    files: zod_1.z
+        .object({
+        icon: fileField(),
+    })
+        .optional(),
+})
+    .strict()
+    .refine(({ fields, files }) => {
+    return hasMeaningfulValueExcept(fields, ["icon"]) || (files?.icon?.length ?? 0) > 0;
+}, "At least one field is required");
 exports.dietNuskheMultipartSchema = zod_1.z
     .object({
     fields: zod_1.z
         .object({
         creator: optionalTrimmedString(255),
-        category: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
-        heading: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
-        subheading: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
-        content: optionalTrimmedString(5000),
+        category: profileCategoryField(),
+        heading: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
+        subheading: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
+        content: requiredTrimmedString(1, 5000),
+        icon: optionalTrimmedString(2048),
     })
         .strict(),
     files: zod_1.z
         .object({
         icon: fileField(),
     })
-        .strict(),
+        .optional(),
 })
     .strict();
+exports.dietNuskheUpdateMultipartSchema = zod_1.z
+    .object({
+    fields: zod_1.z
+        .object({
+        creator: optionalTrimmedString(255),
+        category: profileCategoryField({ optional: true }),
+        heading: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
+        subheading: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
+        content: optionalTrimmedString(5000),
+        icon: optionalTrimmedString(2048),
+    })
+        .strict(),
+    files: zod_1.z
+        .object({
+        icon: fileField(),
+    })
+        .optional(),
+})
+    .strict()
+    .refine(({ fields, files }) => {
+    return hasMeaningfulValueExcept(fields, ["icon"]) || (files?.icon?.length ?? 0) > 0;
+}, "At least one field is required");
 exports.weekBodySchema = zod_1.z
     .object({
     name: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),

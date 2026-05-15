@@ -3,6 +3,7 @@ import * as dailytipService from '../services/dailytipService'
 import { authMiddleware, onlyOrg } from '../middleware/auth';
 import { zodToJsonSchema } from '../utils/zodOpenApi';
 import {
+    contentToolListQuerySchema,
     dailyTipCreateMultipartSchema,
     dailyTipIdParamsSchema,
     dailyTipUpdateMultipartSchema,
@@ -24,9 +25,16 @@ const successArrayResponse = {
     properties: {
         success: { type: 'boolean' },
         message: { type: 'string' },
-        data: { type: 'array', items: { type: 'object', additionalProperties: true } }
+        data: { type: 'array', items: { type: 'object', additionalProperties: true } },
+        pagination: { type: 'object', additionalProperties: true }
     }
 } as const
+
+function compactUndefined<T extends Record<string, unknown>>(data: T) {
+    return Object.fromEntries(
+        Object.entries(data).filter(([, value]) => value !== undefined)
+    );
+}
 
 export default async function dailytipsRoute(app: FastifyInstance) {
     app.post(
@@ -57,7 +65,7 @@ export default async function dailytipsRoute(app: FastifyInstance) {
 
             const dailytips = await dailytipService.createdailyTips(dailytipsData);
 
-            if (files.icon?.length) {
+            if (files?.icon?.length) {
                 const icon = await app.saveFileBuffer(files.icon[0], 'daily-tips');
                 await dailytipService.updatedailyTips(Number(dailytips.id), { icon });
                 Object.assign(dailytips, { icon });
@@ -91,14 +99,14 @@ export default async function dailytipsRoute(app: FastifyInstance) {
                 await app.parseMultipartMemory(req)
             );
 
-            const updateData: any = {
+            const updateData: any = compactUndefined({
                 heading: fields.heading,
                 subheading: fields.subheading,
                 content: fields.content,
                 category: fields.category
-            };
+            });
 
-            if (files.icon?.length) {
+            if (files?.icon?.length) {
                 updateData.icon = await app.saveFileBuffer(files.icon[0], `daily-tips`);
             }
 
@@ -118,16 +126,19 @@ export default async function dailytipsRoute(app: FastifyInstance) {
             schema: {
                 tags: ['Dailytips'],
                 summary: 'List all daily tips',
+                querystring: zodToJsonSchema(contentToolListQuerySchema as any, { target: 'openApi3' }),
                 response: { 200: successArrayResponse }
             },
             preHandler: [authMiddleware]
         },
-        async () => {
-            const dailytips = await dailytipService.getdailyTips();
+        async (req) => {
+            const query = validateData(contentToolListQuerySchema, req.query ?? {});
+            const result = await dailytipService.getdailyTips(query);
             return {
                 success: true,
                 message: 'dailytips fetched successfully',
-                data: dailytips,
+                data: result.data,
+                pagination: result.pagination,
             };
         }
     );

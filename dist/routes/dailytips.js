@@ -51,9 +51,13 @@ const successArrayResponse = {
     properties: {
         success: { type: 'boolean' },
         message: { type: 'string' },
-        data: { type: 'array', items: { type: 'object', additionalProperties: true } }
+        data: { type: 'array', items: { type: 'object', additionalProperties: true } },
+        pagination: { type: 'object', additionalProperties: true }
     }
 };
+function compactUndefined(data) {
+    return Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined));
+}
 async function dailytipsRoute(app) {
     app.post('/', {
         schema: {
@@ -74,7 +78,7 @@ async function dailytipsRoute(app) {
             creator: req.user.name
         };
         const dailytips = await dailytipService.createdailyTips(dailytipsData);
-        if (files.icon?.length) {
+        if (files?.icon?.length) {
             const icon = await app.saveFileBuffer(files.icon[0], 'daily-tips');
             await dailytipService.updatedailyTips(Number(dailytips.id), { icon });
             Object.assign(dailytips, { icon });
@@ -98,13 +102,13 @@ async function dailytipsRoute(app) {
     }, async (req, reply) => {
         const { id } = (0, validations_1.validateData)(validations_1.dailyTipIdParamsSchema, req.params);
         const { fields, files } = (0, validations_1.validateData)(validations_1.dailyTipUpdateMultipartSchema, await app.parseMultipartMemory(req));
-        const updateData = {
+        const updateData = compactUndefined({
             heading: fields.heading,
             subheading: fields.subheading,
             content: fields.content,
             category: fields.category
-        };
-        if (files.icon?.length) {
+        });
+        if (files?.icon?.length) {
             updateData.icon = await app.saveFileBuffer(files.icon[0], `daily-tips`);
         }
         const updateddailytips = await dailytipService.updatedailyTips(id, updateData);
@@ -118,15 +122,18 @@ async function dailytipsRoute(app) {
         schema: {
             tags: ['Dailytips'],
             summary: 'List all daily tips',
+            querystring: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.contentToolListQuerySchema, { target: 'openApi3' }),
             response: { 200: successArrayResponse }
         },
         preHandler: [auth_1.authMiddleware]
-    }, async () => {
-        const dailytips = await dailytipService.getdailyTips();
+    }, async (req) => {
+        const query = (0, validations_1.validateData)(validations_1.contentToolListQuerySchema, req.query ?? {});
+        const result = await dailytipService.getdailyTips(query);
         return {
             success: true,
             message: 'dailytips fetched successfully',
-            data: dailytips,
+            data: result.data,
+            pagination: result.pagination,
         };
     });
     app.get('/:id', {

@@ -3,8 +3,11 @@ import * as dietNuskhaToolervice from '../services/dietNuskhaToolService'
 import { authMiddleware, onlyOrg } from '../middleware/auth';
 import { zodToJsonSchema } from '../utils/zodOpenApi';
 import {
+    contentToolListQuerySchema,
     dietChartMultipartSchema,
+    dietChartUpdateMultipartSchema,
     dietNuskheMultipartSchema,
+    dietNuskheUpdateMultipartSchema,
     dietToolIdParamsSchema,
     weekBodySchema,
     validateData,
@@ -25,9 +28,16 @@ const successArrayResponse = {
     properties: {
         success: { type: 'boolean' },
         message: { type: 'string' },
-        data: { type: 'array', items: { type: 'object', additionalProperties: true } }
+        data: { type: 'array', items: { type: 'object', additionalProperties: true } },
+        pagination: { type: 'object', additionalProperties: true }
     }
 } as const
+
+function compactUndefined<T extends Record<string, unknown>>(data: T) {
+    return Object.fromEntries(
+        Object.entries(data).filter(([, value]) => value !== undefined)
+    );
+}
 
 export default async function dietNuskhaRoute(app: FastifyInstance) {
     app.addHook('preHandler', authMiddleware)
@@ -37,23 +47,23 @@ export default async function dietNuskhaRoute(app: FastifyInstance) {
             tags: ['diet-chart'],
             summary: 'Create a diet chart entry',
             consumes: ['multipart/form-data', 'application/json', 'application/x-www-form-urlencoded'],
-                body: zodToSwagger(dietChartMultipartSchema),
+            body: zodToSwagger(dietChartMultipartSchema),
             response: { 200: successObjectResponse, 500: successObjectResponse }
         },
         preHandler: [authMiddleware, onlyOrg]
     }, async (req: any, reply) => {
-        const { fields, files } = validateData(dietChartMultipartSchema, await app.parseMultipartMemory(req));
+        const parsed = req.isMultipart() ? await app.parseMultipartMemory(req) : { fields: req.body ?? {}, files: {} };
+        const { fields, files } = validateData(dietChartMultipartSchema, parsed);
         const dietData = {
             creator: req.user.name,
             heading: fields.heading,
             weekId: fields.weekId,
             category: fields.category,
             subheading: fields.subheading,
-            content: fields.content,
-            toolType: fields.toolType
+            content: fields.content
         };
         const response = await dietNuskhaToolervice.createDietchart(dietData);
-        if (files.icon?.length) {
+        if (files?.icon?.length) {
             const icon = await app.saveFileBuffer(files.icon[0], 'diet-chart');
             await dietNuskhaToolervice.updateDietchart(Number(response.id), { icon });
             Object.assign(response, { icon });
@@ -70,24 +80,24 @@ export default async function dietNuskhaRoute(app: FastifyInstance) {
             tags: ['diet-chart'],
             summary: 'Update a diet chart entry',
             consumes: ['multipart/form-data', 'application/json', 'application/x-www-form-urlencoded'],
-                body: zodToSwagger(dietChartMultipartSchema),
+            body: zodToSwagger(dietChartUpdateMultipartSchema),
             params: zodToJsonSchema(dietToolIdParamsSchema as any, { target: 'openApi3' }),
             response: { 200: successObjectResponse, 500: successObjectResponse }
         },
         preHandler: [authMiddleware, onlyOrg]
-    }, async (req, reply) => {
+    }, async (req: any, reply) => {
         const { id } = validateData(dietToolIdParamsSchema, req.params);
-        const { fields, files } = validateData(dietChartMultipartSchema, await app.parseMultipartMemory(req));
-        const updateData: any = {
+        const parsed = req.isMultipart() ? await app.parseMultipartMemory(req) : { fields: req.body ?? {}, files: {} };
+        const { fields, files } = validateData(dietChartUpdateMultipartSchema, parsed);
+        const updateData: any = compactUndefined({
             creator: fields.creator,
             heading: fields.heading,
             weekId: fields.weekId,
             category: fields.category,
             subheading: fields.subheading,
-            content: fields.content,
-            toolType: fields.toolType
-        };
-        if (files.icon?.length) {
+            content: fields.content
+        });
+        if (files?.icon?.length) {
             updateData.icon = await app.saveFileBuffer(files.icon[0], `diet-chart`);
         }
         const updateddietNuskhaTool = await dietNuskhaToolervice.updateDietchart(Number(id), updateData);
@@ -102,15 +112,18 @@ export default async function dietNuskhaRoute(app: FastifyInstance) {
         schema: {
             tags: ['diet-chart'],
             summary: 'List all diet chart entries',
+            querystring: zodToJsonSchema(contentToolListQuerySchema as any, { target: 'openApi3' }),
             response: { 200: successArrayResponse }
         },
         preHandler: [authMiddleware]
     }, async (req, reply) => {
-        const dietNuskhaTool = await dietNuskhaToolervice.getDietchart();
+        const query = validateData(contentToolListQuerySchema, req.query ?? {});
+        const dietNuskhaTool = await dietNuskhaToolervice.getDietchart(query);
         reply.send({
             success: true,
             message: 'Diet Chart fetched successfully',
-            data: dietNuskhaTool,
+            data: dietNuskhaTool.data,
+            pagination: dietNuskhaTool.pagination,
         });
     });
 
@@ -118,17 +131,20 @@ export default async function dietNuskhaRoute(app: FastifyInstance) {
         schema: {
             tags: ['diet-chart'],
             params: zodToJsonSchema(dietToolIdParamsSchema as any, { target: 'openApi3' }),
+            querystring: zodToJsonSchema(contentToolListQuerySchema.omit({ weekId: true }) as any, { target: 'openApi3' }),
             summary: 'Get diet chart by week ID',
             response: { 200: successArrayResponse }
         },
         preHandler: [authMiddleware]
     }, async (req, reply) => {
         const { id } = validateData(dietToolIdParamsSchema, req.params);
-        const dietNuskhaTool = await dietNuskhaToolervice.getDietChartByWeekId(id);
+        const query = validateData(contentToolListQuerySchema.omit({ weekId: true }), req.query ?? {});
+        const dietNuskhaTool = await dietNuskhaToolervice.getDietChartByWeekId(id, query);
         reply.send({
             success: true,
             message: 'Diet Chart fetched successfully',
-            data: dietNuskhaTool,
+            data: dietNuskhaTool.data,
+            pagination: dietNuskhaTool.pagination,
         });
     });
 
@@ -175,7 +191,8 @@ export default async function dietNuskhaRoute(app: FastifyInstance) {
         },
         preHandler: [authMiddleware, onlyOrg]
     }, async (req: any, reply) => {
-        const { fields, files } = validateData(dietNuskheMultipartSchema, await app.parseMultipartMemory(req));
+        const parsed = req.isMultipart() ? await app.parseMultipartMemory(req) : { fields: req.body ?? {}, files: {} };
+        const { fields, files } = validateData(dietNuskheMultipartSchema, parsed);
         const dadinaniData = {
             creator: req.user.name,
             category: fields.category,
@@ -184,7 +201,7 @@ export default async function dietNuskhaRoute(app: FastifyInstance) {
             content: fields.content,
         };
         const response = await dietNuskhaToolervice.createNuskhe(dadinaniData);
-        if (files.icon?.length) {
+        if (files?.icon?.length) {
             const icon = await app.saveFileBuffer(files.icon[0], 'dadiNaniNuskhe');
             await dietNuskhaToolervice.updateNuskhe(Number(response.id), { icon });
             Object.assign(response, { icon });
@@ -201,21 +218,23 @@ export default async function dietNuskhaRoute(app: FastifyInstance) {
             tags: ['Dadi-nani-Nuskhe'],
             summary: 'Update a Dadi-Nani Nuskhe entry',
             consumes: ['multipart/form-data', 'application/json', 'application/x-www-form-urlencoded'],
-                body: zodToSwagger(dietNuskheMultipartSchema),
+            body: zodToSwagger(dietNuskheUpdateMultipartSchema),
             params: zodToJsonSchema(dietToolIdParamsSchema as any, { target: 'openApi3' }),
             response: { 200: successObjectResponse, 500: successObjectResponse }
         },
         preHandler: [authMiddleware, onlyOrg]
-    }, async (req, reply) => {
+    }, async (req: any, reply) => {
         const { id } = validateData(dietToolIdParamsSchema, req.params);
-        const { fields, files } = validateData(dietNuskheMultipartSchema, await app.parseMultipartMemory(req));
-        const updateData: any = {
+        const parsed = req.isMultipart() ? await app.parseMultipartMemory(req) : { fields: req.body ?? {}, files: {} };
+        const { fields, files } = validateData(dietNuskheUpdateMultipartSchema, parsed);
+        const updateData: any = compactUndefined({
             creator: fields.creator,
+            category: fields.category,
             heading: fields.heading,
             subheading: fields.subheading,
             content: fields.content,
-        };
-        if (files.icon?.length) {
+        });
+        if (files?.icon?.length) {
             updateData.icon = await app.saveFileBuffer(files.icon[0], `dadiNaniNuskhe`);
         }
         const updatedNuskha = await dietNuskhaToolervice.updateNuskhe(Number(id), updateData);
@@ -230,15 +249,18 @@ export default async function dietNuskhaRoute(app: FastifyInstance) {
         schema: {
             tags: ['Dadi-nani-Nuskhe'],
             summary: 'List all Dadi-Nani Nuskhe',
+            querystring: zodToJsonSchema(contentToolListQuerySchema.omit({ weekId: true }) as any, { target: 'openApi3' }),
             response: { 200: successArrayResponse }
         },
         preHandler: [authMiddleware]
     }, async (req, reply) => {
-        const NuskhaTool = await dietNuskhaToolervice.getDadiNaniNuskhe();
+        const query = validateData(contentToolListQuerySchema.omit({ weekId: true }), req.query ?? {});
+        const NuskhaTool = await dietNuskhaToolervice.getDadiNaniNuskhe(query);
         reply.send({
             success: true,
             message: 'Dani Nani k Nuskhe fetched successfully',
-            data: NuskhaTool,
+            data: NuskhaTool.data,
+            pagination: NuskhaTool.pagination,
         });
     });
 

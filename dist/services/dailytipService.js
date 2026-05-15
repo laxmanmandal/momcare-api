@@ -4,13 +4,71 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getdailyTips = getdailyTips;
+exports.getAllDailyTips = getAllDailyTips;
 exports.getdailyTipsById = getdailyTipsById;
 exports.createdailyTips = createdailyTips;
 exports.updatedailyTips = updatedailyTips;
 exports.dailyTipsStatus = dailyTipsStatus;
 const client_1 = __importDefault(require("../prisma/client"));
 const fileUploads_1 = require("../utils/fileUploads");
-async function getdailyTips() {
+const http_errors_1 = require("http-errors");
+function buildDailyTipWhere(query) {
+    const where = {};
+    if (query.search) {
+        where.OR = [
+            { heading: { contains: query.search } },
+            { subheading: { contains: query.search } },
+            { content: { contains: query.search } },
+            { creator: { contains: query.search } },
+        ];
+    }
+    if (query.category)
+        where.category = query.category;
+    if (query.isActive !== undefined)
+        where.isActive = query.isActive;
+    return where;
+}
+async function getdailyTips(query = {}) {
+    const page = Math.max(1, Number(query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(query.limit) || 10));
+    const skip = (page - 1) * limit;
+    const where = buildDailyTipWhere(query);
+    const sortField = query.sortField ?? 'id';
+    const sortOrder = query.sortOrder ?? 'asc';
+    const [data, total] = await client_1.default.$transaction([
+        client_1.default.dailyTip.findMany({
+            where,
+            select: {
+                id: true,
+                creator: true,
+                heading: true,
+                subheading: true,
+                content: true,
+                category: true,
+                isActive: true,
+                icon: true,
+                created_at: true,
+                updated_at: true,
+            },
+            orderBy: {
+                [sortField]: sortOrder,
+            },
+            skip,
+            take: limit,
+        }),
+        client_1.default.dailyTip.count({ where }),
+    ]);
+    return {
+        data,
+        pagination: {
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+        },
+    };
+}
+async function getAllDailyTips() {
     return client_1.default.dailyTip.findMany({
         select: {
             id: true,
@@ -19,6 +77,7 @@ async function getdailyTips() {
             subheading: true,
             content: true,
             category: true,
+            isActive: true,
             icon: true,
             created_at: true,
             updated_at: true,
@@ -37,7 +96,7 @@ async function createdailyTips(data) {
 async function updatedailyTips(id, data) {
     const existing = await client_1.default.dailyTip.findUnique({ where: { id } });
     if (!existing)
-        throw new Error('Daily Tips resourse not found');
+        throw new http_errors_1.BadRequest('Daily Tips resource not found');
     if (data.icon && existing.icon && existing.icon !== data.icon) {
         await (0, fileUploads_1.deleteFileIfExists)(existing.icon);
     }
@@ -46,7 +105,7 @@ async function updatedailyTips(id, data) {
 async function dailyTipsStatus(id) {
     const tips = await client_1.default.dailyTip.findUnique({ where: { id } });
     if (!tips)
-        throw new Error("Daily Tips not found");
+        throw new http_errors_1.BadRequest("Daily Tips not found");
     return client_1.default.dailyTip.update({
         where: { id },
         data: { isActive: !tips.isActive },

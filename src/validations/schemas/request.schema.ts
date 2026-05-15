@@ -1,4 +1,4 @@
-import { PostType } from "@prisma/client";
+import { PostType, ProfileCategory } from "@prisma/client";
 import { z } from "zod";
 
 const httpUrlPattern = /^https?:\/\/[^\s]+$/i;
@@ -23,10 +23,7 @@ export const positiveIntSchema = z.preprocess(
     const num = Number(val);
     return isNaN(num) ? val : num;
   },
-  z.number({
-    required_error: "is required",
-    invalid_type_error: "must be a number",
-  }).int().positive()
+  z.coerce.number().int().positive()
 );
 
 function optionalTrimmedString(maxLength?: number, pattern?: RegExp, message?: string) {
@@ -47,8 +44,28 @@ function optionalTrimmedString(maxLength?: number, pattern?: RegExp, message?: s
   }, schema.optional());
 }
 
+function optionalBooleanQuery() {
+  return z.preprocess((value) => {
+    if (value === undefined || value === null) return undefined;
+    if (typeof value === "boolean") return value;
+    if (typeof value === "string") {
+      const normalized = value.trim().toLowerCase();
+      if (!normalized) return undefined;
+      if (normalized === "true" || normalized === "1") return true;
+      if (normalized === "false" || normalized === "0") return false;
+    }
+    return value;
+  }, z.boolean().optional());
+}
+
+function hasMeaningfulValueExcept(value: Record<string, unknown>, ignoredKeys: string[] = []) {
+  return Object.entries(value).some(([key, entry]) => {
+    return !ignoredKeys.includes(key) && entry !== undefined;
+  });
+}
+
 function requiredTrimmedString(minLength = 1, maxLength?: number, pattern?: RegExp, message?: string) {
-  let schema = z.string({ required_error: "is required", invalid_type_error: "is required" }).trim().min(minLength, "is required");
+  let schema = z.string().trim().min(minLength, "is required");
 
   if (maxLength !== undefined) {
     schema = schema.max(maxLength);
@@ -59,6 +76,28 @@ function requiredTrimmedString(minLength = 1, maxLength?: number, pattern?: RegE
   }
 
   return schema;
+}
+
+function profileCategoryField(options: { optional?: boolean } = {}) {
+  const schema = z.nativeEnum(ProfileCategory, {
+    error: "must be one of TTC, PREG, or MOTHER",
+  });
+
+  return z.preprocess((value) => {
+    if (value === undefined || value === null) return undefined;
+    if (typeof value !== "string") return value;
+
+    const normalized = value.trim().toUpperCase();
+    if (!normalized) return undefined;
+
+    const aliases: Record<string, ProfileCategory> = {
+      CONCEIVE: ProfileCategory.TTC,
+      PREGNANCY: ProfileCategory.PREG,
+      MOTHERHOOD: ProfileCategory.MOTHER,
+    };
+
+    return aliases[normalized] ?? normalized;
+  }, options.optional ? schema.optional() : schema);
 }
 
 function optionalAssetReference() {
@@ -527,16 +566,17 @@ export const dailyTipCreateMultipartSchema = z
     fields: z
       .object({
         heading: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
-        category: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
-        subheading: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
-        content: optionalTrimmedString(10000),
+        category: profileCategoryField(),
+        subheading: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
+        content: requiredTrimmedString(1, 10000),
+        icon: optionalTrimmedString(2048),
       })
       .strict(),
     files: z
       .object({
         icon: fileField(),
       })
-      .strict(),
+      .optional(),
   })
   .strict();
 
@@ -545,21 +585,35 @@ export const dailyTipUpdateMultipartSchema = z
     fields: z
       .object({
         heading: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
-        category: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
+        category: profileCategoryField({ optional: true }),
         subheading: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
         content: optionalTrimmedString(10000),
+        icon: optionalTrimmedString(2048),
       })
       .strict(),
     files: z
       .object({
         icon: fileField(),
       })
-      .strict(),
+      .optional(),
   })
   .strict()
   .refine(({ fields, files }) => {
-    return hasMeaningfulValue(fields) || (files.icon?.length ?? 0) > 0;
+    return hasMeaningfulValueExcept(fields, ["icon"]) || (files?.icon?.length ?? 0) > 0;
   }, "At least one field is required");
+
+export const contentToolListQuerySchema = z
+  .object({
+    search: optionalTrimmedString(255),
+    category: profileCategoryField({ optional: true }),
+    isActive: optionalBooleanQuery(),
+    weekId: positiveIntSchema.optional(),
+    page: z.coerce.number().int().positive().default(1),
+    limit: z.coerce.number().int().positive().max(100).default(10),
+    sortField: z.enum(["id", "heading", "category", "created_at", "updated_at"]).default("id"),
+    sortOrder: z.enum(["asc", "desc"]).default("asc"),
+  })
+  .strict();
 
 export const conceiveCreateMultipartSchema = z
   .object({
@@ -1003,40 +1057,88 @@ export const dietChartMultipartSchema = z
     fields: z
       .object({
         creator: optionalTrimmedString(255),
-        heading: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
+        heading: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
         weekId: z.coerce.number().int().positive().optional(),
-        category: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
-        subheading: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
-        content: optionalTrimmedString(5000),
-        toolType: optionalTrimmedString(255),
+        category: profileCategoryField(),
+        subheading: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
+        content: requiredTrimmedString(1, 5000),
+        icon: optionalTrimmedString(2048),
       })
       .strict(),
     files: z
       .object({
         icon: fileField(),
       })
-      .strict(),
+      .optional(),
   })
   .strict();
+
+export const dietChartUpdateMultipartSchema = z
+  .object({
+    fields: z
+      .object({
+        creator: optionalTrimmedString(255),
+        heading: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
+        weekId: z.coerce.number().int().positive().optional(),
+        category: profileCategoryField({ optional: true }),
+        subheading: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
+        content: optionalTrimmedString(5000),
+        icon: optionalTrimmedString(2048),
+      })
+      .strict(),
+    files: z
+      .object({
+        icon: fileField(),
+      })
+      .optional(),
+  })
+  .strict()
+  .refine(({ fields, files }) => {
+    return hasMeaningfulValueExcept(fields, ["icon"]) || (files?.icon?.length ?? 0) > 0;
+  }, "At least one field is required");
 
 export const dietNuskheMultipartSchema = z
   .object({
     fields: z
       .object({
         creator: optionalTrimmedString(255),
-        category: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
-        heading: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
-        subheading: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
-        content: optionalTrimmedString(5000),
+        category: profileCategoryField(),
+        heading: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
+        subheading: requiredTrimmedString(1, 255, startsWithLetterPattern, startsWithLetterMsg),
+        content: requiredTrimmedString(1, 5000),
+        icon: optionalTrimmedString(2048),
       })
       .strict(),
     files: z
       .object({
         icon: fileField(),
       })
-      .strict(),
+      .optional(),
   })
   .strict();
+
+export const dietNuskheUpdateMultipartSchema = z
+  .object({
+    fields: z
+      .object({
+        creator: optionalTrimmedString(255),
+        category: profileCategoryField({ optional: true }),
+        heading: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
+        subheading: optionalTrimmedString(255, startsWithLetterPattern, startsWithLetterMsg),
+        content: optionalTrimmedString(5000),
+        icon: optionalTrimmedString(2048),
+      })
+      .strict(),
+    files: z
+      .object({
+        icon: fileField(),
+      })
+      .optional(),
+  })
+  .strict()
+  .refine(({ fields, files }) => {
+    return hasMeaningfulValueExcept(fields, ["icon"]) || (files?.icon?.length ?? 0) > 0;
+  }, "At least one field is required");
 
 export const weekBodySchema = z
   .object({
