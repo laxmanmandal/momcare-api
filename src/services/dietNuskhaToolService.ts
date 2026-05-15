@@ -63,8 +63,8 @@ function normalizeContentPayload(data: any) {
 export async function getDietchart(query: ContentToolListQuery = {}) {
     const { page, limit, skip } = paginationFrom(query);
     const where = buildContentToolWhere(query, { includeWeek: true });
-    const sortField = query.sortField ?? 'id';
-    const sortOrder = query.sortOrder ?? 'asc';
+    const sortField = query.sortField ?? 'created_at';
+    const sortOrder = query.sortOrder ?? 'desc';
 
     const [data, total] = await prisma.$transaction([
         prisma.dietChart.findMany({
@@ -103,8 +103,8 @@ export async function getDietChartById(id: number) {
 export async function getDietChartByWeekId(weekId: number, query: ContentToolListQuery = {}) {
     const { page, limit, skip } = paginationFrom(query);
     const where = buildContentToolWhere({ ...query, weekId }, { includeWeek: true });
-    const sortField = query.sortField ?? 'id';
-    const sortOrder = query.sortOrder ?? 'asc';
+    const sortField = query.sortField ?? 'created_at';
+    const sortOrder = query.sortOrder ?? 'desc';
 
     const [data, total] = await prisma.$transaction([
         prisma.dietChart.findMany({
@@ -160,8 +160,8 @@ export async function DietchartStatus(id: number) {
 export async function getDadiNaniNuskhe(query: ContentToolListQuery = {}) {
     const { page, limit, skip } = paginationFrom(query);
     const where = buildContentToolWhere(query);
-    const sortField = query.sortField ?? 'id';
-    const sortOrder = query.sortOrder ?? 'asc';
+    const sortField = query.sortField ?? 'created_at';
+    const sortOrder = query.sortOrder ?? 'desc';
 
     const [data, total] = await prisma.$transaction([
         prisma.dadiNaniNuskha.findMany({

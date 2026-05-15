@@ -5,6 +5,7 @@ import { zodToJsonSchema } from '../utils/zodOpenApi';
 import {
     communityPostCreateMultipartSchema,
     communityPostIdParamsSchema,
+    communityPostListQuerySchema,
     communityPostTypeParamsSchema,
     communityPostUpdateMultipartSchema,
     positiveIntSchema,
@@ -26,7 +27,8 @@ const successArrayResponse = {
     properties: {
         success: { type: 'boolean' },
         message: { type: 'string' },
-        data: { type: 'array', items: { type: 'object', additionalProperties: true } }
+        data: { type: 'array', items: { type: 'object', additionalProperties: true } },
+        pagination: { type: 'object', additionalProperties: true }
     }
 } as const;
 
@@ -140,15 +142,18 @@ export default async function communityPost(app: FastifyInstance) {
             schema: {
                 tags: ['Community Posts'],
                 summary: 'List all community posts',
+                querystring: zodToJsonSchema(communityPostListQuerySchema as any, { target: 'openApi3' }),
                 response: { 200: successArrayResponse }
             }
         },
-        async (_req, reply) => {
-            const data = await communityService.getCommunityPost();
+        async (req, reply) => {
+            const query = validateData(communityPostListQuerySchema, req.query ?? {});
+            const result = await communityService.getCommunityPost(query);
 
             return reply.send({
                 success: true,
-                data
+                data: result.data,
+                pagination: result.pagination
             });
         }
     );
@@ -159,17 +164,20 @@ export default async function communityPost(app: FastifyInstance) {
             schema: {
                 tags: ['Community Posts'],
                 params: zodToJsonSchema(communityPostTypeParamsSchema as any, { target: 'openApi3' }),
+                querystring: zodToJsonSchema(communityPostListQuerySchema.omit({ type: true }) as any, { target: 'openApi3' }),
                 summary: 'List community posts by type',
                 response: { 200: successArrayResponse }
             }
         },
         async (req, reply) => {
             const { type } = validateData(communityPostTypeParamsSchema, req.params);
-            const data = await communityService.getPostByType(type);
+            const query = validateData(communityPostListQuerySchema.omit({ type: true }), req.query ?? {});
+            const result = await communityService.getPostByType(type, query);
 
             return reply.send({
                 success: true,
-                data
+                data: result.data,
+                pagination: result.pagination
             });
         }
     );
@@ -199,17 +207,20 @@ export default async function communityPost(app: FastifyInstance) {
             schema: {
                 tags: ['Community Posts'],
                 params: zodToJsonSchema(communityPostIdParamsSchema as any, { target: 'openApi3' }),
+                querystring: zodToJsonSchema(communityPostListQuerySchema.omit({ communityId: true }) as any, { target: 'openApi3' }),
                 summary: 'List community posts by community ID',
                 response: { 200: successArrayResponse }
             }
         },
         async (req, reply) => {
             const { id } = validateData(communityPostIdParamsSchema, req.params);
-            const data = await communityService.getPostByCommunityId(id);
+            const query = validateData(communityPostListQuerySchema.omit({ communityId: true }), req.query ?? {});
+            const result = await communityService.getPostByCommunityId(id, query);
 
             return reply.send({
                 success: true,
-                data
+                data: result.data,
+                pagination: result.pagination
             });
         }
     );

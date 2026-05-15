@@ -57,8 +57,8 @@ export async function getdailyTips(query: DailyTipListQuery = {}) {
     const limit = Math.min(100, Math.max(1, Number(query.limit) || 10));
     const skip = (page - 1) * limit;
     const where = buildDailyTipWhere(query);
-    const sortField = query.sortField ?? 'id';
-    const sortOrder = query.sortOrder ?? 'asc';
+    const sortField = query.sortField ?? 'created_at';
+    const sortOrder = query.sortOrder ?? 'desc';
 
     const [data, total] = await prisma.$transaction([
         prisma.dailyTip.findMany({

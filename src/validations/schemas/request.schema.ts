@@ -311,6 +311,22 @@ export const communityPostTypeParamsSchema = z
   })
   .strict();
 
+export const communityPostListQuerySchema = z
+  .object({
+    search: optionalTrimmedString(255),
+    type: communityPostTypeSchema.optional(),
+    communityId: positiveIntSchema.optional(),
+    userId: positiveIntSchema.optional(),
+    mediaType: optionalTrimmedString(50),
+    featured: optionalBooleanQuery(),
+    isActive: optionalBooleanQuery(),
+    page: z.coerce.number().int().positive().default(1),
+    limit: z.coerce.number().int().positive().max(100).default(10),
+    sortField: z.enum(["id", "title", "type", "featured", "isActive", "created_at", "updated_at", "viewCount", "shareCount"]).default("created_at"),
+    sortOrder: z.enum(["asc", "desc"]).default("desc"),
+  })
+  .strict();
+
 const mediaFileSchema = z
   .object({
     url: fileField(),
@@ -610,8 +626,8 @@ export const contentToolListQuerySchema = z
     weekId: positiveIntSchema.optional(),
     page: z.coerce.number().int().positive().default(1),
     limit: z.coerce.number().int().positive().max(100).default(10),
-    sortField: z.enum(["id", "heading", "category", "created_at", "updated_at"]).default("id"),
-    sortOrder: z.enum(["asc", "desc"]).default("asc"),
+    sortField: z.enum(["id", "heading", "category", "created_at", "updated_at"]).default("created_at"),
+    sortOrder: z.enum(["asc", "desc"]).default("desc"),
   })
   .strict();
 
