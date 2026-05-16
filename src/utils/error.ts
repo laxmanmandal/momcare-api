@@ -49,22 +49,21 @@ export function errorHandler(
     };
 
     if (error instanceof ValidationError) {
-        reply.status(422).send({
-            success: false,
-            message: 'Validation Error',
-            errors: error.errors
+        send(422, 'Validation Error', {
+            errors: error.errors,
+            error: 'VALIDATION_ERROR'
         });
         return;
     }
 
     if (hasZodFastifySchemaValidationErrors(error)) {
-        reply.status(422).send({
-            success: false,
-            message: 'Validation Error',
-            errors: error.validation.map((issue: any) => ({
-                field: issue.instancePath?.replace(/^\//, '').replace(/\//g, '.') || issue.params?.missingProperty || 'root',
-                message: issue.message
-            }))
+        const errors = error.validation.map((issue: any) => ({
+            field: issue.instancePath?.replace(/^\//, '').replace(/\//g, '.') || issue.params?.missingProperty || 'root',
+            message: issue.message
+        }));
+        send(422, 'Validation Error', {
+            errors,
+            error: 'VALIDATION_ERROR'
         });
         return;
     }
@@ -84,7 +83,8 @@ export function errorHandler(
                         target.includes('category'))
                 ) {
                     send(409, 'Diet chart already exists for this week and category', {
-                        error: 'DIET_CHART_EXISTS'
+                        error: 'DIET_CHART_EXISTS',
+                        errors: [{ field: 'weekId.category', message: 'already exists' }]
                     });
                     return;
                 }
@@ -95,21 +95,18 @@ export function errorHandler(
                         target.includes('order'))
                 ) {
                     send(409, 'Week name already exists for this order and name', {
-                        error: 'WEEK_NAME_EXISTS'
+                        error: 'WEEK_NAME_EXISTS',
+                        errors: [{ field: 'name.order', message: 'already exists' }]
                     });
                     return;
                 }
 
                 // 🔁 Generic duplicate fallback
-                send(409, `Record Already exist with field  ${field}`, {
+                send(409, `Record Already exist with field ${field}`, {
                     error: 'DUPLICATE_ENTRY',
-                    details: target
+                    details: target,
+                    errors: [{ field, message: 'already exists' }]
                 });
-                console.log({
-                    error: 'DUPLICATE_ENTRY',
-                    details: target
-                });
-
                 return;
             }
 
@@ -130,8 +127,24 @@ export function errorHandler(
     }
 
     if (error instanceof Prisma.PrismaClientValidationError) {
+        // Try to extract a clean message from Prisma validation error
+        // Example: Argument `lessonIds`: Invalid value provided. Expected String or Null, provided (Int, Int, Int).
+        const message = error.message;
+        const match = message.match(/Argument `(.+?)`: (.+)/);
+        
+        if (match) {
+            const field = match[1];
+            const msg = match[2];
+            send(422, 'Validation Error', {
+                error: 'VALIDATION_ERROR',
+                errors: [{ field, message: msg }]
+            });
+            return;
+        }
+
         send(400, 'Invalid parameters for form fields', {
-            error: 'BAD_REQUEST'
+            error: 'BAD_REQUEST',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
         return;
     }

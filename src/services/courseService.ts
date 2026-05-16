@@ -15,6 +15,26 @@ export async function getLessons(params: any) {
     orderBy: { created_at: 'desc' }
   })
 }
+function parseLessonIds(lessonIds: any): number[] {
+  if (Array.isArray(lessonIds)) {
+    return lessonIds.map(Number);
+  }
+  if (typeof lessonIds === 'string') {
+    const trimmed = lessonIds.trim();
+    if (!trimmed) return [];
+    if (trimmed.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        return Array.isArray(parsed) ? parsed.map(Number) : [];
+      } catch {
+        return [];
+      }
+    }
+    return trimmed.split(',').map(entry => Number(entry.trim())).filter(n => !isNaN(n));
+  }
+  return [];
+}
+
 export async function getLessonsByCourseUuid(courseUuid: string) {
   // 1️⃣ Get course with lessonIds
   const course = await prisma.course.findUnique({
@@ -30,9 +50,7 @@ export async function getLessonsByCourseUuid(courseUuid: string) {
   }
 
   // 3️⃣ Safely extract lessonIds
-  const lessonIds = Array.isArray(course.lessonIds)
-    ? (course.lessonIds as number[])
-    : [];
+  const lessonIds = parseLessonIds(course.lessonIds);
 
   // 4️⃣ If no lessons linked, return empty array
   if (lessonIds.length === 0) {
@@ -117,9 +135,7 @@ export async function getCourses() {
 
   const coursesWithLessons = await Promise.all(
     courses.map(async (course) => {
-      const lessonIds = Array.isArray(course.lessonIds)
-        ? (course.lessonIds as number[])
-        : [];
+      const lessonIds = parseLessonIds(course.lessonIds);
 
       // ✅ Explicitly type this as Lesson[]
       let lessons: Lesson[] = [];
@@ -159,9 +175,7 @@ export async function getCourse(uuid: string) {
   }
 
   // 3️⃣ Safely extract and cast lessonIds
-  const lessonIds = Array.isArray(course.lessonIds)
-    ? (course.lessonIds as number[])
-    : [];
+  const lessonIds = parseLessonIds(course.lessonIds);
 
   // 4️⃣ Fetch lessons if IDs exist
   let lessons: any = [];
@@ -199,10 +213,7 @@ export async function getManyCourses(ids: number[]) {
   // 3️⃣ For each course, fetch related lessons (if any) and return combined result
   const coursesWithLessons = await Promise.all(
     courses.map(async (course) => {
-      const lessonIds = Array.isArray(course.lessonIds)
-
-        ? (course.lessonIds as number[])
-        : [];
+      const lessonIds = parseLessonIds(course.lessonIds);
 
       let lessons: any[] = [];
       if (lessonIds.length > 0) {
@@ -223,10 +234,16 @@ export async function getManyCourses(ids: number[]) {
 }
 
 export async function createCourse(data: any) {
+  if (data.lessonIds && Array.isArray(data.lessonIds)) {
+    data.lessonIds = JSON.stringify(data.lessonIds);
+  }
   return prisma.course.create({ data })
 }
 
 export async function updateCourse(uuid: string, data: any) {
+  if (data.lessonIds && Array.isArray(data.lessonIds)) {
+    data.lessonIds = JSON.stringify(data.lessonIds);
+  }
   return prisma.course.update({ where: { uuid }, data })
 }
 export async function getLessonMedias(lessonuuid: string) {
