@@ -29,8 +29,7 @@ exports.changePasswordSchema = zod_1.z.object({
         const num = Number(val);
         return isNaN(num) ? val : num;
     }, zod_1.z.number({
-        required_error: "is required",
-        invalid_type_error: "must be a number",
+        error: (issue) => issue.input === undefined ? "is required" : "must be a number",
     }).int().positive('userId must be a positive integer')),
     old_password: zod_1.z.string().min(8).max(128),
     new_password: zod_1.z.string().min(8).max(128)

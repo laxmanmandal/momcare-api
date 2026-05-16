@@ -13,8 +13,7 @@ export const usersListParamsSchema = z.object({
       return isNaN(num) ? val : num;
     },
     z.number({
-      required_error: "is required",
-      invalid_type_error: "must be a number",
+      error: (issue: any) => issue.input === undefined ? "is required" : "must be a number",
     }).int().positive()
   )
 }).strict();
@@ -58,8 +57,7 @@ export const usersListByRoleParamsSchema = z.object({
       return isNaN(num) ? val : num;
     },
     z.number({
-      required_error: "is required",
-      invalid_type_error: "must be a number",
+      error: (issue: any) => issue.input === undefined ? "is required" : "must be a number",
     }).int().positive()
   ),
   role: z.string().trim().min(1)
@@ -75,8 +73,7 @@ export const usersByEntityParamsSchema = z.object({
       return isNaN(num) ? val : num;
     },
     z.number({
-      required_error: "is required",
-      invalid_type_error: "must be a number",
+      error: (issue: any) => issue.input === undefined ? "is required" : "must be a number",
     }).int().positive()
   )
 }).strict();

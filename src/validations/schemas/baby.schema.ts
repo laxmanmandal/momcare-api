@@ -15,8 +15,7 @@ export const babyBigIntIdSchema = z.preprocess(
     }
   },
   z.bigint({
-    required_error: "is required",
-    invalid_type_error: "must be a valid ID",
+    error: (issue: any) => (issue.input === undefined ? "is required" : "must be a valid ID"),
   }).positive()
 );
 export const babyPositiveIntSchema = z.preprocess(
@@ -28,13 +27,12 @@ export const babyPositiveIntSchema = z.preprocess(
     return isNaN(num) ? val : num;
   },
   z.number({
-    required_error: "is required",
-    invalid_type_error: "must be a number",
+    error: (issue: any) => (issue.input === undefined ? "is required" : "must be a number"),
   }).int().positive()
 );
 
 function requiredTrimmedString(minLength = 1, maxLength?: number, pattern?: RegExp, message?: string) {
-  let schema = z.string({ required_error: "is required", invalid_type_error: "is required" }).trim().min(minLength, "is required");
+  let schema = z.string({ error: "is required" }).trim().min(minLength, "is required");
 
   if (maxLength !== undefined) {
     schema = schema.max(maxLength);

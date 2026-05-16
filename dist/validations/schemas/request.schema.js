@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.subscriptionPlanUpdateSchema = exports.subscriptionPlanCreateSchema = exports.subscriptionIdsParamsSchema = exports.subscriptionUuidParamsSchema = exports.loginLogParamsSchema = exports.loginLogQuerySchema = exports.healthSymptomsSchema = exports.professionCreateSchema = exports.expertPostUpdateMultipartSchema = exports.expertPostCreateMultipartSchema = exports.expertProfessionParamsSchema = exports.expertPostShareParamsSchema = exports.expertPostIdParamsSchema = exports.expertUpdateMultipartSchema = exports.expertCreateMultipartSchema = exports.expertIdParamsSchema = exports.conceiveTypeParamsSchema = exports.conceiveIdParamsSchema = exports.conceiveUpdateMultipartSchema = exports.conceiveCreateMultipartSchema = exports.contentToolListQuerySchema = exports.dailyTipUpdateMultipartSchema = exports.dailyTipCreateMultipartSchema = exports.dailyTipIdParamsSchema = exports.communityCommentPostParamsSchema = exports.communityCommentIdParamsSchema = exports.communityCommentUpdateSchema = exports.communityCommentCreateSchema = exports.communityReactionQuerySchema = exports.communityReactionBodySchema = exports.couponProcessSchema = exports.couponUpdateMultipartSchema = exports.couponCreateMultipartSchema = exports.couponCodeParamsSchema = exports.couponIdParamsSchema = exports.mediaUpdateMultipartSchema = exports.mediaCreateMultipartSchema = exports.mediaSearchQuerySchema = exports.mediaIdParamsSchema = exports.mediaParamsSchema = exports.communityPostTypeParamsSchema = exports.communityPostIdParamsSchema = exports.communityPostUpdateMultipartSchema = exports.communityPostCreateMultipartSchema = exports.communityIdParamsSchema = exports.communityJoinSchema = exports.communityUpdateMultipartSchema = exports.communityCreateMultipartSchema = exports.positiveIntSchema = exports.multipartFileSchema = void 0;
-exports.weekBodySchema = exports.dietNuskheUpdateMultipartSchema = exports.dietNuskheMultipartSchema = exports.dietChartUpdateMultipartSchema = exports.dietChartMultipartSchema = exports.dietToolIdParamsSchema = exports.courseUpdateBodySchema = exports.courseCreateBodySchema = exports.courseLessonMediaBodySchema = exports.courseLessonBodySchema = exports.courseLessonQuerySchema = exports.courseIdsParamsSchema = exports.courseIdParamsSchema = exports.courseLessonUuidParamsSchema = exports.courseUuidParamsSchema = exports.entityUpdateMultipartSchema = exports.entityCreateMultipartSchema = exports.entityUpdateSchema = exports.entityBodySchema = exports.entityIdParamsSchema = exports.uploadTableQuerySchema = exports.subscriptionConfirmPaymentSchema = exports.subscriptionPaymentSchema = exports.subscriptionAllotmentSchema = exports.subscriptionAllocationCreateSchema = void 0;
+exports.subscriptionPlanCreateSchema = exports.subscriptionIdsParamsSchema = exports.subscriptionUuidParamsSchema = exports.loginLogParamsSchema = exports.loginLogQuerySchema = exports.healthSymptomsSchema = exports.professionCreateSchema = exports.expertPostUpdateMultipartSchema = exports.expertPostCreateMultipartSchema = exports.expertProfessionParamsSchema = exports.expertPostShareParamsSchema = exports.expertPostIdParamsSchema = exports.expertUpdateMultipartSchema = exports.expertCreateMultipartSchema = exports.expertIdParamsSchema = exports.conceiveTypeParamsSchema = exports.conceiveIdParamsSchema = exports.conceiveUpdateMultipartSchema = exports.conceiveCreateMultipartSchema = exports.contentToolListQuerySchema = exports.dailyTipUpdateMultipartSchema = exports.dailyTipCreateMultipartSchema = exports.dailyTipIdParamsSchema = exports.communityCommentPostParamsSchema = exports.communityCommentIdParamsSchema = exports.communityCommentUpdateSchema = exports.communityCommentCreateSchema = exports.communityReactionQuerySchema = exports.communityReactionBodySchema = exports.couponProcessSchema = exports.couponUpdateMultipartSchema = exports.couponCreateMultipartSchema = exports.couponCodeParamsSchema = exports.couponIdParamsSchema = exports.mediaUpdateMultipartSchema = exports.mediaCreateMultipartSchema = exports.mediaSearchQuerySchema = exports.mediaIdParamsSchema = exports.mediaParamsSchema = exports.communityPostListQuerySchema = exports.communityPostTypeParamsSchema = exports.communityPostIdParamsSchema = exports.communityPostUpdateMultipartSchema = exports.communityPostCreateMultipartSchema = exports.communityIdParamsSchema = exports.communityJoinSchema = exports.communityUpdateMultipartSchema = exports.communityCreateMultipartSchema = exports.positiveIntSchema = exports.multipartFileSchema = void 0;
+exports.weekBodySchema = exports.dietNuskheUpdateMultipartSchema = exports.dietNuskheMultipartSchema = exports.dietChartUpdateMultipartSchema = exports.dietChartMultipartSchema = exports.dietToolIdParamsSchema = exports.courseUpdateBodySchema = exports.courseCreateBodySchema = exports.courseLessonMediaBodySchema = exports.courseLessonBodySchema = exports.courseLessonQuerySchema = exports.courseIdsParamsSchema = exports.courseIdParamsSchema = exports.courseLessonUuidParamsSchema = exports.courseUuidParamsSchema = exports.entityUpdateMultipartSchema = exports.entityCreateMultipartSchema = exports.entityUpdateSchema = exports.entityBodySchema = exports.entityIdParamsSchema = exports.uploadTableQuerySchema = exports.subscriptionConfirmPaymentSchema = exports.subscriptionPaymentSchema = exports.subscriptionAllotmentSchema = exports.subscriptionAllocationCreateSchema = exports.subscriptionPlanUpdateSchema = void 0;
 const client_1 = require("@prisma/client");
 const zod_1 = require("zod");
 const httpUrlPattern = /^https?:\/\/[^\s]+$/i;
@@ -274,6 +274,21 @@ exports.communityPostTypeParamsSchema = zod_1.z
     type: communityPostTypeSchema,
 })
     .strict();
+exports.communityPostListQuerySchema = zod_1.z
+    .object({
+    search: optionalTrimmedString(255),
+    type: communityPostTypeSchema.optional(),
+    communityId: exports.positiveIntSchema.optional(),
+    userId: exports.positiveIntSchema.optional(),
+    mediaType: optionalTrimmedString(50),
+    featured: optionalBooleanQuery(),
+    isActive: optionalBooleanQuery(),
+    page: zod_1.z.coerce.number().int().positive().default(1),
+    limit: zod_1.z.coerce.number().int().positive().max(100).default(10),
+    sortField: zod_1.z.enum(["id", "title", "type", "featured", "isActive", "created_at", "updated_at", "viewCount", "shareCount"]).default("created_at"),
+    sortOrder: zod_1.z.enum(["asc", "desc"]).default("desc"),
+})
+    .strict();
 const mediaFileSchema = zod_1.z
     .object({
     url: fileField(),
@@ -533,8 +548,8 @@ exports.contentToolListQuerySchema = zod_1.z
     weekId: exports.positiveIntSchema.optional(),
     page: zod_1.z.coerce.number().int().positive().default(1),
     limit: zod_1.z.coerce.number().int().positive().max(100).default(10),
-    sortField: zod_1.z.enum(["id", "heading", "category", "created_at", "updated_at"]).default("id"),
-    sortOrder: zod_1.z.enum(["asc", "desc"]).default("asc"),
+    sortField: zod_1.z.enum(["id", "heading", "category", "created_at", "updated_at"]).default("created_at"),
+    sortOrder: zod_1.z.enum(["asc", "desc"]).default("desc"),
 })
     .strict();
 exports.conceiveCreateMultipartSchema = zod_1.z

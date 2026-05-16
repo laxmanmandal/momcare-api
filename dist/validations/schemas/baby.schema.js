@@ -15,8 +15,7 @@ exports.babyBigIntIdSchema = zod_1.z.preprocess((val) => {
         return val;
     }
 }, zod_1.z.bigint({
-    required_error: "is required",
-    invalid_type_error: "must be a valid ID",
+    error: (issue) => (issue.input === undefined ? "is required" : "must be a valid ID"),
 }).positive());
 exports.babyPositiveIntSchema = zod_1.z.preprocess((val) => {
     if (val === undefined || val === null || (typeof val === "string" && val.trim() === "")) {
@@ -25,11 +24,10 @@ exports.babyPositiveIntSchema = zod_1.z.preprocess((val) => {
     const num = Number(val);
     return isNaN(num) ? val : num;
 }, zod_1.z.number({
-    required_error: "is required",
-    invalid_type_error: "must be a number",
+    error: (issue) => (issue.input === undefined ? "is required" : "must be a number"),
 }).int().positive());
 function requiredTrimmedString(minLength = 1, maxLength, pattern, message) {
-    let schema = zod_1.z.string({ required_error: "is required", invalid_type_error: "is required" }).trim().min(minLength, "is required");
+    let schema = zod_1.z.string({ error: "is required" }).trim().min(minLength, "is required");
     if (maxLength !== undefined) {
         schema = schema.max(maxLength);
     }

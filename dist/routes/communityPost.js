@@ -51,7 +51,8 @@ const successArrayResponse = {
     properties: {
         success: { type: 'boolean' },
         message: { type: 'string' },
-        data: { type: 'array', items: { type: 'object', additionalProperties: true } }
+        data: { type: 'array', items: { type: 'object', additionalProperties: true } },
+        pagination: { type: 'object', additionalProperties: true }
     }
 };
 async function communityPost(app) {
@@ -135,28 +136,34 @@ async function communityPost(app) {
         schema: {
             tags: ['Community Posts'],
             summary: 'List all community posts',
+            querystring: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.communityPostListQuerySchema, { target: 'openApi3' }),
             response: { 200: successArrayResponse }
         }
-    }, async (_req, reply) => {
-        const data = await communityService.getCommunityPost();
+    }, async (req, reply) => {
+        const query = (0, validations_1.validateData)(validations_1.communityPostListQuerySchema, req.query ?? {});
+        const result = await communityService.getCommunityPost(query);
         return reply.send({
             success: true,
-            data
+            data: result.data,
+            pagination: result.pagination
         });
     });
     app.get('/type/:type', {
         schema: {
             tags: ['Community Posts'],
             params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.communityPostTypeParamsSchema, { target: 'openApi3' }),
+            querystring: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.communityPostListQuerySchema.omit({ type: true }), { target: 'openApi3' }),
             summary: 'List community posts by type',
             response: { 200: successArrayResponse }
         }
     }, async (req, reply) => {
         const { type } = (0, validations_1.validateData)(validations_1.communityPostTypeParamsSchema, req.params);
-        const data = await communityService.getPostByType(type);
+        const query = (0, validations_1.validateData)(validations_1.communityPostListQuerySchema.omit({ type: true }), req.query ?? {});
+        const result = await communityService.getPostByType(type, query);
         return reply.send({
             success: true,
-            data
+            data: result.data,
+            pagination: result.pagination
         });
     });
     app.get('/user/posts', {
@@ -176,15 +183,18 @@ async function communityPost(app) {
         schema: {
             tags: ['Community Posts'],
             params: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.communityPostIdParamsSchema, { target: 'openApi3' }),
+            querystring: (0, zodOpenApi_1.zodToJsonSchema)(validations_1.communityPostListQuerySchema.omit({ communityId: true }), { target: 'openApi3' }),
             summary: 'List community posts by community ID',
             response: { 200: successArrayResponse }
         }
     }, async (req, reply) => {
         const { id } = (0, validations_1.validateData)(validations_1.communityPostIdParamsSchema, req.params);
-        const data = await communityService.getPostByCommunityId(id);
+        const query = (0, validations_1.validateData)(validations_1.communityPostListQuerySchema.omit({ communityId: true }), req.query ?? {});
+        const result = await communityService.getPostByCommunityId(id, query);
         return reply.send({
             success: true,
-            data
+            data: result.data,
+            pagination: result.pagination
         });
     });
     app.get('/:id', {

@@ -28,13 +28,36 @@ function buildDailyTipWhere(query) {
         where.isActive = query.isActive;
     return where;
 }
+function normalizeJsonContent(value) {
+    if (value === undefined)
+        return undefined;
+    if (typeof value !== 'string')
+        return JSON.stringify(value);
+    const trimmed = value.trim();
+    if (!trimmed)
+        return JSON.stringify('');
+    try {
+        return JSON.stringify(JSON.parse(trimmed));
+    }
+    catch {
+        return JSON.stringify(value);
+    }
+}
+function normalizeDailyTipPayload(data) {
+    if (data?.content === undefined)
+        return data;
+    return {
+        ...data,
+        content: normalizeJsonContent(data.content),
+    };
+}
 async function getdailyTips(query = {}) {
     const page = Math.max(1, Number(query.page) || 1);
     const limit = Math.min(100, Math.max(1, Number(query.limit) || 10));
     const skip = (page - 1) * limit;
     const where = buildDailyTipWhere(query);
-    const sortField = query.sortField ?? 'id';
-    const sortOrder = query.sortOrder ?? 'asc';
+    const sortField = query.sortField ?? 'created_at';
+    const sortOrder = query.sortOrder ?? 'desc';
     const [data, total] = await client_1.default.$transaction([
         client_1.default.dailyTip.findMany({
             where,
@@ -91,7 +114,7 @@ async function getdailyTipsById(id) {
     return await client_1.default.dailyTip.findUnique({ where: { id } });
 }
 async function createdailyTips(data) {
-    return client_1.default.dailyTip.create({ data });
+    return client_1.default.dailyTip.create({ data: normalizeDailyTipPayload(data) });
 }
 async function updatedailyTips(id, data) {
     const existing = await client_1.default.dailyTip.findUnique({ where: { id } });
@@ -100,7 +123,7 @@ async function updatedailyTips(id, data) {
     if (data.icon && existing.icon && existing.icon !== data.icon) {
         await (0, fileUploads_1.deleteFileIfExists)(existing.icon);
     }
-    return client_1.default.dailyTip.update({ where: { id }, data });
+    return client_1.default.dailyTip.update({ where: { id }, data: normalizeDailyTipPayload(data) });
 }
 async function dailyTipsStatus(id) {
     const tips = await client_1.default.dailyTip.findUnique({ where: { id } });

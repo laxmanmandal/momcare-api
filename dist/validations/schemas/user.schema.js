@@ -12,8 +12,7 @@ exports.usersListParamsSchema = zod_1.z.object({
         const num = Number(val);
         return isNaN(num) ? val : num;
     }, zod_1.z.number({
-        required_error: "is required",
-        invalid_type_error: "must be a number",
+        error: (issue) => issue.input === undefined ? "is required" : "must be a number",
     }).int().positive())
 }).strict();
 exports.usersListQuerySchema = zod_1.z.object({
@@ -46,8 +45,7 @@ exports.usersListByRoleParamsSchema = zod_1.z.object({
         const num = Number(val);
         return isNaN(num) ? val : num;
     }, zod_1.z.number({
-        required_error: "is required",
-        invalid_type_error: "must be a number",
+        error: (issue) => issue.input === undefined ? "is required" : "must be a number",
     }).int().positive()),
     role: zod_1.z.string().trim().min(1)
 }).strict();
@@ -59,8 +57,7 @@ exports.usersByEntityParamsSchema = zod_1.z.object({
         const num = Number(val);
         return isNaN(num) ? val : num;
     }, zod_1.z.number({
-        required_error: "is required",
-        invalid_type_error: "must be a number",
+        error: (issue) => issue.input === undefined ? "is required" : "must be a number",
     }).int().positive())
 }).strict();
 exports.userStatusParamsSchema = zod_1.z.object({

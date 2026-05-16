@@ -44,11 +44,34 @@ function paginationFrom(query) {
     const limit = Math.min(100, Math.max(1, Number(query.limit) || 10));
     return { page, limit, skip: (page - 1) * limit };
 }
+function normalizeJsonContent(value) {
+    if (value === undefined)
+        return undefined;
+    if (typeof value !== 'string')
+        return JSON.stringify(value);
+    const trimmed = value.trim();
+    if (!trimmed)
+        return JSON.stringify('');
+    try {
+        return JSON.stringify(JSON.parse(trimmed));
+    }
+    catch {
+        return JSON.stringify(value);
+    }
+}
+function normalizeContentPayload(data) {
+    if (data?.content === undefined)
+        return data;
+    return {
+        ...data,
+        content: normalizeJsonContent(data.content),
+    };
+}
 async function getDietchart(query = {}) {
     const { page, limit, skip } = paginationFrom(query);
     const where = buildContentToolWhere(query, { includeWeek: true });
-    const sortField = query.sortField ?? 'id';
-    const sortOrder = query.sortOrder ?? 'asc';
+    const sortField = query.sortField ?? 'created_at';
+    const sortOrder = query.sortOrder ?? 'desc';
     const [data, total] = await client_1.default.$transaction([
         client_1.default.dietChart.findMany({
             where,
@@ -82,8 +105,8 @@ async function getDietChartById(id) {
 async function getDietChartByWeekId(weekId, query = {}) {
     const { page, limit, skip } = paginationFrom(query);
     const where = buildContentToolWhere({ ...query, weekId }, { includeWeek: true });
-    const sortField = query.sortField ?? 'id';
-    const sortOrder = query.sortOrder ?? 'asc';
+    const sortField = query.sortField ?? 'created_at';
+    const sortOrder = query.sortOrder ?? 'desc';
     const [data, total] = await client_1.default.$transaction([
         client_1.default.dietChart.findMany({
             where,
@@ -109,7 +132,7 @@ async function getDietChartByWeekId(weekId, query = {}) {
     };
 }
 async function createDietchart(data) {
-    return client_1.default.dietChart.create({ data });
+    return client_1.default.dietChart.create({ data: normalizeContentPayload(data) });
 }
 async function updateDietchart(id, data) {
     const existing = await client_1.default.dietChart.findUnique({ where: { id } });
@@ -118,7 +141,7 @@ async function updateDietchart(id, data) {
     if (data.icon && existing.icon && existing.icon !== data.icon) {
         await (0, fileUploads_1.deleteFileIfExists)(existing.icon);
     }
-    return client_1.default.dietChart.update({ where: { id }, data });
+    return client_1.default.dietChart.update({ where: { id }, data: normalizeContentPayload(data) });
 }
 async function DietchartStatus(id) {
     const tips = await client_1.default.dietChart.findUnique({ where: { id } });
@@ -133,8 +156,8 @@ async function DietchartStatus(id) {
 async function getDadiNaniNuskhe(query = {}) {
     const { page, limit, skip } = paginationFrom(query);
     const where = buildContentToolWhere(query);
-    const sortField = query.sortField ?? 'id';
-    const sortOrder = query.sortOrder ?? 'asc';
+    const sortField = query.sortField ?? 'created_at';
+    const sortOrder = query.sortOrder ?? 'desc';
     const [data, total] = await client_1.default.$transaction([
         client_1.default.dadiNaniNuskha.findMany({
             where,
@@ -172,7 +195,7 @@ async function getNuskheById(id) {
     return await client_1.default.dadiNaniNuskha.findUnique({ where: { id } });
 }
 async function createNuskhe(data) {
-    return client_1.default.dadiNaniNuskha.create({ data });
+    return client_1.default.dadiNaniNuskha.create({ data: normalizeContentPayload(data) });
 }
 async function updateNuskhe(id, data) {
     const existing = await client_1.default.dadiNaniNuskha.findUnique({ where: { id } });
@@ -181,7 +204,7 @@ async function updateNuskhe(id, data) {
     if (data.icon && existing.icon && existing.icon !== data.icon) {
         await (0, fileUploads_1.deleteFileIfExists)(existing.icon);
     }
-    return client_1.default.dadiNaniNuskha.update({ where: { id }, data });
+    return client_1.default.dadiNaniNuskha.update({ where: { id }, data: normalizeContentPayload(data) });
 }
 async function NuskheStatus(id) {
     const tips = await client_1.default.dadiNaniNuskha.findUnique({ where: { id } });

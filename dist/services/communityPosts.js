@@ -29,25 +29,72 @@ function buildReactionCounts(reactions) {
     }
     return counts;
 }
+function buildCommunityPostWhere(query) {
+    const where = {};
+    if (query.search) {
+        where.OR = [
+            { title: { contains: query.search } },
+            { content: { contains: query.search } },
+            { mediaType: { contains: query.search } },
+            { community: { name: { contains: query.search } } },
+            { user: { name: { contains: query.search } } },
+        ];
+    }
+    if (query.type)
+        where.type = query.type;
+    if (query.communityId !== undefined)
+        where.communityId = query.communityId;
+    if (query.userId !== undefined)
+        where.userId = query.userId;
+    if (query.mediaType)
+        where.mediaType = query.mediaType;
+    if (query.featured !== undefined)
+        where.featured = query.featured;
+    if (query.isActive !== undefined)
+        where.isActive = query.isActive;
+    return where;
+}
+function paginationFrom(query) {
+    const page = Math.max(1, Number(query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(query.limit) || 10));
+    return { page, limit, skip: (page - 1) * limit };
+}
+function toListResponse(posts, total, page, limit) {
+    return {
+        data: posts.map(post => ({
+            ...post,
+            reactionCounts: buildReactionCounts(post.Reaction ?? []),
+            userReaction: null
+        })),
+        pagination: {
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+        },
+    };
+}
 // ================= GET ALL =================
-async function getCommunityPost() {
-    return client_1.default.communityPost.findMany({
-        orderBy: { created_at: "desc" },
-        include: baseInclude()
-    });
+async function getCommunityPost(query = {}) {
+    const { page, limit, skip } = paginationFrom(query);
+    const where = buildCommunityPostWhere(query);
+    const sortField = query.sortField ?? 'created_at';
+    const sortOrder = query.sortOrder ?? 'desc';
+    const [posts, total] = await client_1.default.$transaction([
+        client_1.default.communityPost.findMany({
+            where,
+            orderBy: { [sortField]: sortOrder },
+            skip,
+            take: limit,
+            include: baseInclude()
+        }),
+        client_1.default.communityPost.count({ where }),
+    ]);
+    return toListResponse(posts, total, page, limit);
 }
 // ================= GET BY TYPE =================
-async function getPostByType(type) {
-    const posts = await client_1.default.communityPost.findMany({
-        where: { type },
-        orderBy: { created_at: "desc" },
-        include: baseInclude()
-    });
-    return posts.map(post => ({
-        ...post,
-        reactionCounts: buildReactionCounts(post.Reaction),
-        userReaction: null
-    }));
+async function getPostByType(type, query = {}) {
+    return getCommunityPost({ ...query, type });
 }
 // ================= GET BY USER =================
 async function getPostByUser(userId) {
@@ -79,11 +126,8 @@ async function getCommunityPostById(id) {
     });
 }
 // ================= GET BY COMMUNITY =================
-async function getPostByCommunityId(communityId) {
-    return client_1.default.communityPost.findMany({
-        where: { communityId },
-        include: baseInclude()
-    });
+async function getPostByCommunityId(communityId, query = {}) {
+    return getCommunityPost({ ...query, communityId });
 }
 // ================= CREATE =================
 async function createCommunityPost(data) {
