@@ -12,16 +12,20 @@ export async function addSymptomEntry(userId: number, symptoms: string[]) {
   const cleaned = symptoms
     .map(s => (typeof s === 'string' ? s.trim() : ''))
     .filter(Boolean);
-  console.log(cleaned);
+  
+  const symptomsString = cleaned.join(',');
 
   const entry = await prisma.symptomEntry.create({
     data: {
       userId,
-      symptoms: cleaned.join(','),
+      symptoms: JSON.stringify(symptomsString),
     },
   });
 
-  return entry;
+  return {
+    ...entry,
+    symptoms: symptomsString
+  };
 }
 
 /**
@@ -54,18 +58,34 @@ export async function getUniqueSymptomsLastNDays(days = 30): Promise<{ uniqueSym
     const s = r.symptoms;
     if (!s) continue;
 
-    if (Array.isArray(s)) {
-      for (const v of s) {
-        if (typeof v === 'string' && v.trim()) {
-          const split = v.split(',').map(x => x.trim()).filter(Boolean);
-          split.forEach(item => uniqueSet.add(item));
+    let processedString = '';
+
+    try {
+      if (typeof s === 'string' && (s.startsWith('[') || s.startsWith('{') || s.startsWith('"'))) {
+        const parsed = JSON.parse(s);
+        if (Array.isArray(parsed)) {
+          parsed.forEach(item => {
+            if (typeof item === 'string' && item.trim()) {
+              item.split(',').forEach(splitItem => {
+                if (splitItem.trim()) uniqueSet.add(splitItem.trim());
+              });
+            }
+          });
+          continue;
+        } else if (typeof parsed === 'string') {
+          processedString = parsed;
         }
+      } else {
+        processedString = s as string;
       }
-    } else if (typeof s === 'string') {
-      const split = s.split(',').map(x => x.trim()).filter(Boolean);
-      split.forEach(item => uniqueSet.add(item));
+    } catch (e) {
+      processedString = s as string;
     }
 
+    if (processedString) {
+      const split = processedString.split(',').map(x => x.trim()).filter(Boolean);
+      split.forEach(item => uniqueSet.add(item));
+    }
   }
 
   const arr = Array.from(uniqueSet);

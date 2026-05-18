@@ -813,7 +813,10 @@ export const professionCreateSchema = z
 
 export const healthSymptomsSchema = z
   .object({
-    symptoms: z.array(z.string().trim().min(1)).min(1),
+    symptoms: z.preprocess(
+      (val) => (typeof val === 'string' ? [val] : val),
+      z.array(z.string().trim().min(1)).min(1)
+    ),
   })
   .strict();
 

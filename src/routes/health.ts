@@ -39,7 +39,7 @@ export default async function healthRoutes(app: FastifyInstance) {
             properties: {
               id: { type: 'integer' },
               userId: { type: 'integer' },
-              symptoms: { type: 'array', items: { type: 'string' } },
+              symptoms: { type: 'string' },
               created_at: { type: 'string' },
             },
           },
@@ -53,12 +53,10 @@ export default async function healthRoutes(app: FastifyInstance) {
         const { symptoms } = validateData(healthSymptomsSchema, req.body ?? {});
 
         const entry = await healthService.addSymptomEntry(req.user.id, symptoms);
-        return reply.status(201).send('Symptom added successfully');
+        return reply.status(201).send(entry);
       } catch (err: any) {
         req.log.error(err);
-        console.log(err);
-
-        return reply.status(500).send({ error: 'Failed to create symptom entry' });
+        throw err;
       }
     }
   );
@@ -88,9 +86,11 @@ export default async function healthRoutes(app: FastifyInstance) {
             },
           },
           select: {
-
+            id: true,
+            userId: true,
             symptoms: true,
             created_at: true,
+            updated_at: true,
           },
 
           orderBy: {
@@ -98,13 +98,37 @@ export default async function healthRoutes(app: FastifyInstance) {
           },
         });
 
+        const transformedRecords = records.map(r => {
+          let symptomsString = '';
+          if (r.symptoms) {
+            try {
+              if (r.symptoms.startsWith('[') || r.symptoms.startsWith('{') || r.symptoms.startsWith('"')) {
+                const parsed = JSON.parse(r.symptoms);
+                if (Array.isArray(parsed)) {
+                  symptomsString = parsed.join(',');
+                } else {
+                  symptomsString = String(parsed);
+                }
+              } else {
+                symptomsString = r.symptoms;
+              }
+            } catch (e) {
+              symptomsString = r.symptoms;
+            }
+          }
+          return {
+            ...r,
+            symptoms: symptomsString
+          };
+        });
+
         return reply.send({
           count: records.length,
-          data: records,
+          data: transformedRecords,
         });
       } catch (err) {
         request.log.error(err);
-        return reply.status(500).send({ error: 'Internal Server Error' });
+        throw err;
       }
     });
 }
